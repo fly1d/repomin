@@ -634,15 +634,15 @@ Composer dependency resolution remains an explicit user command and the
 complete oracle decides whether each structural removal is accepted.
 
 The MSBuild manifest reducer scans non-symlinked `.csproj`, `.fsproj`, and
-`.vbproj` files with the standard XML parser. It exposes `PackageReference`,
-`ProjectReference`, `FrameworkReference`, `Compile`, `EmbeddedResource`,
-`Content`, and `None` items with an `Include` attribute as identity- and
-content-hashed targets. It leaves property groups, imports, conditions,
-arbitrary metadata, and lockfiles untouched. A target is removed only after its
-current XML subtree hash and ordinal match the discovered identity; XML parse
-or stale-identity failures are fail-closed. Documents containing `DOCTYPE` or
-`ENTITY` declarations are rejected before parsing to avoid expanding untrusted
-XML entities.
+`.vbproj` project files plus non-symlinked `Directory.Build.props` files with
+the hardened XML parser. It exposes `PackageReference`, `ProjectReference`,
+`FrameworkReference`, `Compile`, `EmbeddedResource`, `Content`, and `None` items
+with an `Include` attribute as identity- and content-hashed targets. It leaves
+property groups, imports, conditions, arbitrary metadata, and lockfiles
+untouched. A target is removed only after its current XML subtree hash and
+ordinal match the discovered identity; XML parse or stale-identity failures are
+fail-closed. Documents containing `DOCTYPE` or `ENTITY` declarations are
+rejected before parsing to avoid expanding untrusted XML entities.
 
 The Ruby manifest reducer scans non-symlinked `Gemfile`, `gems.rb`, and
 `Gemfile.*` files except `Gemfile.lock`. It exposes only complete, single-line

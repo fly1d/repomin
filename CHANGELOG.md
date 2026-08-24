@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Shared `Directory.Build.props` reduction in the MSBuild adapter, reusing the
+  hardened XML parser and stable subtree identity used for project files, with
+  property groups, imports, conditions, and arbitrary metadata preserved.
+- A network-free `dotnet-directory-build-props` benchmark and MSBuild adapter
+  documentation coverage.
 - Structured Pipenv `Pipfile` reduction for direct runtime, development, and
   interpreter requirement entries, with source settings and `Pipfile.lock`
   deliberately preserved.

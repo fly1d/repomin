@@ -50,6 +50,11 @@ requires selected package/project references and the target framework while
 allowing unrelated item entries to disappear. See
 `benchmarks/dotnet-project/README.md`.
 
+`dotnet-directory-build-props` is an MSBuild `Directory.Build.props` fixture. Its
+offline Python oracle requires selected shared package/project references and the
+target framework while allowing unrelated shared item entries to disappear. See
+`benchmarks/dotnet-directory-build-props/README.md`.
+
 `ruby-gemfile` is a network-free Bundler `Gemfile` fixture. Its Ruby oracle
 requires one gem declaration while allowing unrelated complete single-line
 declarations to disappear. See `benchmarks/ruby-gemfile/README.md`.

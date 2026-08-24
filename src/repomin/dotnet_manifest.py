@@ -38,7 +38,7 @@ class DotnetManifestReducer:
         self.session = session
 
     def is_applicable(self) -> bool:
-        return bool(_project_files(self.session.current))
+        return bool(_reducible_files(self.session.current))
 
     def reduce(self) -> bool:
         with self.session.measure_phase("dotnet-manifest"):
@@ -56,9 +56,16 @@ class DotnetManifestReducer:
             return self.session.stats.accepted > accepted_before
 
 
-def _project_files(root: Path) -> List[Path]:
+def _reducible_files(root: Path) -> List[Path]:
+    """Discover MSBuild project files plus shared `Directory.Build.props`.
+
+    Only regular, non-symlink files are eligible so a symlinked manifest
+    cannot redirect mutation outside the private reduction tree. The
+    `Directory.Build.props` basename is matched exactly so unrelated *.props
+    style files do not enter the mutation set.
+    """
     paths = []
-    for pattern in ("*.csproj", "*.fsproj", "*.vbproj"):
+    for pattern in ("*.csproj", "*.fsproj", "*.vbproj", "Directory.Build.props"):
         paths.extend(
             path
             for path in root.rglob(pattern)
@@ -70,7 +77,7 @@ def _project_files(root: Path) -> List[Path]:
 def _discover_targets(root: Path) -> List[DotnetManifestTarget]:
     root = root.resolve()
     targets: List[DotnetManifestTarget] = []
-    for path in _project_files(root):
+    for path in _reducible_files(root):
         try:
             document = _parse_project(path)
         except (ET.ParseError, OSError):

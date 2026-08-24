@@ -786,9 +786,10 @@ an environment configuration error and no oracle sample is accepted from it.
    `composer.json`. Autoload, arbitrary extra metadata, and `composer.lock`
    remain untouched.
 7. For .NET projects, structurally reduce selected MSBuild item entries in
-   `.csproj`, `.fsproj`, and `.vbproj` files, including package, project, and
-   framework references plus content items. Property groups, imports, and
-   arbitrary build metadata remain untouched.
+   `.csproj`, `.fsproj`, and `.vbproj` files plus shared `Directory.Build.props`
+   files, including package, project, and framework references plus content
+   items. Property groups, imports, and arbitrary build metadata remain
+   untouched.
 8. For Ruby/Bundler projects, structurally reduce complete single-line `gem`
    declarations in `Gemfile`, `gems.rb`, and `Gemfile.*` manifests. Multiline
    Ruby calls, arbitrary Ruby code, and `Gemfile.lock` remain untouched.
@@ -883,7 +884,8 @@ hard-interrupted active pass is classified as aborted when it is restored.
 - Structured manifest adapters currently support Maven, Gradle, Python and
   Pipenv,
   npm-compatible `package.json` files, Composer `composer.json` files, MSBuild
-  project files, Ruby/Bundler Gemfiles, Cargo manifests, and Go
+  project files and shared `Directory.Build.props` files, Ruby/Bundler Gemfiles,
+  Cargo manifests, and Go
   module/workspace manifests. Node lockfiles, `composer.lock`, `Gemfile.lock`,
   `Cargo.lock`, `Pipfile.lock`, and `go.sum` are intentionally not rewritten by
   their adapters.

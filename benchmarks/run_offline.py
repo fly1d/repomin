@@ -295,6 +295,7 @@ def main() -> int:
         ("pipenv-package", lambda: _check_manifest("pipenv-package", "pipenv", ["python3", "reproduce.py"], "Pipfile", ("required-package",), ("unused-package", "unused-test"))),
         ("composer-package", lambda: _check_manifest("composer-package", "composer", ["python3", "reproduce.py"], "composer.json", ("repomin/required", "autoload", "psr-4"))),
         ("dotnet-project", lambda: _check_manifest("dotnet-project", "dotnet", ["python3", "reproduce.py"], "fixture.csproj", ("PackageReference", "ProjectReference", "TargetFramework"))),
+        ("dotnet-directory-build-props", lambda: _check_manifest("dotnet-directory-build-props", "dotnet", ["python3", "reproduce.py"], "Directory.Build.props", ("PackageReference", "ProjectReference", "TargetFramework"))),
         ("ruby-gemfile", lambda: _check_manifest("ruby-gemfile", "ruby", ["ruby", "reproduce.rb"], "Gemfile", ("repomin-required",))),
         ("cargo-workspace", _check_cargo_workspace),
         ("go-module", _check_go_module),

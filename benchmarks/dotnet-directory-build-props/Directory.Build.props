@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Repomin.Shared.Required" Version="1.0.0" />
+    <PackageReference Include="Repomin.Shared.Unused" Version="2.0.0" />
+    <ProjectReference Include="../required/Required.csproj" />
+    <ProjectReference Include="../unused/Unused.csproj" />
+  </ItemGroup>
+  <Import Project="$(CustomTargets)" Condition="Exists('$(CustomTargets)')" />
+</Project>
