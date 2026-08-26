@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A runnable, network-free Go module reduction workflow in the examples guide,
+  including its oracle output and expected minimized payload.
 - GitHub issue configuration, a usage-question template, a benchmark proposal
   template, and a support guide to make community reports and first
   contributions easier to start.

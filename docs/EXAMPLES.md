@@ -74,6 +74,43 @@ repomin . \
 Only direct entries in `[packages]`, `[dev-packages]`, and `[requires]` are
 eligible. Pipenv source settings and `Pipfile.lock` are preserved.
 
+## Shrink a Go module without network access
+
+From a clean repository checkout, run the existing Go module fixture with the
+module proxy disabled:
+
+```sh
+out_parent="$(mktemp -d /tmp/repomin-go-module.XXXXXX)"
+PYTHONPATH=src python3 -m repomin benchmarks/go-module \
+  --command 'GOPROXY=off go run .' \
+  --match 'ORIGINAL_FAILURE' \
+  --adapter go \
+  --source-reducer none \
+  --output "$out_parent/result"
+```
+
+The fixture is self-contained and does not use the network, but it requires a
+local Go toolchain. Its oracle exits non-zero and prints output containing:
+
+```text
+panic: ORIGINAL_FAILURE
+```
+
+The minimized payload contains four files:
+
+```text
+go.mod
+main.go
+required/go.mod
+required/required.go
+```
+
+The required local module and its `replace` directive remain in `go.mod`.
+The unused module, its replacement, and unrelated `exclude` and `retract`
+directives are removed. See the [fixture notes](../benchmarks/go-module/README.md)
+for the oracle contract and the [reducer architecture](ARCHITECTURE.md#reducers)
+for the Go adapter's supported directives and preservation boundaries.
+
 ## Shrink a data file's contents with `--text-file`
 
 Add a data file whose oracle only needs one line:
