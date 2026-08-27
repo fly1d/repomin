@@ -215,6 +215,38 @@ directives are removed. See the [fixture notes](../benchmarks/go-module/README.m
 for the oracle contract and the [reducer architecture](ARCHITECTURE.md#reducers)
 for the Go adapter's supported directives and preservation boundaries.
 
+## Shrink a Gradle multimodule build without network access
+
+The repository includes a Kotlin-DSL Gradle fixture (`benchmarks/gradle-multimodule/`)
+with an unrelated subproject, a dependency declaration, removable plugins,
+properties, a resource, and documentation. Its task fails without resolving
+external dependencies, so it runs with the Docker backend's default network
+isolation.
+
+**Required tools:** JDK 17 and Docker (the fixture uses the `gradle:8.10.2-jdk17`
+image, which must already be present locally — ReproMin never pulls an image
+automatically). No local Gradle installation is needed because the command runs
+inside the container.
+
+```sh
+docker pull gradle:8.10.2-jdk17
+
+PYTHONPATH=src python3 -m repomin benchmarks/gradle-multimodule   --command 'gradle --no-daemon -q :app:reproduceFailure --stacktrace'   --match 'NoSuchMethodError'   --backend docker   --docker-image gradle:8.10.2-jdk17   --jobs 4   --output /tmp/repomin-gradle-result   --verbose
+```
+
+The reduced build must still fail with `NoSuchMethodError`. The unrelated
+module, the unused dependency declaration, removable plugins and properties,
+the resource, and the documentation are all removed. Validate the report
+without rerunning the reducer:
+
+```sh
+PYTHONPATH=src python3 -m repomin report validate   /tmp/repomin-gradle-result.repomin/report.json   --payload /tmp/repomin-gradle-result --json
+```
+
+Trust boundary: the command runs in Docker with networking disabled by default,
+but Docker reduces exposure rather than being a complete security boundary —
+see [SECURITY.md](../SECURITY.md) before running an untrusted command.
+
 ## Shrink a data file's contents with `--text-file`
 
 Add a data file whose oracle only needs one line:
