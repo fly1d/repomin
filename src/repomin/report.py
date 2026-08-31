@@ -214,6 +214,7 @@ def validate_report_document(report: object) -> Dict[str, object]:
 
     holdout = _require_object(report, "holdout_certification")
     _validate_optional_schema_version(holdout, "holdout_certification")
+    holdout_schema_version = holdout.get("schema_version")
     status = _require_text(holdout, "status", non_empty=True)
     allowed_statuses = {
         "not_requested",
@@ -252,6 +253,21 @@ def validate_report_document(report: object) -> Dict[str, object]:
         raise ReportValidationError(
             "holdout terminal statistics must be complete when present"
         )
+    if status == "certified" and holdout_schema_version == 1:
+        missing_terminal = [
+            name
+            for name in terminal_fields
+            if name not in holdout or holdout[name] is None
+        ]
+        if missing_terminal:
+            raise ReportValidationError(
+                "certified holdout terminal statistics are incomplete: %s"
+                % ", ".join(missing_terminal)
+            )
+        if planned < 1 or completed != planned:
+            raise ReportValidationError(
+                "certified holdout must complete all planned runs"
+            )
     minimum_rate = _require_optional_probability(
         holdout, "minimum_rate", "holdout_certification"
     )
@@ -397,6 +413,23 @@ def validate_report_document(report: object) -> Dict[str, object]:
                     raise ReportValidationError(
                         "%s outcome does not match evidence" % context
                     )
+    if "ordinary_failures" in holdout:
+        ordinary_failures = _require_nonnegative_int(
+            holdout, "ordinary_failures", "holdout_certification"
+        )
+        if ordinary_failures > completed:
+            raise ReportValidationError(
+                "holdout_certification.ordinary_failures exceeds completed_runs"
+            )
+        if not all("outcome" in sample for sample in samples):
+            raise ReportValidationError(
+                "holdout ordinary_failures requires outcomes for every sample"
+            )
+        observed = sum(sample.get("outcome") == "failed" for sample in samples)
+        if ordinary_failures != observed:
+            raise ReportValidationError(
+                "holdout ordinary failures count does not match samples"
+            )
     aggregate_fields = (
         ("timed_out_runs", "timed_out", "timed out"),
         ("resource_exhausted_runs", "resource_exhausted", "resource exhausted"),

@@ -119,9 +119,13 @@ When the aggregate timeout, resource-exhaustion, or interruption counters are
 present alongside complete sample fields, they must equal the corresponding
 sample counts and cannot exceed `completed_runs`.
 
-Terminal holdout statistics are an all-or-none group when present. The
-`observed_rate` must equal `passes / planned_runs`, confidence must be in
-`(0, 1)`, and the exact gate result must be boolean.
+Terminal holdout statistics are an all-or-none group when present. Modern
+reports (`holdout_certification.schema_version: 1`) with status `certified`
+must include the complete terminal group and must have completed every planned
+run. The `observed_rate` must equal `passes / planned_runs`, confidence must be
+in `(0, 1)`, and the exact gate result must be boolean. When the optional
+`ordinary_failures` aggregate is present, it must equal the number of samples
+whose outcome is `failed`.
 
 ## Events and signatures
 

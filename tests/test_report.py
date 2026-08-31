@@ -478,6 +478,61 @@ class ReportValidationTest(unittest.TestCase):
         with self.assertRaisesRegex(ReportValidationError, "terminal statistics"):
             validate_report_document(report)
 
+    def test_modern_certified_holdout_requires_terminal_statistics(self) -> None:
+        report = _report()
+        holdout = report["holdout_certification"]
+        holdout.update(
+            {
+                "schema_version": 1,
+                "status": "certified",
+                "planned_runs": 1,
+                "completed_runs": 1,
+                "passes": 1,
+                "samples": [{"index": 1, "accepted": True}],
+                "artifact_fingerprint": "a" * 64,
+            }
+        )
+        with self.assertRaisesRegex(ReportValidationError, "terminal statistics"):
+            validate_report_document(report)
+
+        holdout.update(
+            {
+                "minimum_rate": 0.9,
+                "confidence": 0.95,
+                "required_passes": 1,
+                "observed_rate": 1.0,
+                "exact_lower_bound": 0.05,
+                "exact_p_value": 0.9,
+                "exact_rate_gate_passed": True,
+            }
+        )
+        self.assertIs(validate_report_document(report), report)
+
+    def test_rejects_ordinary_failure_aggregate_drift(self) -> None:
+        report = _report()
+        holdout = report["holdout_certification"]
+        holdout.update(
+            {
+                "status": "not_certified",
+                "planned_runs": 1,
+                "completed_runs": 1,
+                "passes": 0,
+                "ordinary_failures": 0,
+                "samples": [
+                    {
+                        "index": 1,
+                        "outcome": "failed",
+                        "accepted": False,
+                    }
+                ],
+            }
+        )
+        with self.assertRaisesRegex(ReportValidationError, "ordinary failures"):
+            validate_report_document(report)
+
+        holdout["ordinary_failures"] = 1
+        self.assertIs(validate_report_document(report), report)
+
     def test_validates_certified_payload_fingerprint(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

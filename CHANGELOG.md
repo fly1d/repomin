@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cleanup, and fingerprint operations.
 - Gradle reduction examples now provide the required property explicitly, run
   offline, and keep Docker verification paths on a daemon-shared filesystem.
+- Report validation now rejects incomplete modern certified holdout evidence
+  and checks the optional ordinary-failure aggregate against its samples.
 
 ### Changed
 
