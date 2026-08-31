@@ -6,16 +6,15 @@ and follow [CONTRIBUTING.md](../CONTRIBUTING.md) for tests and documentation.
 
 ## Ready to claim
 
-These issues are intentionally small and have explicit acceptance criteria:
+There are currently no unassigned implementation or documentation starter
+issues. Completed tasks are removed from this section so contributors do not
+start work against a closed issue.
 
-- [Add a runnable Java and Gradle reduction example](https://github.com/fly1d/repomin/issues/12)
-  - documentation-first; demonstrates a complete structured reduction and its
-    report validation boundary.
-
-The [real CI failure pilot](https://github.com/fly1d/repomin/issues/11) is also
-open for users who have a sanitized workflow to share. Check the repository's
-[open issues](https://github.com/fly1d/repomin/issues) for newly proposed work,
-or use the [issue template chooser](https://github.com/fly1d/repomin/issues/new/choose)
+The [real CI failure pilot](https://github.com/fly1d/repomin/issues/11) is still
+open for users who have a sanitized workflow to share. This is a feedback and
+fixture-discovery contribution rather than a reserved code task. Check the
+repository's [open issues](https://github.com/fly1d/repomin/issues) for newly
+proposed work, or use the [issue template chooser](https://github.com/fly1d/repomin/issues/new/choose)
 to suggest a focused contribution.
 
 ## Claim and submit
@@ -37,9 +36,6 @@ Use this short loop for a starter issue:
    longer available, choose another issue from the [open issue
    list](https://github.com/fly1d/repomin/issues) instead of starting parallel
    work.
-
-Completed tasks are removed from this page so contributors do not begin stale
-work.
 
 ## Proposing another starter task
 
