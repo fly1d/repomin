@@ -6,9 +6,15 @@ and follow [CONTRIBUTING.md](../CONTRIBUTING.md) for tests and documentation.
 
 ## Ready to claim
 
-There are currently no unassigned implementation or documentation starter
-issues. Completed tasks are removed from this section so contributors do not
-start work against a closed issue.
+The following issue is currently unassigned and has explicit acceptance
+criteria:
+
+- [Add an end-to-end report replay benchmark](https://github.com/fly1d/repomin/issues/17)
+  - adds a small network-free fixture covering reduce, report validation,
+    fresh-copy replay, and a deliberate mismatch path.
+
+Completed tasks are removed from this section so contributors do not start
+work against a closed issue.
 
 The [real CI failure pilot](https://github.com/fly1d/repomin/issues/11) is still
 open for users who have a sanitized workflow to share. This is a feedback and
