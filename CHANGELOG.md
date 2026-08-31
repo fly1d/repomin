@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Explicit `--keep` paths now survive matching gitignore rules, including the
   parent directories needed to reach a kept file, throughout copy, reduction,
   cleanup, and fingerprint operations.
+- Gradle reduction examples now provide the required property explicitly, run
+  offline, and keep Docker verification paths on a daemon-shared filesystem.
 
 ## [0.1.0.dev5] - 2026-08-31
 
@@ -234,4 +236,3 @@ documentation.
 ## [0.1.0.dev0] - Unreleased
 
 Initial pre-alpha feasibility build.
-

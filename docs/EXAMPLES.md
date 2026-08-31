@@ -346,7 +346,8 @@ checkout:
 ```sh
 docker pull gradle:8.10.2-jdk17
 
-out_parent="$(mktemp -d /tmp/repomin-gradle.XXXXXX)"
+# Keep the result beside the checkout so Docker can bind-mount it.
+out_parent="$(mktemp -d "$PWD/.repomin-gradle.XXXXXX")"
 PYTHONPATH=src python3 -m repomin benchmarks/gradle-multimodule \
   --command 'gradle --offline --no-daemon -q -Prequired.flag=true :app:reproduceFailure --stacktrace' \
   --match 'NoSuchMethodError: demo\.Target\.missing\(\)' \
@@ -397,5 +398,6 @@ The command exits non-zero and includes `NoSuchMethodError: demo.Target.missing(
 If you use the host backend instead, you need a local JDK and Gradle
 installation and should run only trusted source trees. Docker lowers exposure
 but is not a complete security boundary: inspect [SECURITY.md](../SECURITY.md),
-ensure the source parent is shared with your Docker daemon, and do not run
-untrusted build scripts merely because they are containerized.
+ensure both the checkout and `out_parent` are on a path shared with your Docker
+daemon, and do not run untrusted build scripts merely because they are
+containerized.

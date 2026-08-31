@@ -411,11 +411,12 @@ Docker backend's default network isolation.
 docker pull gradle:8.10.2-jdk17
 
 PYTHONPATH=src python3 -m repomin benchmarks/gradle-multimodule \
-  --command 'gradle --no-daemon -q :app:reproduceFailure --stacktrace' \
-  --match 'NoSuchMethodError' \
+  --command 'gradle --offline --no-daemon -q -Prequired.flag=true :app:reproduceFailure --stacktrace' \
+  --match 'NoSuchMethodError: demo\.Target\.missing\(\)' \
   --backend docker \
   --docker-image gradle:8.10.2-jdk17 \
-  --jobs 4 \
+  --docker-network none \
+  --jobs 1 \
   --output /tmp/repomin-gradle-result \
   --verbose
 ```
