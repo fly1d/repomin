@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gradle reduction examples now provide the required property explicitly, run
   offline, and keep Docker verification paths on a daemon-shared filesystem.
 
+### Changed
+
+- The starter-contribution page now links only to open, unassigned work and
+  labels the real-failure pilot as a feedback and fixture-discovery path.
+
 ## [0.1.0.dev5] - 2026-08-31
 
 ### Added
