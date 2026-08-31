@@ -76,6 +76,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   omitted, so the default `source: .` workflow does not place reducer output
   inside the repository. It also exposes metadata-path and source/output byte
   counts for downstream CI checks.
+- Added a network-free Gradle reduction example to the runnable examples docs,
+  showing the failure oracle, minimized payload, and report validation flow for
+  a local Java/Gradle fixture.
 
 ### Changed
 
@@ -231,3 +234,4 @@ documentation.
 ## [0.1.0.dev0] - Unreleased
 
 Initial pre-alpha feasibility build.
+

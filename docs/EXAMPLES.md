@@ -329,3 +329,73 @@ semantic mutation. This fixture does not contact a model or external network.
 For a real local or self-hosted endpoint, see
 [LLM_REDUCTION.md](LLM_REDUCTION.md) and keep the feature disabled unless the
 endpoint and token handling are understood.
+
+## Shrink a Gradle multi-module build without network access
+
+The repository includes a local-only Kotlin DSL fixture with an unrelated
+subproject, dependency declaration, resource, and documentation. Its
+`reproduceFailure` task intentionally throws `NoSuchMethodError` after checking
+one project property. The property is supplied on the command line so the
+reducer can remove `gradle.properties` without changing the failure into the
+fixture's `DIFFERENT_FAILURE` case.
+
+The Docker backend keeps the example network-free and avoids requiring a host
+Gradle installation. Pull the image once, then run the fixture from a clean
+checkout:
+
+```sh
+docker pull gradle:8.10.2-jdk17
+
+out_parent="$(mktemp -d /tmp/repomin-gradle.XXXXXX)"
+PYTHONPATH=src python3 -m repomin benchmarks/gradle-multimodule \
+  --command 'gradle --offline --no-daemon -q -Prequired.flag=true :app:reproduceFailure --stacktrace' \
+  --match 'NoSuchMethodError: demo\.Target\.missing\(\)' \
+  --backend docker \
+  --docker-image gradle:8.10.2-jdk17 \
+  --docker-network none \
+  --adapter gradle \
+  --source-reducer none \
+  --output "$out_parent/result"
+```
+
+The minimized payload contains exactly these two files:
+
+```text
+app/build.gradle.kts
+settings.gradle.kts
+```
+
+Check the file list and validate the report before running the payload again
+(a Gradle run may create a `.gradle` project cache and change its fingerprint):
+
+```sh
+find "$out_parent/result" -type f -print \
+  | sed "s#^$out_parent/result/##" | sort
+
+PYTHONPATH=src python3 -m repomin report validate \
+  "$out_parent/result.repomin/report.json" \
+  --payload "$out_parent/result" --json
+```
+
+The report records the pinned Docker image ID and `network: "none"`, along
+with the accepted Gradle and file mutations. To reproduce the final failure
+without changing the validated payload, mount it read-only and keep Gradle's
+user and project caches outside the payload:
+
+```sh
+docker run --rm --network none \
+  -v "$out_parent/result:/workspace:ro" \
+  -w /workspace \
+  gradle:8.10.2-jdk17 \
+  gradle --offline --no-daemon \
+    --gradle-user-home /tmp/gradle-home \
+    --project-cache-dir /tmp/gradle-project-cache \
+    -q -Prequired.flag=true :app:reproduceFailure --stacktrace
+```
+
+The command exits non-zero and includes `NoSuchMethodError: demo.Target.missing()`.
+If you use the host backend instead, you need a local JDK and Gradle
+installation and should run only trusted source trees. Docker lowers exposure
+but is not a complete security boundary: inspect [SECURITY.md](../SECURITY.md),
+ensure the source parent is shared with your Docker daemon, and do not run
+untrusted build scripts merely because they are containerized.
