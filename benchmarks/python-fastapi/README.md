@@ -24,9 +24,30 @@ PYTHONPATH=src python3 -m repomin benchmarks/python-fastapi \
   --output /tmp/repomin-fastapi-result
 ```
 
-The exported payload should retain the application, the test that exercises
-`/checkout/42`, `pyproject.toml`, `requirements.txt`, and
-`requirements/runtime.txt`, while removing the unrelated test and dependency
-entries. The evidence is written to the sibling
-`/tmp/repomin-fastapi-result.repomin` directory. Review [SECURITY.md](../../SECURITY.md)
-before using the host backend or a Docker image built from untrusted input.
+The output directory must be outside this source fixture. The exported payload
+should contain exactly:
+
+```text
+app/main.py
+pyproject.toml
+requirements.txt
+requirements/runtime.txt
+tests/test_regression.py
+```
+
+Validate the report and payload fingerprint without executing the recorded
+command again:
+
+```sh
+PYTHONPATH=src python3 -m repomin report validate \
+  /tmp/repomin-fastapi-result.repomin/report.json \
+  --payload /tmp/repomin-fastapi-result --json
+```
+
+The image must be built locally first; ReproMin never pulls it. The workflow is
+network-free after the image build, requires a local Docker daemon, and uses
+Docker networking `none` by default. Docker is defense in depth rather than a
+complete security boundary. The report is evidence for the configured failure
+oracle, not a correctness or production-reliability guarantee. Review
+[SECURITY.md](../../SECURITY.md) before using the host backend or an image built
+from untrusted input.

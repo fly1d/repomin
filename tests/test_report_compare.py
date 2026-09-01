@@ -8,6 +8,7 @@ from pathlib import Path
 from repomin.cli import main
 from repomin.report_compare import (
     ReportComparisonError,
+    _safe_error,
     compare_reports,
     render_comparison_markdown,
     render_comparison_text,
@@ -385,6 +386,36 @@ class ReportCompareTest(unittest.TestCase):
 
         self.assertNotIn(str(invalid), str(raised.exception))
         self.assertIn("report 1", str(raised.exception))
+
+    def test_short_basename_does_not_corrupt_read_error_diagnostic(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with self.assertRaises(ReportComparisonError) as raised:
+                compare_reports([root / "a", root / "b"])
+
+        self.assertEqual("report 1: report could not be read", str(raised.exception))
+
+    def test_path_redaction_is_single_pass_for_word_like_basename(self) -> None:
+        message = _safe_error(
+            1,
+            Path("/tmp/report"),
+            ValueError("invalid report /tmp/report: private"),
+        )
+
+        self.assertEqual("report 1: invalid report input report 1: private", message)
+
+    def test_path_redaction_handles_basename_inside_unknown_path(self) -> None:
+        message = _safe_error(
+            1,
+            Path("foo.txt"),
+            ValueError("invalid report /other/foo.txt: private"),
+        )
+
+        self.assertNotIn("foo.txt", message)
+        self.assertEqual(
+            "report 1: invalid report /other/input report 1: private",
+            message,
+        )
 
     def test_validation_errors_redact_dynamic_values_and_malicious_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

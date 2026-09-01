@@ -333,12 +333,33 @@ PYTHONPATH=src python3 -m repomin benchmarks/python-fastapi \
   --output /tmp/repomin-fastapi-example
 ```
 
-The reduced project keeps the route regression and the dependency declarations
-that cause it, while dropping unrelated test and manifest entries. The report
-is in `/tmp/repomin-fastapi-example.repomin/report.json`; the Docker image must
-already be available locally and Docker networking is disabled by default.
-See [the fixture notes](../benchmarks/python-fastapi/README.md) for its oracle
-contract and expected payload.
+The output path is outside the source fixture, and the reduced project should
+contain exactly these files:
+
+```text
+app/main.py
+pyproject.toml
+requirements.txt
+requirements/runtime.txt
+tests/test_regression.py
+```
+
+Validate the exported payload and its sidecar without running the failure
+command again:
+
+```sh
+PYTHONPATH=src python3 -m repomin report validate \
+  /tmp/repomin-fastapi-example.repomin/report.json \
+  --payload /tmp/repomin-fastapi-example --json
+```
+
+The fixture keeps the route regression and the dependency declarations that
+cause it while dropping unrelated test and manifest entries. It is network-free
+after the image is built, requires a local Docker daemon, and Docker networking
+is disabled by default. Docker reduces exposure but is not a complete security
+boundary; the result is evidence for this configured oracle, not a correctness
+or production-reliability guarantee. See [the fixture notes](../benchmarks/python-fastapi/README.md)
+for the full contract.
 
 ## Exercise the semantic reducer with a local stub
 

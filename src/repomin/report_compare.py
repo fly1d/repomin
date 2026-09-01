@@ -559,22 +559,64 @@ def _safe_error(index: int, path: Path, error: BaseException) -> str:
         "payload is not a directory",
         "payload size differs from report",
     )
+    dynamic_message = False
     for prefix in dynamic_prefixes:
         if message.startswith(prefix):
             message = prefix
+            dynamic_message = True
             break
     else:
         unknown_marker = " has unknown outcome:"
         if unknown_marker in message:
             message = message.split(unknown_marker, 1)[0] + " has unknown outcome"
-    path_candidates = [str(path), str(path.absolute()), path.name]
-    try:
-        path_candidates.append(str(path.resolve()))
-    except (OSError, RuntimeError):
-        pass
-    for path_text in path_candidates:
-        if path_text:
-            message = message.replace(path_text, "input report %d" % index)
+            dynamic_message = True
+    if not dynamic_message:
+        path_candidates = {
+            str(path),
+            str(path.absolute()),
+            path.name,
+        }
+        try:
+            path_candidates.add(str(path.resolve()))
+        except (OSError, RuntimeError):
+            pass
+        # Replace complete path spellings first, then redact a basename that
+        # appears inside an otherwise unknown path.  A private marker protects
+        # the first replacement from a second pass when the basename is itself
+        # a word such as ``report``.
+        full_paths = sorted(
+            (
+                candidate
+                for candidate in path_candidates
+                if candidate
+                and candidate != path.name
+                and ("/" in candidate or "\\" in candidate)
+            ),
+            key=lambda candidate: (-len(candidate), candidate),
+        )
+        marker = "\x00REPOMIN_PATH_%d\x00" % index
+        while marker in message:
+            marker += "_"
+        full_path_replaced = False
+        if full_paths:
+            before = message
+            message = re.sub(
+                "|".join(re.escape(candidate) for candidate in full_paths),
+                marker,
+                message,
+            )
+            full_path_replaced = message != before
+        if path.name and not full_path_replaced:
+            # A separator immediately before the basename identifies a path
+            # segment without turning a short name such as ``a`` into a match
+            # inside ordinary prose such as ``read``.  The word-boundary form
+            # also covers a bare relative filename when the error quotes it.
+            basename_pattern = (
+                r"(?:(?<=[/\\])|(?<![\w/\\]))%s(?!\w)"
+                % re.escape(path.name)
+            )
+            message = re.sub(basename_pattern, marker, message)
+        message = message.replace(marker, "input report %d" % index)
     if not message:
         return "validation failed"
     if len(message) > 240:

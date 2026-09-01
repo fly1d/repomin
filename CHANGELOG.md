@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Changed
+
+- The FastAPI/Docker pilot documentation now includes the exact reduced payload,
+  a `report validate --payload` check, and the Docker/network evidence boundary.
+
+### Fixed
+
+- `repomin report compare` now redacts malformed-report paths without allowing
+  short or word-like basenames to corrupt the diagnostic text or recursively
+  alter its replacement marker.
 
 ## [0.1.0.dev9] - 2026-09-01
 
