@@ -48,6 +48,10 @@ include benchmarks/ruby-gemfile/README.md
 include benchmarks/text-lines/reproduce.py
 include benchmarks/text-lines/data.txt
 include benchmarks/text-lines/README.md
+include benchmarks/report-replay/reproduce.py
+include benchmarks/report-replay/required.txt
+include benchmarks/report-replay/noise.txt
+include benchmarks/report-replay/README.md
 include benchmarks/python-pyproject/pyproject.toml
 include benchmarks/python-pyproject/reproduce.py
 include benchmarks/python-pyproject/README.md

@@ -93,6 +93,36 @@ def _independent(
     )
 
 
+def _replay_cli(
+    report: Path,
+    payload: Path,
+    *,
+    runs: int = 1,
+) -> subprocess.CompletedProcess[str]:
+    """Run the public replay command without exposing command output."""
+    return subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "repomin",
+            "report",
+            "replay",
+            str(report),
+            "--payload",
+            str(payload),
+            "--runs",
+            str(runs),
+            "--yes",
+            "--json",
+        ],
+        cwd=str(ROOT),
+        env=_environment(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
@@ -221,6 +251,105 @@ def _check_text_lines() -> None:
         _require(
             "ORIGINAL_FAILURE" in run.stdout + run.stderr,
             "text-lines independent output lacked failure",
+        )
+
+
+def _check_report_replay() -> None:
+    """Exercise reduce, validate, fresh-copy replay, and a mismatch path."""
+    with _run_repomin(
+        "report-replay",
+        "none",
+        "python3 reproduce.py",
+        [
+            "--text-file",
+            "required.txt",
+            "--ignore",
+            "README.md",
+            "--ignore",
+            "noise.txt",
+        ],
+    ) as output:
+        files = {
+            path.relative_to(output).as_posix()
+            for path in output.rglob("*")
+            if path.is_file()
+        }
+        _require(
+            files == {"reproduce.py", "required.txt"},
+            "report-replay produced an unexpected file set: %s" % sorted(files),
+        )
+        _require(
+            (output / "required.txt").read_text(encoding="utf-8")
+            == "REPLAY_NEEDLE\n",
+            "report-replay did not reduce required.txt to the needle",
+        )
+        metadata = output.with_name(output.name + ".repomin")
+        report_path = metadata / "report.json"
+        replay = _replay_cli(report_path, output, runs=2)
+        _require(
+            replay.returncode == 0,
+            "report-replay replay failed with exit %d" % replay.returncode,
+        )
+        replay_evidence = json.loads(replay.stdout)
+        _require(replay_evidence.get("reproduced") is True, "replay did not reproduce")
+        _require(replay_evidence.get("passes") == 2, "replay did not run twice")
+        _require(
+            replay_evidence.get("fresh_repository_copy_per_run") is True,
+            "replay did not report fresh copies",
+        )
+        tampered_root = Path(tempfile.mkdtemp(prefix="repomin-replay-contract-"))
+        try:
+            changed_command = json.loads(report_path.read_text(encoding="utf-8"))
+            changed_command["command"] = "python3 reproduce.py --different"
+            changed_command_path = tampered_root / "changed-command.json"
+            changed_command_path.write_text(
+                json.dumps(changed_command),
+                encoding="utf-8",
+            )
+            mismatch = _replay_cli(changed_command_path, output)
+            _require(
+                mismatch.returncode == 1,
+                "changed failure path was not reported as a mismatch",
+            )
+            mismatch_evidence = json.loads(mismatch.stdout)
+            _require(
+                mismatch_evidence.get("reproduced") is False,
+                "changed failure contract was accepted",
+            )
+            _require(
+                mismatch_evidence["samples"][0]["mismatch_reason"] == "match",
+                "unexpected mismatch reason: %s"
+                % mismatch_evidence["samples"][0].get("mismatch_reason"),
+            )
+
+            changed_contract = json.loads(report_path.read_text(encoding="utf-8"))
+            changed_contract["failure_spec"]["match"] = "DIFFERENT_FAILURE"
+            changed_contract["failure_match"] = "DIFFERENT_FAILURE"
+            changed_contract_path = tampered_root / "changed-contract.json"
+            changed_contract_path.write_text(
+                json.dumps(changed_contract),
+                encoding="utf-8",
+            )
+            contract_mismatch = _replay_cli(changed_contract_path, output)
+            _require(
+                contract_mismatch.returncode == 1,
+                "changed failure contract was not reported as a mismatch",
+            )
+            contract_evidence = json.loads(contract_mismatch.stdout)
+            _require(
+                contract_evidence.get("reproduced") is False,
+                "changed failure contract was accepted",
+            )
+            _require(
+                contract_evidence["samples"][0]["mismatch_reason"] == "match",
+                "unexpected changed-contract reason: %s"
+                % contract_evidence["samples"][0].get("mismatch_reason"),
+            )
+        finally:
+            shutil.rmtree(tampered_root, ignore_errors=True)
+        _require(
+            not (output / ".replay-marker").exists(),
+            "replay marker leaked into the exported payload",
         )
 
 
@@ -430,6 +559,7 @@ def _checks() -> list[tuple[str, Callable[[], None]]]:
         ("input-controls-budget", _check_input_controls_budget),
         ("semantic-stub", _check_semantic_stub),
         ("text-lines", _check_text_lines),
+        ("report-replay", _check_report_replay),
         ("python-requirements", _check_python_requirements),
         (
             "python-pyproject",

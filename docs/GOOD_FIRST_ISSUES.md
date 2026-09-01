@@ -6,15 +6,17 @@ and follow [CONTRIBUTING.md](../CONTRIBUTING.md) for tests and documentation.
 
 ## Ready to claim
 
-The following issue is currently unassigned and has explicit acceptance
-criteria:
+There is no unassigned implementation issue at the moment. Completed tasks are
+removed from this section so contributors do not start work against a closed
+issue. New scoped tasks are added after their user workflow and acceptance
+criteria are ready.
+
+## Recently completed
 
 - [Add an end-to-end report replay benchmark](https://github.com/fly1d/repomin/issues/17)
-  - adds a small network-free fixture covering reduce, report validation,
-    fresh-copy replay, and a deliberate mismatch path.
-
-Completed tasks are removed from this section so contributors do not start
-work against a closed issue.
+  now ships as the `report-replay` offline check. Run
+  `python3 benchmarks/run_offline.py --only report-replay` when adding or
+  reviewing report workflows.
 
 The [real CI failure pilot](https://github.com/fly1d/repomin/issues/11) is still
 open for users who have a sanitized workflow to share. This is a feedback and

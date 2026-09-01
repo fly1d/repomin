@@ -49,6 +49,12 @@ the Python manifest reducer against a pinned FastAPI/pytest image and is
 documented in [its README](python-fastapi/README.md); it is intentionally kept
 outside the network-free runner.
 
+`report-replay` is a small end-to-end artifact check. It reduces a text-backed
+failure, validates the generated report, replays two fresh payload copies, and
+checks that a deliberate `DIFFERENT_FAILURE` command returns a mismatch rather
+than an invalid-replay error. See its
+[fixture README](report-replay/README.md).
+
 To compare several saved summaries, use the standard-library comparison tool:
 
 ```sh
