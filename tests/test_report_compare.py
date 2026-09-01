@@ -224,6 +224,109 @@ class ReportCompareTest(unittest.TestCase):
             self.assertNotIn(secret, text)
             self.assertNotIn(secret, markdown)
 
+    def test_input_selection_and_oracle_identity_are_compared_opaquely(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = _report()
+            second = _report()
+            first_match = "PRIVATE_REGEX_FIRST"
+            second_match = "PRIVATE_REGEX_SECOND"
+            first["failure_match"] = first_match
+            second["failure_match"] = second_match
+            for report, match, suffix in (
+                (first, first_match, "first"),
+                (second, second_match, "second"),
+            ):
+                report["failure_spec"] = {
+                    "schema_version": 1,
+                    "match": match,
+                    "exit_code": None,
+                    "java_exception": False,
+                    "python_exception": False,
+                    "process_failure": False,
+                }
+                report["execution"].update(
+                    {
+                        "ignored_names": ["PRIVATE_IGNORED_%s" % suffix],
+                        "ignored_paths": ["PRIVATE_PATH_%s/data" % suffix],
+                        "gitignore_files": ["PRIVATE_GITIGNORE_%s" % suffix],
+                        "gitignore_sha256": ("a" if suffix == "first" else "b") * 64,
+                        "gitignore_recursive": suffix == "second",
+                        "keep_paths": ["PRIVATE_KEEP_%s/important" % suffix],
+                        "text_files": ["PRIVATE_TEXT_%s.txt" % suffix],
+                    }
+                )
+            second["phase_statistics"]["phases"][0]["phase"] = "semantic"
+            first_path = _write_report(root, "first.json", first)
+            second_path = _write_report(root, "second.json", second)
+            result = compare_reports([first_path, second_path])
+            serialized = json.dumps(result, sort_keys=True)
+            text = render_comparison_text(result)
+            markdown = render_comparison_markdown(result)
+
+        self.assertIn("input selection and exclusion controls differ", result["context_warnings"])
+        self.assertIn(
+            "failure oracle configuration or identity differs",
+            result["context_warnings"],
+        )
+        self.assertIn("phase definitions differ", result["context_warnings"])
+        for secret in (
+            first_match,
+            second_match,
+            "PRIVATE_IGNORED_first",
+            "PRIVATE_IGNORED_second",
+            "PRIVATE_PATH_first",
+            "PRIVATE_PATH_second",
+            "PRIVATE_GITIGNORE_first",
+            "PRIVATE_GITIGNORE_second",
+            "PRIVATE_KEEP_first",
+            "PRIVATE_KEEP_second",
+            "PRIVATE_TEXT_first",
+            "PRIVATE_TEXT_second",
+        ):
+            self.assertNotIn(secret, serialized)
+            self.assertNotIn(secret, text)
+            self.assertNotIn(secret, markdown)
+
+    def test_exception_signature_changes_warn_even_when_oracle_mode_matches(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = _report()
+            second = _report()
+            for report, message in (
+                (first, "PRIVATE_EXCEPTION_FIRST"),
+                (second, "PRIVATE_EXCEPTION_SECOND"),
+            ):
+                report["failure_match"] = "EXCEPTION_MARKER"
+                report["failure_spec"] = {
+                    "schema_version": 1,
+                    "match": "EXCEPTION_MARKER",
+                    "exit_code": None,
+                    "java_exception": True,
+                    "python_exception": False,
+                    "process_failure": False,
+                }
+                report["java_exception_signature"] = {
+                    "class": "ValueError",
+                    "message": message,
+                    "frames": ["private-frame"],
+                }
+            paths = [
+                _write_report(root, "first.json", first),
+                _write_report(root, "second.json", second),
+            ]
+            result = compare_reports(paths)
+            serialized = json.dumps(result, sort_keys=True)
+
+        self.assertEqual("java_exception", result["runs"][0]["oracle_mode"])
+        self.assertEqual("java_exception", result["runs"][1]["oracle_mode"])
+        self.assertIn(
+            "failure oracle configuration or identity differs",
+            result["context_warnings"],
+        )
+        self.assertNotIn("PRIVATE_EXCEPTION_FIRST", serialized)
+        self.assertNotIn("PRIVATE_EXCEPTION_SECOND", serialized)
+
     def test_unavailable_version_provenance_is_warned_and_redacted(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -444,6 +547,32 @@ class ReportCompareTest(unittest.TestCase):
         self.assertEqual(2, one_exit)
         self.assertEqual("", one_output.getvalue())
         self.assertIn("at least two report paths", error.getvalue())
+
+    def test_cli_accepts_interleaved_report_paths_and_labels(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = _write_report(root, "first.json", _report())
+            second = _write_report(root, "second.json", _report())
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                exit_code = main(
+                    [
+                        "report",
+                        "compare",
+                        str(first),
+                        "--label",
+                        "before",
+                        str(second),
+                        "--label",
+                        "after",
+                        "--format",
+                        "json",
+                    ]
+                )
+
+        self.assertEqual(0, exit_code)
+        result = json.loads(output.getvalue())
+        self.assertEqual(["before", "after"], [run["label"] for run in result["runs"]])
 
 
 if __name__ == "__main__":

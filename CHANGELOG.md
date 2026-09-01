@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Documentation now distinguishes descriptive reduction-evidence comparisons
   from performance history, correctness claims, and causal conclusions.
+- Comparison warnings now cover private input-selection controls, phase
+  definitions, and oracle identity changes through opaque internal digests; the
+  CLI also accepts labels interspersed with report paths.
 
 ## [0.1.0.dev8] - 2026-09-01
 

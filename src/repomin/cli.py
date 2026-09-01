@@ -1770,7 +1770,14 @@ def _report_compare_command(argv: Sequence[str]) -> int:
         help="output format (default: text; markdown is privacy-safe)",
     )
     try:
-        args = parser.parse_args(list(argv))
+        # Allow labels to be placed between report paths as users naturally
+        # build a command incrementally.  This parser has no subparsers or
+        # positional optionals, so argparse's intermixed mode is sufficient.
+        parse_intermixed = getattr(parser, "parse_intermixed_args", None)
+        if parse_intermixed is None:
+            args = parser.parse_args(list(argv))
+        else:
+            args = parse_intermixed(list(argv))
         comparison = compare_reports(args.reports, labels=args.label)
     except (ReportComparisonError, OSError, ValueError) as exc:
         print("repomin report compare: %s" % exc, file=sys.stderr)

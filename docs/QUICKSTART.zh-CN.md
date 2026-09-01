@@ -121,8 +121,9 @@ repomin report compare \
 比较命令只读取并验证报告结构，不读取 payload、不执行报告中的 `command`，也不联网。
 输出有独立的 `comparison_schema_version`，并标记 `descriptive_only: true`；它只展示版本、
 后端、oracle 类型、缩减前后大小、保留比例、尝试/接受/缓存计数、预算、holdout、阶段覆盖率
-及相邻差值。若版本 provenance、后端、并发/超时、oracle、源大小、抽样或 holdout 配置发生变化，
-会列出上下文警告。
+及相邻差值。若版本 provenance、输入选择/排除、后端、并发/超时、oracle 身份、源大小、抽样或
+holdout 配置发生变化，会列出上下文警告。路径、正则和签名只通过内部不可逆摘要比较，不会写入
+比较结果。
 标签只用于显示，必须是短且唯一的 ASCII 标识。这个结果不是性能趋势、正确性证明或因果结论；
 性能历史请使用离线 benchmark 工具。
 

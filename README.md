@@ -667,9 +667,10 @@ command, and does not access the network. The JSON form has its own
 `comparison_schema_version` and `descriptive_only: true`; it reports only
 aggregate sizes, retention ratios, reduction counts, budget/holdout state,
 phase coverage, and adjacent numeric deltas. Context warnings call out changes
-such as version provenance, backend, jobs/timeout, oracle, source size,
-sampling, or holdout configuration. Labels only name rows for display and must
-be short unique ASCII identifiers. Use the
+such as version provenance, input selection, backend, jobs/timeout, oracle
+identity, source size, sampling, or holdout configuration. Private paths and
+oracle expressions are compared by opaque internal digests only. Labels only
+name rows for display and must be short unique ASCII identifiers. Use the
 offline benchmark tools for performance history; do not infer causality,
 correctness, or production reliability from this comparison.
 

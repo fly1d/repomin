@@ -260,13 +260,16 @@ Integer counters remain exact when their adjacent difference is within the
 comparison output bound; an excessively large difference is represented as
 `null` rather than expanding a shareable document without limit.
 
-Warnings cover unavailable or changed version provenance, source size, backend,
-jobs, timeout/cache and budget settings, semantic/container/environment and
-working-directory context, oracle mode, candidate/baseline sampling
-configuration, reduction strategy, holdout controls/policy/status, and phase
-coverage, including partial coverage or unavailable ratios. The comparison
+Warnings cover unavailable or changed version provenance, source size, input
+selection/exclusion controls, backend, jobs, timeout/cache and budget settings,
+semantic/container/environment and working-directory context, oracle mode or
+identity, candidate/baseline sampling configuration, reduction strategy,
+holdout controls/policy/status, and phase definitions/coverage, including
+partial coverage or unavailable ratios. Private fields are compared only by
+an internal opaque digest and are never copied into the result. The comparison
 intentionally excludes paths, commands, match expressions, logs, environment
 names/values, signatures, fingerprints, semantic endpoints, and phase timing.
+At most 32 reports can be compared in one invocation.
 Use `benchmarks/compare.py` or a dedicated benchmark system for performance
 history. Consumers should branch on `comparison_schema_version`, tolerate only
 documented additive fields, and preserve the `descriptive_only` boundary when

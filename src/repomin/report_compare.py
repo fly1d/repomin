@@ -52,6 +52,16 @@ _CATEGORICAL_FIELDS = (
     "phase_coverage",
 )
 
+_INPUT_SELECTION_FIELDS = (
+    "ignored_names",
+    "ignored_paths",
+    "gitignore_files",
+    "gitignore_sha256",
+    "gitignore_recursive",
+    "keep_paths",
+    "text_files",
+)
+
 
 class ReportComparisonError(ValueError):
     """Raised when reports cannot be compared safely."""
@@ -177,6 +187,64 @@ def _phase_coverage(report: Mapping[str, object]) -> str:
     return coverage
 
 
+def _phase_identity(report: Mapping[str, object]) -> object:
+    """Hash phase names without retaining arbitrary report text."""
+    phases = report["phase_statistics"]
+    assert isinstance(phases, Mapping)
+    items = phases["phases"]
+    assert isinstance(items, list)
+    names = [
+        item.get("phase") if isinstance(item, Mapping) else None
+        for item in items
+    ]
+    return _context_scalar(names)
+
+
+def _oracle_identity(report: Mapping[str, object]) -> object:
+    """Hash oracle configuration/evidence while keeping expressions private.
+
+    ``failure_spec`` identifies the configured mode and match/exit contract,
+    while exception/process modes also depend on their recorded signature.
+    Keep only those stable fields in the hashed value so an unrelated future
+    extension cannot create a spurious comparison warning.
+    """
+    spec = report.get("failure_spec")
+    if isinstance(spec, Mapping):
+        mode = _oracle_mode(report)
+        identity: Dict[str, object] = {
+            "mode": mode,
+            "failure_spec": {
+                name: spec.get(name)
+                for name in (
+                    "schema_version",
+                    "match",
+                    "exit_code",
+                    "java_exception",
+                    "python_exception",
+                    "process_failure",
+                )
+            },
+        }
+        signature_name = {
+            "java_exception": "java_exception_signature",
+            "python_exception": "python_exception_signature",
+            "process_failure": "process_failure_signature",
+        }.get(mode)
+        if signature_name is not None:
+            identity["signature"] = report.get(signature_name)
+    else:
+        # Legacy reports have no failure_spec. Include all recorded oracle
+        # evidence because it is the only stable identity available there.
+        identity = {
+            "mode": _oracle_mode(report),
+            "failure_match": report.get("failure_match"),
+            "java_exception_signature": report.get("java_exception_signature"),
+            "python_exception_signature": report.get("python_exception_signature"),
+            "process_failure_signature": report.get("process_failure_signature"),
+        }
+    return _context_scalar(identity)
+
+
 def _validate_labels(count: int, labels: Optional[Sequence[str]]) -> List[str]:
     if labels is None:
         return ["run-%d" % index for index in range(1, count + 1)]
@@ -213,6 +281,8 @@ def _row(
     assert isinstance(execution, Mapping)
     assert isinstance(holdout, Mapping)
     phase_coverage = _phase_coverage(report)
+    phase_identity = _phase_identity(report)
+    oracle_identity = _oracle_identity(report)
     source_files = source["files"]
     source_bytes = source["bytes"]
     output_files = output["files"]
@@ -245,6 +315,7 @@ def _row(
         "version_available": repomin_version is not None,
         "backend": execution["backend"],
         "oracle_mode": row["oracle_mode"],
+        "oracle_identity": oracle_identity,
         "source_files": source_files,
         "source_bytes": source_bytes,
         # These settings are part of the execution evidence but are kept out
@@ -271,6 +342,12 @@ def _row(
         "container_context": tuple(
             (name, _context_scalar(execution.get(name)))
             for name in ("image", "image_id", "network", "limits")
+        ),
+        "input_selection": _context_scalar(
+            {
+                name: execution.get(name)
+                for name in _INPUT_SELECTION_FIELDS
+            }
         ),
         "environment_context": (
             _context_scalar(execution.get("environment_names")),
@@ -306,6 +383,7 @@ def _row(
             holdout.get("fresh_repository_copy_per_run")
         ),
         "phase_coverage": phase_coverage,
+        "phase_identity": phase_identity,
         "ratio_missing": row["file_retention_ratio"] is None
         or row["byte_retention_ratio"] is None,
         "budget_exhausted": row["budget_exhausted"],
@@ -328,6 +406,8 @@ def _context_warnings(contexts: Sequence[Mapping[str, object]]) -> List[str]:
         warnings.append(
             "source sizes differ; retention ratios are descriptive and not directly comparable"
         )
+    if _values_differ(contexts, "input_selection"):
+        warnings.append("input selection and exclusion controls differ")
     if any(not context.get("version_available", False) for context in contexts):
         warnings.append(
             "ReproMin version provenance is unavailable for at least one report"
@@ -374,6 +454,8 @@ def _context_warnings(contexts: Sequence[Mapping[str, object]]) -> List[str]:
         warnings.append("at least one report exhausted an execution budget")
     if _values_differ(contexts, "oracle_mode"):
         warnings.append("failure oracle modes differ")
+    if _values_differ(contexts, "oracle_identity"):
+        warnings.append("failure oracle configuration or identity differs")
     sampling_keys = (
         "candidate_sampling_policy",
         "candidate_runs",
@@ -403,6 +485,8 @@ def _context_warnings(contexts: Sequence[Mapping[str, object]]) -> List[str]:
         warnings.append("holdout execution controls differ")
     if _values_differ(contexts, "phase_coverage"):
         warnings.append("phase statistics coverage differs")
+    if _values_differ(contexts, "phase_identity"):
+        warnings.append("phase definitions differ")
     if any(context.get("phase_coverage") == "partial" for context in contexts):
         warnings.append("at least one report has partial phase statistics")
     if any(context.get("ratio_missing") for context in contexts):
