@@ -7,13 +7,13 @@ in practice; a complete private repository is not required.
 ## Install the pilot build
 
 The replay and transport-fingerprint workflow described below is included in
-the `v0.1.0.dev5` pre-release. Install that wheel in an isolated environment
+the `v0.1.0.dev6` pre-release. Install that wheel in an isolated environment
 when you want a reproducible versioned pilot run:
 
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-REPOMIN_VERSION=0.1.0.dev5
+REPOMIN_VERSION=0.1.0.dev6
 python -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 python -m repomin --version
