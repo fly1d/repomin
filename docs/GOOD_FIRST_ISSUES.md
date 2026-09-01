@@ -6,10 +6,14 @@ and follow [CONTRIBUTING.md](../CONTRIBUTING.md) for tests and documentation.
 
 ## Ready to claim
 
-There is no unassigned implementation issue at the moment. Completed tasks are
-removed from this section so contributors do not start work against a closed
-issue. New scoped tasks are added after their user workflow and acceptance
-criteria are ready.
+- [Add a runnable FastAPI/Docker pilot example](https://github.com/fly1d/repomin/issues/19)
+  adds the existing Docker-oriented FastAPI fixture to the main examples guide.
+  The issue is documentation-only and includes the exact reduction,
+  validation, expected-payload, and security-boundary acceptance criteria.
+
+Completed tasks are removed from this section so contributors do not start
+work against a closed issue. New scoped tasks are added after their user
+workflow and acceptance criteria are ready.
 
 ## Recently completed
 
