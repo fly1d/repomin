@@ -193,6 +193,8 @@ Summary schema version `1` (used by `v0.1.0.dev7`) included an
 `environment_names_count` field. Version `2` removes that field so shareable
 summaries contain no environment metadata; consumers should branch on
 `summary_schema_version` instead of assuming fields are stable across releases.
+Malformed or overlong `repomin_version` provenance is represented as `null` in
+the summary rather than copied into shareable output.
 
 For a human-readable, shareable version of the same safe fields, request the
 Markdown exporter:

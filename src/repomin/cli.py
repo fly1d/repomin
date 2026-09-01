@@ -1499,6 +1499,21 @@ def _failure_contract_mode(report: dict) -> str:
 
 
 VALIDATION_SUMMARY_SCHEMA_VERSION = 2
+_SUMMARY_VERSION = re.compile(
+    r"^[0-9]+(?:\.[0-9]+){2}[A-Za-z0-9._+-]*$"
+)
+_MAX_SUMMARY_VERSION_LENGTH = 128
+
+
+def _safe_summary_version(value: object) -> Optional[str]:
+    """Keep arbitrary report provenance out of shareable summaries."""
+    if (
+        not isinstance(value, str)
+        or len(value) > _MAX_SUMMARY_VERSION_LENGTH
+        or _SUMMARY_VERSION.fullmatch(value) is None
+    ):
+        return None
+    return value
 
 
 def _validation_summary(
@@ -1519,7 +1534,7 @@ def _validation_summary(
         "valid": True,
         "summary_schema_version": VALIDATION_SUMMARY_SCHEMA_VERSION,
         "schema_version": report["schema_version"],
-        "repomin_version": report.get("repomin_version"),
+        "repomin_version": _safe_summary_version(report.get("repomin_version")),
         "holdout_status": holdout["status"],
         "holdout_planned_runs": holdout["planned_runs"],
         "holdout_completed_runs": holdout["completed_runs"],
@@ -1610,10 +1625,18 @@ def _markdown_cell(value: object) -> str:
     rendered = "".join(escaped)
     # Keep values in code spans so status names such as ``not_requested`` do
     # not become emphasis. Pick a fence longer than any input run of backticks
-    # so even legacy provenance strings cannot terminate the cell early.
-    fence = "`"
-    while fence in rendered:
-        fence += "`"
+    # so even legacy provenance strings cannot terminate the cell early. A
+    # single pass keeps this bounded for unusually large report fields.
+    longest_run = 0
+    current_run = 0
+    for character in rendered:
+        if character == "`":
+            current_run += 1
+            if current_run > longest_run:
+                longest_run = current_run
+        else:
+            current_run = 0
+    fence = "`" * (longest_run + 1)
     return "%s%s%s" % (fence, rendered, fence)
 
 

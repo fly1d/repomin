@@ -320,7 +320,7 @@ runs:
               if [[ "${GITHUB_SERVER_URL:-}" =~ ^https://[A-Za-z0-9.-]+$ && "${GITHUB_REPOSITORY:-}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ && "${GITHUB_RUN_ID:-}" =~ ^[0-9]+$ ]]; then
                 printf '[Open the workflow run to download the artifact](%s/%s/actions/runs/%s).\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
               else
-                printf 'The minimized payload and report were uploaded as the configured artifact.\n'
+                printf 'The minimized payload and report are prepared for upload as the configured artifact.\n'
               fi
             } >> "$summary_path"
           else

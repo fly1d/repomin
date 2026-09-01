@@ -33,6 +33,8 @@ _No unreleased changes._
 - Report validation now rejects non-boolean `execution.budget_exhausted` values,
   preventing malformed reports from injecting arbitrary content into exported
   summaries.
+- Shareable summaries now redact malformed or overlong version provenance and
+  select Markdown code fences in linear time.
 
 ## [0.1.0.dev7] - 2026-09-01
 

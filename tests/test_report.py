@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from repomin import __version__
-from repomin.cli import format_validation_markdown, main
+from repomin.cli import _markdown_cell, format_validation_markdown, main
 from repomin.model import FailureSpec, ReductionResult, ReductionStats, RunResult
 from repomin.report import (
     ReportValidationError,
@@ -655,7 +655,7 @@ class ReportValidationTest(unittest.TestCase):
         report = _report()
         report["command"] = "python3 reproduce.py --secret COMMAND_SENTINEL"
         report["failure_match"] = "PRIVATE_MATCH_SENTINEL"
-        report["repomin_version"] = "v1|candidate`\nnext"
+        report["repomin_version"] = "PRIVATE_VERSION_SENTINEL"
         report["execution"]["environment_names"] = ["PRIVATE_ENV_NAME"]
         report["events"] = [
             {
@@ -690,8 +690,7 @@ class ReportValidationTest(unittest.TestCase):
         self.assertTrue(rendered.startswith("# ReproMin validation summary\n"))
         self.assertTrue(rendered.endswith("\n"))
         self.assertIn("| `oracle_mode` | `match` |", rendered)
-        self.assertIn("v1\\|candidate", rendered)
-        self.assertIn("\\nnext", rendered)
+        self.assertNotIn("PRIVATE_VERSION_SENTINEL", rendered)
         self.assertNotIn("COMMAND_SENTINEL", rendered)
         self.assertNotIn("PRIVATE_MATCH_SENTINEL", rendered)
         self.assertNotIn("PRIVATE_LOG_SENTINEL", rendered)
@@ -730,6 +729,15 @@ class ReportValidationTest(unittest.TestCase):
         self.assertNotIn("/private", rendered)
         self.assertNotIn("environment_names_count", rendered)
         self.assertIn("| `payload_fingerprint_mode` | `n/a` |", rendered)
+
+    def test_markdown_cell_escapes_delimiters_and_uses_linear_fence_selection(
+        self,
+    ) -> None:
+        rendered = _markdown_cell("v1|candidate`\nnext")
+        self.assertIn("v1\\|candidate", rendered)
+        self.assertIn("\\nnext", rendered)
+        long_value = "`" * 4096
+        self.assertTrue(_markdown_cell(long_value).startswith("`" * 4097))
 
     def test_cli_validate_markdown_rejects_invalid_report_with_exit_code_two(
         self,
