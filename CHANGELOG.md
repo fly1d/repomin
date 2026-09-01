@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Added
+
+- `repomin report compare` validates two or more reports and emits an ordered,
+  privacy-safe comparison of reduction evidence in text, JSON, or Markdown.
+  The independent comparison schema exposes only aggregate sizes, retention,
+  reduction counts, budget/holdout state, phase coverage, and adjacent deltas;
+  context warnings identify changes that limit direct comparison.
+- Shell completion now includes the `report compare` subcommand, report paths,
+  labels, and `text`/`json`/`markdown` output values for Bash, Zsh, Fish, and
+  PowerShell.
+
+### Changed
+
+- Documentation now distinguishes descriptive reduction-evidence comparisons
+  from performance history, correctness claims, and causal conclusions.
+- Comparison warnings now cover private input-selection controls, phase
+  definitions, and oracle identity changes through opaque internal digests; the
+  CLI also accepts labels interspersed with report paths.
 
 ## [0.1.0.dev8] - 2026-09-01
 

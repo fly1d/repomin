@@ -189,3 +189,24 @@ GitHub Actions.
 
 For local reproduction and report validation, see [EXAMPLES.md](EXAMPLES.md)
 and [REPORT_SCHEMA.md](REPORT_SCHEMA.md).
+
+## Compare artifacts from multiple runs
+
+After downloading two or more artifacts, compare their validated reports in
+the order you want to inspect them:
+
+```sh
+repomin report compare \
+  ./run-before/repomin-result.repomin/report.json \
+  ./run-after/repomin-result.repomin/report.json \
+  --label before --label after \
+  --format markdown
+```
+
+The command is local and read-only: it validates report structure, does not
+execute the recorded failure command, does not read payload contents, and does
+not contact GitHub or another service. The result is useful for reviewing
+changes in reduction evidence, but it is not a performance, correctness, or
+causal analysis. Warnings identify changed backends, oracle or sampling
+configuration, source sizes, and other execution context. Use a benchmark
+history tool for duration or throughput trends.

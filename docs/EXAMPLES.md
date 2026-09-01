@@ -65,6 +65,35 @@ required.txt
 The sibling `../example-minimal.repomin/report.json` records the attempts,
 accepted mutations, and phase accounting.
 
+## Compare repeated reduction reports
+
+Run the same workflow again into a different output directory when you want to
+inspect how its evidence changed. The source tree is not modified by either
+export, and the comparison itself never runs the recorded reproduction command:
+
+```sh
+repomin . \
+  --command 'python3 reproduce.py' \
+  --match 'ORIGINAL_FAILURE' \
+  --source-reducer none \
+  --adapter none \
+  --output ../example-minimal-second
+
+repomin report compare \
+  ../example-minimal.repomin/report.json \
+  ../example-minimal-second.repomin/report.json \
+  --label first --label second \
+  --format markdown
+```
+
+The rows stay in input order. The output is a privacy-safe, descriptive view
+of source/output sizes, retention ratios, attempts, accepted mutations, cache
+uses, budget and holdout state, phase coverage, and adjacent deltas. It emits
+warnings when execution or sampling context differs. Labels are display-only;
+they do not group or filter data. Do not read this output as a performance,
+correctness, or causal claim. For benchmark duration trends, use
+`benchmarks/compare.py` instead.
+
 ## Shrink a requirements include chain
 
 This copy-paste example exercises the Python requirements adapter against a
