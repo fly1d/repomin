@@ -18,10 +18,12 @@ when building wheel and source-distribution metadata.
    into a dated version heading. Include user-visible behavior, compatibility
    notes, known limitations, and the verification scope.
 4. Update every pinned release reference, not only the wheel URL:
-   `README.md`, `docs/QUICKSTART.zh-CN.md`, and `docs/GITHUB_ACTION.md`. Use
-   `rg 'v[0-9]+\.[0-9]+\.[0-9]+' README.md docs action.yml` to find stale
-   references, then inspect the diff so historical changelog entries remain
-   unchanged.
+   `README.md`, `docs/QUICKSTART.zh-CN.md`, `docs/GITHUB_ACTION.md`,
+   `docs/REPLAY.md`, and `docs/REAL_FAILURE_PILOT.md`. This includes both tag
+   or Action refs and the `REPOMIN_VERSION` values used in install commands.
+   Use `rg -n 'v[0-9]+\.[0-9]+\.[0-9]+|REPOMIN_VERSION' README.md docs action.yml`
+   to find stale references, then inspect the diff so historical changelog
+   entries remain unchanged.
 5. Run the full local verification from the repository root:
 
    ```sh
@@ -124,7 +126,8 @@ branch for production workflows.
 After publishing, verify that:
 
 - the release page links to the expected tag and assets;
-- the README, Chinese quick-start, and Action guide references resolve;
+- the README, Chinese quick-start, Action, replay, and pilot-guide references
+  resolve;
 - a clean virtual environment can install each asset;
 - `python -m repomin --version` and `repomin --version` agree with the tag;
 - the release CI run is successful.

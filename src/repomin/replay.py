@@ -138,23 +138,31 @@ def replay_report(
                 _copy_repository(payload, working_copy, set())
                 run_result = runner.run(working_copy)
                 accepted = oracle.accepts(run_result)
-                samples.append(
-                    {
-                        "index": index,
-                        "outcome": _outcome(run_result, accepted),
-                        "accepted": accepted,
-                        "mismatch_reason": _mismatch_reason(
-                            oracle,
-                            run_result,
-                            accepted,
-                        ),
-                        "returncode": run_result.returncode,
-                        "duration_seconds": round(run_result.duration_seconds, 4),
-                        "timed_out": run_result.timed_out,
-                        "resource_exhausted": run_result.resource_exhausted,
-                        "output_sha256": _run_observation_digest(run_result),
-                    }
-                )
+                sample = {
+                    "index": index,
+                    "outcome": _outcome(run_result, accepted),
+                    "accepted": accepted,
+                    "mismatch_reason": _mismatch_reason(
+                        oracle,
+                        run_result,
+                        accepted,
+                    ),
+                    "returncode": run_result.returncode,
+                    "duration_seconds": round(run_result.duration_seconds, 4),
+                    "timed_out": run_result.timed_out,
+                    "resource_exhausted": run_result.resource_exhausted,
+                    "output_sha256": _run_observation_digest(run_result),
+                }
+                if not accepted:
+                    # Keep mismatch diagnostics useful without retaining the
+                    # configured regular expression or command output.
+                    sample.update(
+                        {
+                            "expected_exit_code": oracle.spec.exit_code,
+                            "actual_exit_code": run_result.returncode,
+                        }
+                    )
+                samples.append(sample)
             finally:
                 _cleanup_tool_owned_paths(
                     [attempt_root],
@@ -235,12 +243,26 @@ def format_replay(result: Mapping[str, object]) -> str:
         if isinstance(samples, list):
             for sample in samples:
                 if isinstance(sample, dict) and not sample.get("accepted"):
+                    details = [str(sample.get("mismatch_reason"))]
+                    expected = sample.get("expected_exit_code")
+                    actual = sample.get("actual_exit_code")
+                    if "actual_exit_code" in sample:
+                        if expected is None:
+                            details.append(
+                                "exit code actual %s (no exact exit-code contract)"
+                                % actual
+                            )
+                        else:
+                            details.append(
+                                "exit code expected %s, actual %s"
+                                % (expected, actual)
+                            )
                     lines.append(
                         "Run %s: %s (%s)"
                         % (
                             sample.get("index"),
                             sample.get("outcome"),
-                            sample.get("mismatch_reason"),
+                            "; ".join(details),
                         )
                     )
     lines.append(

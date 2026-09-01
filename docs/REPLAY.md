@@ -133,11 +133,14 @@ environment and execution boundary.
 ## Output and exit codes
 
 Normal output summarizes the reproduction result, fresh-run counts, backend,
-and fingerprint status. With `--json`, the result is machine-readable and
-includes per-run scalar evidence and output digests, but omits raw stdout,
-stderr, command output, and environment values. The JSON `fingerprint_mode`
-field is `exact`, `content`, or `unavailable`; `metadata_drift_possible` is
-true only for content mode.
+fingerprint status, and (for each failed run) the exit-code comparison. With
+`--json`, the result is machine-readable and includes per-run scalar evidence
+and output digests, but omits raw stdout, stderr, command output, and
+environment values. A failed sample also includes `expected_exit_code` and
+`actual_exit_code`; the expected value is `null` when the oracle does not pin an
+exact exit code. The existing `returncode` field is retained for compatibility.
+The JSON `fingerprint_mode` field is `exact`, `content`, or `unavailable`;
+`metadata_drift_possible` is true only for content mode.
 
 | Exit code | Meaning |
 | --- | --- |

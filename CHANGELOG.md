@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A network-free `report-replay` benchmark covering reduction, report
+  validation, fresh-copy replay, and deliberate failure mismatches.
+
 ### Fixed
 
 - The CI artifact download step now uses the Node 24-compatible
@@ -32,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The starter-contribution page now links only to open, unassigned work and
   labels the real-failure pilot as a feedback and fixture-discovery path.
+- Replay mismatch evidence now reports expected and actual exit codes without
+  exposing command output or configured match expressions.
 
 ## [0.1.0.dev5] - 2026-08-31
 

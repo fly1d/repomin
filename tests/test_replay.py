@@ -23,7 +23,7 @@ from repomin.model import (
     ReductionStats,
     RunResult,
 )
-from repomin.replay import ReplayError, replay_report
+from repomin.replay import ReplayError, format_replay, replay_report
 from repomin.report import ReportValidationError, _build_report, measure_tree
 from repomin.session import _tree_digest
 
@@ -147,7 +147,9 @@ class ReplayTest(unittest.TestCase):
         self.assertIsNotNone(result["actual_content_fingerprint"])
 
     def test_completed_mismatch_is_evidence_not_a_setup_error(self) -> None:
-        payload, report_path, report = self._fixture()
+        payload, report_path, report = self._fixture(
+            spec=FailureSpec("ORIGINAL_FAILURE", exit_code=7)
+        )
         report["command"] = _python_command("-c") + " pass"
         report_path.write_text(json.dumps(report), encoding="utf-8")
 
@@ -156,6 +158,9 @@ class ReplayTest(unittest.TestCase):
         self.assertFalse(reproduced)
         self.assertEqual(0, result["passes"])
         self.assertEqual("exit_code", result["samples"][0]["mismatch_reason"])
+        self.assertEqual(7, result["samples"][0]["expected_exit_code"])
+        self.assertEqual(0, result["samples"][0]["actual_exit_code"])
+        self.assertIn("exit code expected 7, actual 0", format_replay(result))
         self.assertNotIn("ORIGINAL_FAILURE", json.dumps(result))
 
     def test_environment_names_and_digest_must_match_without_leaking_values(self) -> None:
@@ -268,6 +273,9 @@ class ReplayTest(unittest.TestCase):
         reproduced, result = replay_report(report_path, payload)
         self.assertFalse(reproduced)
         self.assertEqual("signature", result["samples"][0]["mismatch_reason"])
+        self.assertIsNone(result["samples"][0]["expected_exit_code"])
+        self.assertEqual(7, result["samples"][0]["actual_exit_code"])
+        self.assertIn("no exact exit-code contract", format_replay(result))
 
     def test_malformed_signature_null_is_rejected_without_traceback(self) -> None:
         spec = FailureSpec(None, process_failure=True)

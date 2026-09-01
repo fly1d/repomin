@@ -3,10 +3,28 @@
 import ast
 import configparser
 from pathlib import Path
+import re
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+_RELEASE_DOCUMENTS = (
+    ROOT / "README.md",
+    ROOT / "docs" / "QUICKSTART.zh-CN.md",
+    ROOT / "docs" / "GITHUB_ACTION.md",
+    ROOT / "docs" / "REPLAY.md",
+    ROOT / "docs" / "REAL_FAILURE_PILOT.md",
+)
+_RELEASE_REFERENCE_PATTERNS = (
+    re.compile(r"fly1d/repomin@v([0-9][^\s`]*)"),
+    re.compile(r"releases/(?:download|tag)/v([0-9][^\s)`]*)"),
+    re.compile(r"`v([0-9][^`]*)`\s+(?:pre-release|发布包)"),
+    re.compile(r"\bREPOMIN_VERSION\s*=\s*['\"]?([0-9][^'\"\s]+)"),
+    re.compile(
+        r"\brepomin\s+([0-9]+\.[0-9]+\.[0-9]+(?:[.-][0-9A-Za-z.-]+)?)"
+    ),
+)
 
 
 def _runtime_version() -> str:
@@ -83,6 +101,10 @@ class PackagingContractTests(unittest.TestCase):
             "benchmarks/python-requirements/requirements/ci.txt",
             "benchmarks/python-requirements/constraints.txt",
             "benchmarks/python-requirements/reproduce.py",
+            "benchmarks/report-replay/README.md",
+            "benchmarks/report-replay/reproduce.py",
+            "benchmarks/report-replay/required.txt",
+            "benchmarks/report-replay/noise.txt",
         ):
             self.assertIn("include " + relative, manifest)
 
@@ -90,6 +112,21 @@ class PackagingContractTests(unittest.TestCase):
         attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
         for pattern in ("*.md", "*.py", "*.yml", "*.txt"):
             self.assertIn(pattern + " text eol=lf", attributes)
+
+    def test_release_document_references_match_runtime_version(self) -> None:
+        """Keep install and Action examples aligned when a release is cut."""
+        runtime_version = _runtime_version()
+        checklist = (ROOT / "docs" / "RELEASING.md").read_text(encoding="utf-8")
+        references = []
+        for path in _RELEASE_DOCUMENTS:
+            relative = path.relative_to(ROOT).as_posix()
+            self.assertIn(relative, checklist)
+            text = path.read_text(encoding="utf-8")
+            for pattern in _RELEASE_REFERENCE_PATTERNS:
+                references.extend(pattern.findall(text))
+
+        self.assertTrue(references, "no pinned release references were found")
+        self.assertEqual({runtime_version}, set(references))
 
 
 if __name__ == "__main__":
