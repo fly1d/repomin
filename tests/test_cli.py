@@ -342,10 +342,22 @@ class CliTest(unittest.TestCase):
             exit_code = main(["report", "--help"])
         self.assertEqual(0, exit_code)
         help_text = stdout.getvalue()
-        self.assertIn("usage: repomin report {validate,replay}", help_text)
+        self.assertIn("usage: repomin report {validate,replay,compare}", help_text)
         self.assertIn("validate  validate report structure", help_text)
         self.assertIn("replay    run the recorded failure", help_text)
+        self.assertIn("compare   compare privacy-safe evidence", help_text)
         self.assertIn("repomin report validate --help", help_text)
+
+    def test_report_compare_help_explains_order_and_display_labels(self) -> None:
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            with self.assertRaises(SystemExit) as raised:
+                main(["report", "compare", "--help"])
+        self.assertEqual(0, raised.exception.code)
+        help_text = stdout.getvalue()
+        self.assertIn("two or more report.json files", help_text)
+        self.assertIn("display label", help_text)
+        self.assertIn("--format", help_text)
 
     def test_fish_completion_lists_every_supported_shell(self) -> None:
         stdout = io.StringIO()
@@ -366,6 +378,18 @@ class CliTest(unittest.TestCase):
                 self.assertIn("-l format" if shell == "fish" else "--format", script)
                 self.assertIn("text", script)
                 self.assertIn("json", script)
+                self.assertIn("markdown", script)
+
+    def test_report_compare_completion_includes_paths_labels_and_formats(self) -> None:
+        for shell in ("bash", "zsh", "fish", "powershell"):
+            with self.subTest(shell=shell):
+                stdout = io.StringIO()
+                with contextlib.redirect_stdout(stdout):
+                    exit_code = main(["completion", shell])
+                self.assertEqual(0, exit_code)
+                script = stdout.getvalue()
+                self.assertIn("compare", script)
+                self.assertIn("label", script)
                 self.assertIn("markdown", script)
 
     def test_match_is_required_without_process_failure_mode(self) -> None:

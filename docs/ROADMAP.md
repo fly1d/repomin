@@ -26,6 +26,9 @@ dates. Concrete contribution tasks live in
   collision checks, and optional fresh-copy baseline verification.
 - A privacy-conscious `repomin report replay` workflow with exact modern
   failure contracts, payload fingerprints, and isolated fresh-copy samples.
+- A privacy-safe `repomin report compare` workflow for ordered, descriptive
+  comparison of validated reduction evidence, with context warnings and no
+  payload or command execution.
 - A structured real-failure issue template and a short claim-to-PR workflow for
   contributors who can share sanitized CI or dependency failures.
 
@@ -35,8 +38,8 @@ dates. Concrete contribution tasks live in
   criteria and maintainers' scope notes.
 - Collect reproducible reductions from real repositories and turn failures into
   minimized public fixtures when licensing permits.
-- Tighten benchmark report assertions and publish comparable trend summaries
-  without making unsupported performance claims.
+- Use the comparison workflow with real pilot artifacts and publish trend
+  summaries without making unsupported performance claims.
 - Keep the dependency-free `benchmarks/compare.py` summary comparison useful
   for fixture regressions and environment-to-environment diagnostics.
 - Improve runnable Java, Python, Docker, and semantic workflow examples.

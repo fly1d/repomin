@@ -58,6 +58,12 @@ from repomin.report import (
     verify_existing_report,
     write_report,
 )
+from repomin.report_compare import (
+    ReportComparisonError,
+    compare_reports,
+    render_comparison_markdown,
+    render_comparison_text,
+)
 from repomin.replay import ReplayError, format_replay, replay_report
 from repomin.semantic import (
     HttpSemanticBackend,
@@ -1439,20 +1445,29 @@ def _doctor_command(argv: Sequence[str]) -> int:
 def _report_command(argv: Sequence[str]) -> int:
     """Handle report inspection commands without changing reduction parsing."""
     if not argv or argv[0] in {"-h", "--help"}:
-        print("usage: repomin report {validate,replay} ...")
-        print("inspect report evidence or replay its failure in fresh copies")
+        print("usage: repomin report {validate,replay,compare} ...")
+        print(
+            "inspect report evidence, replay its failure, or compare validated "
+            "summaries"
+        )
         print()
         print("commands:")
         print("  validate  validate report structure and optional payload evidence")
         print("  replay    run the recorded failure in fresh payload copies")
+        print("  compare   compare privacy-safe evidence from two or more reports")
         print()
-        print("use `repomin report validate --help` or `repomin report replay --help`")
+        print(
+            "use `repomin report validate --help`, `repomin report replay --help`, "
+            "or `repomin report compare --help`"
+        )
         print("for command-specific options")
         return 0
     if argv[0] == "validate":
         return _report_validate_command(argv[1:])
     if argv[0] == "replay":
         return _report_replay_command(argv[1:])
+    if argv[0] == "compare":
+        return _report_compare_command(argv[1:])
     print("repomin report: unsupported command %r" % argv[0], file=sys.stderr)
     return 2
 
@@ -1720,6 +1735,56 @@ def _report_validate_command(argv: Sequence[str]) -> int:
                 else "n/a",
             )
         )
+    return 0
+
+
+def _report_compare_command(argv: Sequence[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="repomin report compare",
+        description=(
+            "Compare privacy-safe evidence from validated reports; labels are "
+            "display-only and do not filter or group data."
+        ),
+    )
+    parser.add_argument(
+        "reports",
+        nargs="+",
+        type=Path,
+        metavar="REPORT.json",
+        help="two or more report.json files, compared in the supplied order",
+    )
+    parser.add_argument(
+        "--label",
+        action="append",
+        default=None,
+        metavar="NAME",
+        help=(
+            "short ASCII display label for one report (does not affect the "
+            "comparison); repeat once per report (defaults to run-1, run-2, ...)"
+        ),
+    )
+    parser.add_argument(
+        "--format",
+        choices=("text", "json", "markdown"),
+        default="text",
+        help="output format (default: text; markdown is privacy-safe)",
+    )
+    try:
+        args = parser.parse_args(list(argv))
+        comparison = compare_reports(args.reports, labels=args.label)
+    except (ReportComparisonError, OSError, ValueError) as exc:
+        print("repomin report compare: %s" % exc, file=sys.stderr)
+        return 2
+    try:
+        if args.format == "json":
+            print(json.dumps(comparison, sort_keys=True, allow_nan=False))
+        elif args.format == "markdown":
+            print(render_comparison_markdown(comparison), end="")
+        else:
+            print(render_comparison_text(comparison), end="")
+    except (TypeError, ValueError, OverflowError) as exc:
+        print("repomin report compare: could not render output: %s" % exc, file=sys.stderr)
+        return 2
     return 0
 
 

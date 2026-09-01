@@ -225,6 +225,53 @@ repomin report replay OUTPUT.repomin/report.json --payload OUTPUT --yes
 Replay is a new current-environment observation. It does not upgrade the
 original report or create a statistical certificate.
 
+## Comparison schema
+
+`repomin report compare REPORT.json REPORT.json ...` validates at least two
+reports and returns a separate comparison document. The command accepts the
+paths in the order supplied; it does not sort by filename, version, or time.
+It never reads a payload, executes a recorded command, or accesses the network.
+
+The top-level comparison fields are:
+
+| Field | Meaning |
+| --- | --- |
+| `comparison_schema_version` | Integer comparison format version. Current value: `1`. |
+| `descriptive_only` | Always `true`; the output is evidence metadata, not a correctness or performance claim. |
+| `run_count` | Number of validated reports in the comparison. |
+| `runs` | Ordered snapshots using the fixed allow-list below. |
+| `deltas` | Adjacent snapshot differences, calculated as next minus previous. |
+| `context_warnings` | Deterministic warnings for changes that make snapshots harder to compare directly. |
+
+Each `runs` entry contains only `index`, display-only `label`, safe
+`repomin_version` provenance (or `null` for legacy/unusable provenance),
+`backend`, an enumerated `oracle_mode`, source/output file and byte counts,
+file/byte retention ratios, `attempts`, `accepted_mutations`, `cache_hits`,
+`budget_exhausted`, holdout status and planned/completed/pass counts, and
+`phase_coverage`. Ratios are rounded to six decimal places and are `null` when
+the source denominator cannot be represented safely as a finite ratio. Labels
+must be unique, short ASCII identifiers and affect display only.
+
+Each `deltas` entry identifies the adjacent `from_*` and `to_*` rows, provides a
+`numeric_deltas` object for the snapshot numeric fields, and lists changed
+categorical fields in `changed_fields`. A delta is descriptive; it does not
+attribute a change to a particular version, option, backend, or mutation.
+Integer counters remain exact when their adjacent difference is within the
+comparison output bound; an excessively large difference is represented as
+`null` rather than expanding a shareable document without limit.
+
+Warnings cover unavailable or changed version provenance, source size, backend,
+jobs, timeout/cache and budget settings, semantic/container/environment and
+working-directory context, oracle mode, candidate/baseline sampling
+configuration, reduction strategy, holdout controls/policy/status, and phase
+coverage, including partial coverage or unavailable ratios. The comparison
+intentionally excludes paths, commands, match expressions, logs, environment
+names/values, signatures, fingerprints, semantic endpoints, and phase timing.
+Use `benchmarks/compare.py` or a dedicated benchmark system for performance
+history. Consumers should branch on `comparison_schema_version`, tolerate only
+documented additive fields, and preserve the `descriptive_only` boundary when
+sharing results.
+
 The architecture document explains the statistical contracts and reducer
 invariants behind these fields. See [ARCHITECTURE.md](ARCHITECTURE.md) and
 [SECURITY.md](../SECURITY.md) before processing untrusted repositories.

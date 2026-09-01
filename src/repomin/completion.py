@@ -15,7 +15,7 @@ _repomin() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     if [[ "${COMP_WORDS[1]}" == "report" ]]; then
         if (( COMP_CWORD == 2 )); then
-            COMPREPLY=( $(compgen -W "validate replay --help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "validate replay compare --help" -- "$cur") )
             return 0
         fi
         if [[ "${COMP_WORDS[2]}" == "replay" ]]; then
@@ -47,6 +47,25 @@ _repomin() {
             if [[ " $value_options " == *" $prev "* ]]; then
                 if [[ "$prev" == "--payload" ]]; then
                     COMPREPLY=( $(compgen -f -- "$cur") )
+                fi
+                return 0
+            fi
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=( $(compgen -W "$options" -- "$cur") )
+            else
+                COMPREPLY=( $(compgen -f -- "$cur") )
+            fi
+            return 0
+        fi
+        if [[ "${COMP_WORDS[2]}" == "compare" ]]; then
+            options="--help --format --label"
+            value_options="--format --label"
+            case "$prev" in
+                --format) COMPREPLY=( $(compgen -W "text json markdown" -- "$cur") ); return 0 ;;
+            esac
+            if [[ " $value_options " == *" $prev "* ]]; then
+                if [[ "$prev" == "--label" ]]; then
+                    COMPREPLY=()
                 fi
                 return 0
             fi
@@ -129,8 +148,14 @@ _repomin() {
                 '--exit-code[legacy exit-code contract]:code:' \
                 '--yes[acknowledge execution of the report command]' \
                 '--json[print machine-readable replay evidence]'
+        elif [[ "$words[3]" == "compare" ]]; then
+            _arguments -s \
+                '*:report:_files' \
+                '--help[show report comparison help]' \
+                '*--label[short report label]:name:' \
+                '--format[output format]:format:(text json markdown)'
         else
-            _arguments -s '1:report command:(validate replay)' '--help[show report help]'
+            _arguments -s '1:report command:(validate replay compare)' '--help[show report help]'
         fi
         return
     fi
@@ -229,10 +254,13 @@ _repomin "$@"
 _FISH = r'''# Fish completion for repomin.
 complete -c repomin -f -n '__fish_use_subcommand' -a 'completion doctor report' -d 'command'
 complete -c repomin -f -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish powershell' -d 'shell'
-complete -c repomin -f -n '__fish_seen_subcommand_from report' -a 'validate replay' -d 'report command'
+complete -c repomin -f -n '__fish_seen_subcommand_from report' -a 'validate replay compare' -d 'report command'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from validate' -l payload -r -a '(__fish_complete_directories)' -d 'exported payload directory'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from validate' -l json -d 'print a machine-readable result'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from validate' -l format -r -a 'text json markdown' -d 'output format'
+complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from compare' -l format -r -a 'text json markdown' -d 'output format'
+complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from compare' -l label -r -d 'short report label'
+complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from compare' -a '(__fish_complete_path)' -d 'report.json'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l payload -r -a '(__fish_complete_directories)' -d 'exported payload directory'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l runs -r -d 'fresh replay copies'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l timeout -r -d 'seconds per replay run'
@@ -318,12 +346,13 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
         '--semantic-endpoint', '--semantic-model', '--semantic-timeout',
         '--java-classpath', '--verbose'
     )
-    $reportOptions = @('validate', 'replay', '--help')
+    $reportOptions = @('validate', 'replay', 'compare', '--help')
     $reportValidateOptions = @('--help', '--payload', '--json', '--format')
     $reportReplayOptions = @(
         '--help', '--payload', '--runs', '--timeout', '--env', '--backend',
         '--docker-image', '--docker-network', '--exit-code', '--yes', '--json'
     )
+    $reportCompareOptions = @('--help', '--label', '--format')
     $reportPathOptions = @('--payload')
     $valueOptions = @(
         '--command', '--match', '--exit-code', '--output', '--session', '--timeout',
@@ -360,7 +389,8 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
     if ($reportMode) {
         $validateMode = $elements | Where-Object { $_.Extent.Text -eq 'validate' }
         $replayMode = $elements | Where-Object { $_.Extent.Text -eq 'replay' }
-        if (-not $validateMode -and -not $replayMode) {
+        $compareMode = $elements | Where-Object { $_.Extent.Text -eq 'compare' }
+        if (-not $validateMode -and -not $replayMode -and -not $compareMode) {
             $reportOptions |
                 Where-Object { $_ -like "$wordToComplete*" } |
                 ForEach-Object {
@@ -400,6 +430,16 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
                 }
             return
         }
+        if ($compareMode -and $previous -eq '--format') {
+            @('text', 'json', 'markdown') |
+                Where-Object { $_ -like "$wordToComplete*" } |
+                ForEach-Object {
+                    [System.Management.Automation.CompletionResult]::new(
+                        $_, $_, 'ParameterValue', $_
+                    )
+                }
+            return
+        }
         if ($reportPathOptions -contains $previous) {
             $pathPattern = if ([string]::IsNullOrEmpty($wordToComplete)) {
                 '*'
@@ -420,6 +460,8 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
         }
         $activeReportOptions = if ($replayMode) {
             $reportReplayOptions
+        } elseif ($compareMode) {
+            $reportCompareOptions
         } else {
             $reportValidateOptions
         }

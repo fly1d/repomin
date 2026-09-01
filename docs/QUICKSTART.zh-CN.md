@@ -105,6 +105,27 @@ repomin report validate "$demo_dir/reduced.repomin/report.json" \
 该表只包含经过转义的版本、后端、oracle 类型、大小、缩减计数、holdout 和指纹状态，
 不会输出命令、正则、日志、路径或环境变量信息。
 
+## 比较多次缩减证据
+
+如果同一个失败流程运行了多次，可以按命令行给出的顺序比较两个或更多已经验证过的
+`report.json`：
+
+```sh
+repomin report compare \
+  /tmp/baseline.repomin/report.json \
+  /tmp/candidate.repomin/report.json \
+  --label baseline --label candidate \
+  --format markdown
+```
+
+比较命令只读取并验证报告结构，不读取 payload、不执行报告中的 `command`，也不联网。
+输出有独立的 `comparison_schema_version`，并标记 `descriptive_only: true`；它只展示版本、
+后端、oracle 类型、缩减前后大小、保留比例、尝试/接受/缓存计数、预算、holdout、阶段覆盖率
+及相邻差值。若版本 provenance、后端、并发/超时、oracle、源大小、抽样或 holdout 配置发生变化，
+会列出上下文警告。
+标签只用于显示，必须是短且唯一的 ASCII 标识。这个结果不是性能趋势、正确性证明或因果结论；
+性能历史请使用离线 benchmark 工具。
+
 验证器检查报告结构、阶段和 holdout 统计，以及可用的 payload 指纹；它不会重新运行
 `--command`，也不等于证明代码或失败根因的正确性。报告格式错误、统计不一致或指纹不匹配
 时，命令以退出码 `2` 结束。

@@ -650,6 +650,29 @@ repomin report validate /tmp/checkout-repro.repomin/report.json \
   --payload /tmp/checkout-repro --format markdown
 ```
 
+When a reduction is repeated, compare two or more validated reports in the
+order you provide them:
+
+```sh
+repomin report compare \
+  /tmp/baseline.repomin/report.json \
+  /tmp/candidate.repomin/report.json \
+  --label baseline --label candidate \
+  --format markdown
+```
+
+The comparison is a privacy-safe evidence view, not a performance dashboard.
+It validates each report locally, reads no payload, executes no recorded
+command, and does not access the network. The JSON form has its own
+`comparison_schema_version` and `descriptive_only: true`; it reports only
+aggregate sizes, retention ratios, reduction counts, budget/holdout state,
+phase coverage, and adjacent numeric deltas. Context warnings call out changes
+such as version provenance, backend, jobs/timeout, oracle, source size,
+sampling, or holdout configuration. Labels only name rows for display and must
+be short unique ASCII identifiers. Use the
+offline benchmark tools for performance history; do not infer causality,
+correctness, or production reliability from this comparison.
+
 To execute the report's failure command, first review the unsigned report and
 payload, then opt in explicitly. Replay validates the payload before execution
 and runs every sample in a separate temporary copy:

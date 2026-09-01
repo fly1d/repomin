@@ -59,6 +59,30 @@ The benchmark command remains network-free and may skip fixtures whose optional
 toolchain is not installed. The individual commands below are still useful when
 diagnosing a failing check.
 
+## Changing report comparison
+
+The `repomin report compare` command is deliberately smaller than a benchmark
+dashboard. Changes must keep the comparison read-only: validate each report,
+never read payload contents, execute a recorded command, or contact a service.
+Keep the output allow-list free of paths, commands, match expressions, logs,
+environment metadata, signatures, fingerprints, and timing fields. Any new
+field needs a documented privacy and compatibility reason, a deterministic
+renderer test, and an explicit statement of whether it is numeric or
+categorical context. Preserve the `descriptive_only` boundary and add a warning
+when a changed execution or sampling condition can make adjacent values hard
+to compare.
+
+Run the focused checks while iterating:
+
+```sh
+PYTHONPATH=src python3 -m unittest tests.test_report_compare tests.test_cli -v
+```
+
+Use `docs/REPORT_SCHEMA.md` as the contract source and update the README,
+examples, and changelog when the public comparison fields change. Performance
+measurements belong in the dependency-free benchmark tooling, not in report
+comparison.
+
 ## Adding a benchmark
 
 Benchmarks are the most useful way to contribute a reproducible user workflow.
