@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No unreleased changes._
+
+## [0.1.0.dev9] - 2026-09-01
+
 ### Added
 
 - `repomin report compare` validates two or more reports and emits an ordered,

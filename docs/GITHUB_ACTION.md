@@ -12,7 +12,7 @@ job's failure-handling step:
 ```yaml
 - name: Minimize failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev8
+  uses: fly1d/repomin@v0.1.0.dev9
   with:
     command: python -m pytest -q
     match: "FAILED tests/test_regression.py"
@@ -87,7 +87,7 @@ result through `holdout-status`:
 ```yaml
 - name: Certify minimized failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev8
+  uses: fly1d/repomin@v0.1.0.dev9
   with:
     command: python -m pytest -q
     match: "FAILED tests/test_regression.py"
@@ -101,7 +101,7 @@ For a command with a stable exit code but unstable output:
 ```yaml
 - name: Minimize failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev8
+  uses: fly1d/repomin@v0.1.0.dev9
   with:
     command: python -m pytest -q
     exit-code: "1"
@@ -113,7 +113,7 @@ existing local image:
 ```yaml
 - name: Minimize Docker failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev8
+  uses: fly1d/repomin@v0.1.0.dev9
   with:
     command: python3 reproduce.py
     match: "ORIGINAL_FAILURE"
@@ -140,7 +140,7 @@ environment names or values.
 - name: Minimize failure
   if: ${{ failure() }}
   id: minimize
-  uses: fly1d/repomin@v0.1.0.dev8
+  uses: fly1d/repomin@v0.1.0.dev9
   with:
     command: python -m pytest -q
     match: "FAILED tests/test_regression.py"
