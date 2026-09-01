@@ -168,15 +168,23 @@ inconsistent phase/holdout accounting, unsafe payload entries, size drift, or
 a payload fingerprint mismatch. Legacy reports without an output or holdout
 fingerprint still receive safe-tree and file/byte-count validation.
 
-Add `--json` when a CI step or issue report needs a compact summary. In
-addition to `valid`, `schema_version`, `holdout_status`, and the report path,
-the JSON result includes `repomin_version`, `backend`, source/output file and
-byte counts, `attempts`, `accepted_mutations`, and `cache_hits`. The version is
-`null` for legacy reports that predate version provenance. These fields are
-descriptive metadata copied from the validated report; they do not add a new
-correctness claim. `payload_fingerprint_verified` distinguishes a cryptographic
-tree match from count-only validation of a legacy report, and
-`payload_fingerprint_mode` is `exact`, `content`, or `unavailable`.
+Add `--json` when a CI step or issue report needs a compact summary. The result
+has `summary_schema_version: 1` and includes `valid`, `schema_version`,
+`holdout_status`, the report path, `repomin_version`, `backend`, the
+privacy-safe `oracle_mode`, source/output file and byte counts, removed
+file/byte counts, file/byte retention ratios, `attempts`,
+`accepted_mutations`, `cache_hits`, `budget_exhausted`, and the count of
+explicit environment names. Holdout run/pass counts are included without
+including command output or environment values. The version is `null` for
+legacy reports that predate version provenance. Ratios are `null` when the
+source denominator is zero; otherwise they are descriptive fractions rounded
+to six decimal places. A negative removal count is possible for a report whose
+recorded output is larger than its source and should be read as a size change,
+not a correctness signal. These fields are descriptive metadata copied or
+derived from the validated report; they do not add a new correctness claim.
+`payload_fingerprint_verified` distinguishes a cryptographic tree match from
+count-only validation of a legacy report, and `payload_fingerprint_mode` is
+`exact`, `content`, or `unavailable` when `--payload` is supplied.
 
 After reviewing the unsigned command in a report, consumers can also run a
 fresh-copy [replay](REPLAY.md):

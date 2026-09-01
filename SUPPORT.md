@@ -16,6 +16,9 @@ Before opening an issue:
   guide](docs/REAL_FAILURE_PILOT.md), then use the [real CI or dependency
   failure template](https://github.com/fly1d/repomin/issues/new?template=real_failure.md)
   or share the summary in issue #11.
+- If you tried ReproMin and want to report value, friction, or an
+  incompatibility without sharing a public failure, use the [user workflow
+  feedback template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md).
 - Include the operating system, Python and ReproMin versions, backend, exact
   command, and a redacted report or output when available.
 

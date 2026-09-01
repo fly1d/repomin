@@ -114,6 +114,11 @@ jobs:
           ACTUAL_OUTPUT_FILES: ${{ steps.repomin.outputs.output-files }}
           ACTUAL_OUTPUT_BYTES: ${{ steps.repomin.outputs.output-bytes }}
           ACTUAL_HOLDOUT: ${{ steps.repomin.outputs.holdout-status }}
+          ACTUAL_ORACLE: ${{ steps.repomin.outputs.oracle-mode }}
+          ACTUAL_FILE_RETENTION: ${{ steps.repomin.outputs.file-retention-ratio }}
+          ACTUAL_BYTE_RETENTION: ${{ steps.repomin.outputs.byte-retention-ratio }}
+          ACTUAL_FINGERPRINT_MODE: ${{ steps.repomin.outputs.payload-fingerprint-mode }}
+          ACTUAL_FINGERPRINT_VERIFIED: ${{ steps.repomin.outputs.payload-fingerprint-verified }}
         run: |
           set -euo pipefail
           [[ "$ACTUAL_PAYLOAD" == "$EXPECTED_PAYLOAD_PREFIX"* ]]
@@ -126,6 +131,11 @@ jobs:
           [[ "$ACTUAL_OUTPUT_FILES" =~ ^[0-9]+$ ]]
           [[ "$ACTUAL_OUTPUT_BYTES" =~ ^[0-9]+$ ]]
           [[ "$ACTUAL_HOLDOUT" == "not_requested" ]]
+          [[ "$ACTUAL_ORACLE" == "exit_code" ]]
+          [[ "$ACTUAL_FILE_RETENTION" =~ ^[0-9]+(\.[0-9]+)?$ ]]
+          [[ "$ACTUAL_BYTE_RETENTION" =~ ^[0-9]+(\.[0-9]+)?$ ]]
+          [[ "$ACTUAL_FINGERPRINT_MODE" == "exact" ]]
+          [[ "$ACTUAL_FINGERPRINT_VERIFIED" == "true" ]]
       - name: Download and validate action artifact
         uses: actions/download-artifact@v8
         with:

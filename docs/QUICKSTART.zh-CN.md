@@ -90,6 +90,10 @@ repomin report validate "$demo_dir/reduced.repomin/report.json" \
   --payload "$demo_dir/reduced" --json
 ```
 
+这个 JSON 摘要包含 oracle 类型、缩减前后文件/字节数、保留比例、holdout 计数和预算状态，
+但不会包含命令、匹配正则、日志或环境变量值，适合贴到 CI 记录或用户反馈中。提交前仍要
+单独检查 payload 和 `report.json` 是否含有敏感信息。
+
 验证器检查报告结构、阶段和 holdout 统计，以及可用的 payload 指纹；它不会重新运行
 `--command`，也不等于证明代码或失败根因的正确性。报告格式错误、统计不一致或指纹不匹配
 时，命令以退出码 `2` 结束。

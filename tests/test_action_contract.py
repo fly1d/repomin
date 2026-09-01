@@ -37,6 +37,11 @@ class ActionContractTests(unittest.TestCase):
             "attempts",
             "accepted-mutations",
             "holdout-status",
+            "oracle-mode",
+            "file-retention-ratio",
+            "byte-retention-ratio",
+            "payload-fingerprint-mode",
+            "payload-fingerprint-verified",
         ):
             self.assertIn("  %s:\n" % name, self.action)
         self.assertIn('print(f"{name}={value}")', self.action)
@@ -45,6 +50,8 @@ class ActionContractTests(unittest.TestCase):
             self.action,
         )
         self.assertIn("generated report is missing an action output field", self.action)
+        self.assertIn("from repomin.cli import _validation_summary", self.action)
+        self.assertIn('python - "$report_path" "$payload_path" <<\'PY\'', self.action)
         self.assertIn('default: ""', self.action)
         self.assertIn('output_path="$RUNNER_TEMP/repomin-result-', self.action)
         self.assertIn('if [[ -z "${RUNNER_TEMP:-}" ]]; then', self.action)
@@ -85,7 +92,17 @@ class ActionContractTests(unittest.TestCase):
         self.assertIn("          ignore-path: nested/deep-noise.txt", self.workflow)
         self.assertIn("          gitignore: true", self.workflow)
         self.assertIn("          gitignore-recursive: true", self.workflow)
-        for name in ("ACTUAL_SCHEMA", "ACTUAL_SOURCE_FILES", "ACTUAL_OUTPUT_FILES", "ACTUAL_HOLDOUT"):
+        for name in (
+            "ACTUAL_SCHEMA",
+            "ACTUAL_SOURCE_FILES",
+            "ACTUAL_OUTPUT_FILES",
+            "ACTUAL_HOLDOUT",
+            "ACTUAL_ORACLE",
+            "ACTUAL_FILE_RETENTION",
+            "ACTUAL_BYTE_RETENTION",
+            "ACTUAL_FINGERPRINT_MODE",
+            "ACTUAL_FINGERPRINT_VERIFIED",
+        ):
             self.assertIn(name, self.workflow)
         self.assertIn('ACTUAL_HOLDOUT" == "not_requested"', self.workflow)
 
@@ -107,7 +124,7 @@ class ActionContractTests(unittest.TestCase):
 
     def test_embedded_output_reader_is_indented_inside_yaml_block(self) -> None:
         lines = self.action.splitlines()
-        start = lines.index("          python - \"$report_path\" <<'PY'")
+        start = lines.index("          python - \"$report_path\" \"$payload_path\" <<'PY'")
         end = lines.index("        } >> \"$GITHUB_OUTPUT\"", start)
         heredoc = lines[start + 1 : end]
         self.assertIn("        import json", heredoc)

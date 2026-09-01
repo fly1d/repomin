@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `repomin report validate --json` now emits a versioned, privacy-safe adoption
+  summary with oracle type, size-retention ratios, holdout counts, budget state,
+  and explicit-environment count, making CI and user feedback reports easier
+  to share without exposing commands, match expressions, logs, or values.
+- The issue chooser now includes a low-friction user-workflow feedback template
+  for successful, inconclusive, and blocked trials that cannot publish a real
+  failure.
+- The GitHub Action exposes the validated summary's oracle type, size-retention
+  ratios, and payload fingerprint evidence as scalar outputs for downstream CI
+  gates.
+
 ## [0.1.0.dev6] - 2026-09-01
 
 ### Added

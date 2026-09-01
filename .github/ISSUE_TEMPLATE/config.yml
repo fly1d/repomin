@@ -9,3 +9,6 @@ contact_links:
   - name: Share a real CI or dependency failure
     url: https://github.com/fly1d/repomin/issues/new?template=real_failure.md
     about: Use the pilot template for a sanitized workflow, failure contract, and report evidence.
+  - name: Share user workflow feedback
+    url: https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md
+    about: Tell us what was useful, confusing, or incompatible when you tried ReproMin.

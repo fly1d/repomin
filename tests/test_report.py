@@ -582,6 +582,64 @@ class ReportValidationTest(unittest.TestCase):
             self.assertEqual(1, result["accepted_mutations"])
             self.assertEqual(0, result["cache_hits"])
 
+    def test_cli_validate_json_includes_privacy_safe_adoption_summary(self) -> None:
+        report = _report()
+        report["failure_match"] = "PRIVATE_FAILURE_PATTERN"
+        report["failure_spec"] = {
+            "schema_version": 1,
+            "match": "PRIVATE_FAILURE_PATTERN",
+            "exit_code": None,
+            "java_exception": False,
+            "python_exception": False,
+            "process_failure": False,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            report_path = Path(directory) / "report.json"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            from contextlib import redirect_stdout
+            from io import StringIO
+
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = main(["report", "validate", str(report_path), "--json"])
+
+        self.assertEqual(0, exit_code)
+        serialized = output.getvalue()
+        result = json.loads(serialized)
+        self.assertEqual(1, result["summary_schema_version"])
+        self.assertEqual("match", result["oracle_mode"])
+        self.assertEqual(0, result["holdout_planned_runs"])
+        self.assertEqual(0, result["holdout_completed_runs"])
+        self.assertEqual(0, result["holdout_passes"])
+        self.assertFalse(result["budget_exhausted"])
+        self.assertEqual(0, result["environment_names_count"])
+        self.assertEqual(1, result["files_removed"])
+        self.assertEqual(5, result["bytes_removed"])
+        self.assertEqual(0.5, result["file_retention_ratio"])
+        self.assertEqual(0.5, result["byte_retention_ratio"])
+        self.assertNotIn("PRIVATE_FAILURE_PATTERN", serialized)
+
+    def test_cli_validate_json_omits_unrepresentable_ratios_without_traceback(
+        self,
+    ) -> None:
+        report = _report()
+        report["source"]["files"] = 10**1000
+        report["source"]["bytes"] = 10**1000
+        with tempfile.TemporaryDirectory() as directory:
+            report_path = Path(directory) / "report.json"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            from contextlib import redirect_stdout
+            from io import StringIO
+
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = main(["report", "validate", str(report_path), "--json"])
+
+        self.assertEqual(0, exit_code)
+        result = json.loads(output.getvalue())
+        self.assertIsNone(result["file_retention_ratio"])
+        self.assertIsNone(result["byte_retention_ratio"])
+
 
 if __name__ == "__main__":
     unittest.main()

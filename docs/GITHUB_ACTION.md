@@ -115,10 +115,15 @@ existing local image:
 
 Give the action an `id` when a later step needs to inspect the generated files.
 The action exposes absolute paths for the payload and report, the metadata
-directory, the artifact name, and scalar report facts useful for
-downstream gates: `report-schema-version`, `source-files`, `source-bytes`,
-`output-files`, `output-bytes`, `attempts`, `accepted-mutations`, and
-`holdout-status`.
+directory, the artifact name, and scalar report facts useful for downstream
+gates: `report-schema-version`, `source-files`, `source-bytes`, `output-files`,
+`output-bytes`, `attempts`, `accepted-mutations`, and `holdout-status`. It also
+exposes the privacy-safe `oracle-mode`, `file-retention-ratio`,
+`byte-retention-ratio`, `payload-fingerprint-mode`, and
+`payload-fingerprint-verified` values from the validated report. Ratios are
+fractions rounded to six decimal places; they are empty when the source size is
+zero. These outputs omit the reproduction command, match expression, logs, and
+environment values.
 
 ```yaml
 - name: Minimize failure

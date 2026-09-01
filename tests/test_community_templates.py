@@ -51,6 +51,25 @@ class CommunityTemplateTest(unittest.TestCase):
         ):
             self.assertIn(required, text)
 
+    def test_adoption_feedback_template_collects_trial_evidence_and_boundaries(
+        self,
+    ) -> None:
+        path = _ISSUE_TEMPLATE_DIR / "adoption_feedback.md"
+        text = path.read_text(encoding="utf-8").lower()
+        for required in (
+            "## workflow",
+            "## run",
+            "## value and friction",
+            "## privacy and redistribution",
+            "repomin doctor",
+            "report validate",
+            "report replay",
+            "credentials",
+            "proprietary source",
+            "current-environment",
+        ):
+            self.assertIn(required, text)
+
     def test_issue_chooser_exposes_the_real_failure_template(self) -> None:
         config = (_ROOT / ".github" / "ISSUE_TEMPLATE" / "config.yml").read_text(
             encoding="utf-8"
@@ -58,6 +77,16 @@ class CommunityTemplateTest(unittest.TestCase):
         self.assertIn("name: Share a real CI or dependency failure", config)
         self.assertIn(
             "issues/new?template=real_failure.md",
+            config,
+        )
+
+    def test_issue_chooser_exposes_adoption_feedback_template(self) -> None:
+        config = (_ROOT / ".github" / "ISSUE_TEMPLATE" / "config.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("name: Share user workflow feedback", config)
+        self.assertIn(
+            "issues/new?template=adoption_feedback.md",
             config,
         )
 

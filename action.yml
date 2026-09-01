@@ -41,6 +41,21 @@ outputs:
   holdout-status:
     description: Final holdout certification status from report.json
     value: ${{ steps.reduce.outputs.holdout-status }}
+  oracle-mode:
+    description: Privacy-safe failure oracle type from the validated report
+    value: ${{ steps.reduce.outputs.oracle-mode }}
+  file-retention-ratio:
+    description: Fraction of source files retained in the minimized payload
+    value: ${{ steps.reduce.outputs.file-retention-ratio }}
+  byte-retention-ratio:
+    description: Fraction of source bytes retained in the minimized payload
+    value: ${{ steps.reduce.outputs.byte-retention-ratio }}
+  payload-fingerprint-mode:
+    description: Payload fingerprint evidence mode (exact, content, or unavailable)
+    value: ${{ steps.reduce.outputs.payload-fingerprint-mode }}
+  payload-fingerprint-verified:
+    description: Whether the exported payload fingerprint was verified
+    value: ${{ steps.reduce.outputs.payload-fingerprint-verified }}
 inputs:
   command:
     description: Shell command that reproduces the failure
@@ -284,28 +299,47 @@ runs:
           printf 'payload-path=%s\n' "$payload_path"
           printf 'report-path=%s\n' "$report_path"
           printf 'metadata-path=%s\n' "$payload_path.repomin"
-          python - "$report_path" <<'PY'
+          python - "$report_path" "$payload_path" <<'PY'
         import json
+        from pathlib import Path
         import sys
 
         with open(sys.argv[1], encoding="utf-8") as stream:
             report = json.load(stream)
 
+        from repomin.cli import _validation_summary
+
+        summary = _validation_summary(
+            report,
+            Path(sys.argv[1]),
+            Path(sys.argv[2]),
+        )
         required = {
-            "report-schema-version": report.get("schema_version"),
-            "source-files": report.get("source", {}).get("files"),
-            "source-bytes": report.get("source", {}).get("bytes"),
-            "output-files": report.get("output", {}).get("files"),
-            "output-bytes": report.get("output", {}).get("bytes"),
-            "attempts": report.get("attempts"),
-            "accepted-mutations": report.get("accepted_mutations"),
-            "holdout-status": report.get("holdout_certification", {}).get("status"),
+            "report-schema-version": summary.get("schema_version"),
+            "source-files": summary.get("source_files"),
+            "source-bytes": summary.get("source_bytes"),
+            "output-files": summary.get("output_files"),
+            "output-bytes": summary.get("output_bytes"),
+            "attempts": summary.get("attempts"),
+            "accepted-mutations": summary.get("accepted_mutations"),
+            "holdout-status": summary.get("holdout_status"),
         }
         if any(value is None for value in required.values()):
             raise SystemExit("generated report is missing an action output field")
-        for name, value in required.items():
-            if isinstance(value, (dict, list, bool)):
+        optional = {
+            "oracle-mode": summary.get("oracle_mode"),
+            "file-retention-ratio": summary.get("file_retention_ratio"),
+            "byte-retention-ratio": summary.get("byte_retention_ratio"),
+            "payload-fingerprint-mode": summary.get("payload_fingerprint_mode"),
+            "payload-fingerprint-verified": summary.get("payload_fingerprint_verified"),
+        }
+        for name, value in {**required, **optional}.items():
+            if isinstance(value, (dict, list)):
                 raise SystemExit("generated report action output is not scalar: " + name)
+            if isinstance(value, bool):
+                value = str(value).lower()
+            if value is None:
+                value = ""
             print(f"{name}={value}")
         PY
         } >> "$GITHUB_OUTPUT"

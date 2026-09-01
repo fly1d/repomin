@@ -633,6 +633,12 @@ repomin report validate /tmp/checkout-repro.repomin/report.json \
 ```
 
 Use `--json` for a compact result suitable for CI checks.
+The result also includes a versioned, privacy-safe adoption summary: oracle
+type, source/output sizes and retention ratios, holdout counts, budget state,
+and the number of explicitly configured environment names. It intentionally
+omits the reproduction command, match expression, command output, and
+environment values, so the JSON can be pasted into a feedback report after
+reviewing the payload separately.
 
 To execute the report's failure command, first review the unsigned report and
 payload, then opt in explicitly. Replay validates the payload before execution
@@ -1154,7 +1160,10 @@ Discussions](https://github.com/fly1d/repomin/discussions). New contributors can
 pick a scoped task from [Good first issues](docs/GOOD_FIRST_ISSUES.md), and
 support details are collected in [SUPPORT.md](SUPPORT.md). Users with a real
 CI or dependency failure can follow the [pilot guide](docs/REAL_FAILURE_PILOT.md)
-before sharing a sanitized workflow in issue #11.
+before sharing a sanitized workflow in issue #11. Users who tried ReproMin but
+do not have a publishable failure can use the [user workflow feedback
+template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md)
+to report what was useful, confusing, or incompatible.
 
 ## License
 

@@ -1457,6 +1457,99 @@ def _report_command(argv: Sequence[str]) -> int:
     return 2
 
 
+def _validation_ratio(numerator: int, denominator: int) -> Optional[float]:
+    """Return a bounded, descriptive ratio for the validation summary."""
+    if denominator <= 0:
+        return None
+    try:
+        return round(float(numerator) / float(denominator), 6)
+    except (OverflowError, ZeroDivisionError):
+        # A structurally valid legacy report may contain integers too large for
+        # a platform float. Keep validation successful and omit only the ratio.
+        return None
+
+
+def _failure_contract_mode(report: dict) -> str:
+    """Classify the oracle without exposing its configured match expression."""
+    spec = report.get("failure_spec")
+    if isinstance(spec, dict):
+        if spec.get("java_exception"):
+            return "java_exception"
+        if spec.get("python_exception"):
+            return "python_exception"
+        if spec.get("process_failure"):
+            return "process_failure"
+        has_match = spec.get("match") is not None
+        has_exit_code = spec.get("exit_code") is not None
+        if has_match and has_exit_code:
+            return "match_and_exit_code"
+        if has_exit_code:
+            return "exit_code"
+        if has_match:
+            return "match"
+    if report.get("java_exception_signature") is not None:
+        return "java_exception"
+    if report.get("python_exception_signature") is not None:
+        return "python_exception"
+    if report.get("process_failure_signature") is not None:
+        return "process_failure"
+    if report.get("failure_match") is not None:
+        return "match"
+    return "legacy"
+
+
+def _validation_summary(
+    report: dict,
+    report_path: Path,
+    payload: Optional[Path],
+) -> dict:
+    """Build the privacy-safe scalar summary emitted by ``report validate``."""
+    source = report["source"]
+    output = report["output"]
+    execution = report["execution"]
+    holdout = report["holdout_certification"]
+    source_files = source["files"]
+    source_bytes = source["bytes"]
+    output_files = output["files"]
+    output_bytes = output["bytes"]
+    result = {
+        "valid": True,
+        "summary_schema_version": 1,
+        "schema_version": report["schema_version"],
+        "repomin_version": report.get("repomin_version"),
+        "holdout_status": holdout["status"],
+        "holdout_planned_runs": holdout["planned_runs"],
+        "holdout_completed_runs": holdout["completed_runs"],
+        "holdout_passes": holdout["passes"],
+        "holdout_exact_rate_gate_passed": holdout.get("exact_rate_gate_passed"),
+        "backend": execution["backend"],
+        "oracle_mode": _failure_contract_mode(report),
+        "source_files": source_files,
+        "source_bytes": source_bytes,
+        "output_files": output_files,
+        "output_bytes": output_bytes,
+        "files_removed": source_files - output_files,
+        "bytes_removed": source_bytes - output_bytes,
+        "file_retention_ratio": _validation_ratio(output_files, source_files),
+        "byte_retention_ratio": _validation_ratio(output_bytes, source_bytes),
+        "attempts": report["attempts"],
+        "accepted_mutations": report["accepted_mutations"],
+        "cache_hits": report["cache_hits"],
+        "budget_exhausted": execution.get("budget_exhausted", False),
+        "environment_names_count": len(execution.get("environment_names", [])),
+        "report": str(report_path.resolve()),
+    }
+    if payload is not None:
+        result["payload"] = str(payload.resolve())
+        result["payload_checked"] = True
+        fingerprint_mode, _actual_full, _actual_content = (
+            _payload_fingerprint_evidence(report, payload)
+        )
+        result["payload_fingerprint_mode"] = fingerprint_mode
+        result["payload_fingerprint_verified"] = fingerprint_mode != "unavailable"
+    return result
+
+
 def _report_validate_command(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(prog="repomin report validate")
     parser.add_argument("report", type=Path, help="report.json to validate")
@@ -1476,38 +1569,30 @@ def _report_validate_command(argv: Sequence[str]) -> int:
     except (ReportValidationError, ValueError, OSError) as exc:
         print("repomin report: %s" % exc, file=sys.stderr)
         return 2
-    source = report["source"]
-    output = report["output"]
-    execution = report["execution"]
-    result = {
-        "valid": True,
-        "schema_version": report["schema_version"],
-        "repomin_version": report.get("repomin_version"),
-        "holdout_status": report["holdout_certification"]["status"],
-        "backend": execution["backend"],
-        "source_files": source["files"],
-        "source_bytes": source["bytes"],
-        "output_files": output["files"],
-        "output_bytes": output["bytes"],
-        "attempts": report["attempts"],
-        "accepted_mutations": report["accepted_mutations"],
-        "cache_hits": report["cache_hits"],
-        "report": str(args.report.resolve()),
-    }
-    if args.payload is not None:
-        result["payload"] = str(args.payload.resolve())
-        result["payload_checked"] = True
-        fingerprint_mode, _actual_full, _actual_content = (
-            _payload_fingerprint_evidence(report, args.payload)
-        )
-        result["payload_fingerprint_mode"] = fingerprint_mode
-        result["payload_fingerprint_verified"] = fingerprint_mode != "unavailable"
+    result = _validation_summary(report, args.report, args.payload)
     if args.json:
         print(json.dumps(result, sort_keys=True))
     else:
         print(
-            "Valid ReproMin report (schema %s, holdout %s)."
-            % (result["schema_version"], result["holdout_status"])
+            "Valid ReproMin report (schema %s, oracle %s, holdout %s)."
+            % (
+                result["schema_version"],
+                result["oracle_mode"],
+                result["holdout_status"],
+            )
+        )
+        print(
+            "Payload: %s files, %s bytes (retention %s files / %s bytes)."
+            % (
+                result["output_files"],
+                result["output_bytes"],
+                result["file_retention_ratio"]
+                if result["file_retention_ratio"] is not None
+                else "n/a",
+                result["byte_retention_ratio"]
+                if result["byte_retention_ratio"] is not None
+                else "n/a",
+            )
         )
     return 0
 

@@ -43,6 +43,9 @@ dates. Concrete contribution tasks live in
 - Make the [real failure pilot guide](REAL_FAILURE_PILOT.md) easy to discover
   so sanitized user workflows can be turned into fixtures and compatibility
   notes.
+- Collect successful, inconclusive, and blocked trial feedback through the
+  user-workflow template, then turn repeated friction into focused examples,
+  compatibility notes, or starter issues.
 
 ## Next: release readiness
 

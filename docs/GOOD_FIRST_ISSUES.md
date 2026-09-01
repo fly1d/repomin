@@ -25,6 +25,14 @@ repository's [open issues](https://github.com/fly1d/repomin/issues) for newly
 proposed work, or use the [issue template chooser](https://github.com/fly1d/repomin/issues/new/choose)
 to suggest a focused contribution.
 
+You do not need a publishable failure to help. A successful, inconclusive, or
+blocked trial is useful when it includes the workflow goal, version and runner,
+what you tried, and the resulting value or friction. Use the [user workflow
+feedback template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md)
+for that report; it is intentionally separate from implementation issues so
+maintainers can turn repeated observations into examples, compatibility notes,
+or better defaults.
+
 ## Claim and submit
 
 Use this short loop for a starter issue:
