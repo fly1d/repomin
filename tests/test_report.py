@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+from repomin import __version__
 from repomin.cli import main
 from repomin.model import FailureSpec, ReductionResult, ReductionStats, RunResult
 from repomin.report import (
@@ -198,7 +199,7 @@ class ReportValidationTest(unittest.TestCase):
             final_run=RunResult(1, "", "", 0.0),
         )
         report = _build_report(result, "python3 reproduce.py", "FAIL")
-        self.assertEqual("0.1.0.dev6", report["repomin_version"])
+        self.assertEqual(__version__, report["repomin_version"])
         self.assertIs(validate_report_document(report), report)
 
     def test_legacy_report_without_version_remains_valid(self) -> None:

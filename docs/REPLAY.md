@@ -9,7 +9,7 @@ found.
 The command stored in a report is executable input. Review the report and the
 payload before acknowledging execution with `--yes`.
 
-This command is included in the `v0.1.0.dev6` pre-release. For a pilot report,
+This command is included in the `v0.1.0.dev7` pre-release. For a pilot report,
 record the installed version and (when installing from source) the Git SHA as
 described in the [pilot guide](REAL_FAILURE_PILOT.md).
 
