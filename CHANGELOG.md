@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No unreleased changes._
+
+## [0.1.0.dev8] - 2026-09-01
+
+### Added
+
+- `repomin report validate --format markdown` now emits a deterministic,
+  privacy-safe summary using a fixed escaped-field whitelist; it never renders
+  commands, match expressions, logs, paths, or environment metadata.
+- The GitHub Action accepts opt-in `step-summary: true` to append that summary
+  and a validated workflow-run link to `GITHUB_STEP_SUMMARY`, while remaining
+  compatible with runners where the summary file is unavailable.
+
+### Changed
+
+- Validation summaries no longer expose even an explicit-environment name
+  count; environment names and values remain outside the shareable summary
+  contract.
+- Shell completion scripts now suggest `text`, `json`, and `markdown` for
+  `report validate --format`.
+
+### Fixed
+
+- Report validation now rejects non-boolean `execution.budget_exhausted` values,
+  preventing malformed reports from injecting arbitrary content into exported
+  summaries.
+
 ## [0.1.0.dev7] - 2026-09-01
 
 ### Added

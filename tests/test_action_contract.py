@@ -42,6 +42,7 @@ class ActionContractTests(unittest.TestCase):
             "byte-retention-ratio",
             "payload-fingerprint-mode",
             "payload-fingerprint-verified",
+            "step-summary-path",
         ):
             self.assertIn("  %s:\n" % name, self.action)
         self.assertIn('print(f"{name}={value}")', self.action)
@@ -57,6 +58,33 @@ class ActionContractTests(unittest.TestCase):
         self.assertIn('if [[ -z "${RUNNER_TEMP:-}" ]]; then', self.action)
         self.assertIn("printf 'metadata-path=%s\\n'", self.action)
         self.assertIn("steps.reduce.outputs.metadata-path", self.action)
+
+    def test_step_summary_is_opt_in_and_privacy_safe(self) -> None:
+        self.assertIn("  step-summary:\n", self.action)
+        self.assertIn(
+            "description: Append a privacy-safe validation summary to GITHUB_STEP_SUMMARY",
+            self.action,
+        )
+        self.assertIn('default: "false"', self.action)
+        self.assertIn("REPOMIN_STEP_SUMMARY: ${{ inputs.step-summary }}", self.action)
+        self.assertIn('case "$REPOMIN_STEP_SUMMARY" in', self.action)
+        self.assertIn("step-summary must be true or false", self.action)
+        self.assertIn(
+            'repomin report validate "$report_path" --payload "$payload_path" --format markdown',
+            self.action,
+        )
+        self.assertIn('>> "$summary_path"', self.action)
+        self.assertIn(
+            'if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then', self.action
+        )
+        self.assertIn(
+            "step-summary requested but GITHUB_STEP_SUMMARY is unavailable; skipping",
+            self.action,
+        )
+        self.assertIn("GITHUB_SERVER_URL", self.action)
+        self.assertIn("GITHUB_REPOSITORY", self.action)
+        self.assertIn("GITHUB_RUN_ID", self.action)
+        self.assertIn("step-summary-path", self.action)
 
     def test_holdout_inputs_are_forwarded(self) -> None:
         for name in ("holdout-runs", "min-holdout-rate", "holdout-confidence"):
@@ -105,6 +133,11 @@ class ActionContractTests(unittest.TestCase):
         ):
             self.assertIn(name, self.workflow)
         self.assertIn('ACTUAL_HOLDOUT" == "not_requested"', self.workflow)
+        self.assertIn("step-summary: true", self.workflow)
+        self.assertIn("# ReproMin validation summary", self.workflow)
+        self.assertIn("PRIVATE_MATCH_SENTINEL", self.workflow)
+        self.assertIn("step-summary-path", self.workflow)
+        self.assertIn("SUMMARY_PATH", self.workflow)
 
     def test_docs_describe_unstable_output_mode(self) -> None:
         self.assertIn("exit-code", self.docs)
@@ -114,6 +147,8 @@ class ActionContractTests(unittest.TestCase):
         self.assertIn("min-holdout-rate", self.docs)
         self.assertIn("ignore-path", self.docs)
         self.assertIn("gitignore-recursive", self.docs)
+        self.assertIn("step-summary", self.docs)
+        self.assertIn("GITHUB_STEP_SUMMARY", self.docs)
 
     def test_docs_describe_python_runtime_path_behavior(self) -> None:
         self.assertIn("python-version", self.action)

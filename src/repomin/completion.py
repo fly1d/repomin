@@ -39,10 +39,15 @@ _repomin() {
             return 0
         fi
         if [[ "${COMP_WORDS[2]}" == "validate" ]]; then
-            options="--help --payload --json"
-            value_options="--payload"
+            options="--help --payload --json --format"
+            value_options="--payload --format"
+            case "$prev" in
+                --format) COMPREPLY=( $(compgen -W "text json markdown" -- "$cur") ); return 0 ;;
+            esac
             if [[ " $value_options " == *" $prev "* ]]; then
-                COMPREPLY=( $(compgen -f -- "$cur") )
+                if [[ "$prev" == "--payload" ]]; then
+                    COMPREPLY=( $(compgen -f -- "$cur") )
+                fi
                 return 0
             fi
             if [[ "$cur" == -* ]]; then
@@ -108,7 +113,8 @@ _repomin() {
                 '1:report:_files' \
                 '--help[show report validation help]' \
                 '--payload[exported payload directory]:directory:_files -/' \
-                '--json[print a machine-readable result]'
+                '--json[print a machine-readable result]' \
+                '--format[output format]:format:(text json markdown)'
         elif [[ "$words[3]" == "replay" ]]; then
             _arguments -s \
                 '1:report:_files' \
@@ -226,6 +232,7 @@ complete -c repomin -f -n '__fish_seen_subcommand_from completion' -a 'bash zsh 
 complete -c repomin -f -n '__fish_seen_subcommand_from report' -a 'validate replay' -d 'report command'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from validate' -l payload -r -a '(__fish_complete_directories)' -d 'exported payload directory'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from validate' -l json -d 'print a machine-readable result'
+complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from validate' -l format -r -a 'text json markdown' -d 'output format'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l payload -r -a '(__fish_complete_directories)' -d 'exported payload directory'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l runs -r -d 'fresh replay copies'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l timeout -r -d 'seconds per replay run'
@@ -312,7 +319,7 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
         '--java-classpath', '--verbose'
     )
     $reportOptions = @('validate', 'replay', '--help')
-    $reportValidateOptions = @('--help', '--payload', '--json')
+    $reportValidateOptions = @('--help', '--payload', '--json', '--format')
     $reportReplayOptions = @(
         '--help', '--payload', '--runs', '--timeout', '--env', '--backend',
         '--docker-image', '--docker-network', '--exit-code', '--yes', '--json'
@@ -375,6 +382,16 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
         }
         if ($replayMode -and $previous -eq '--docker-network') {
             @('none', 'bridge', 'host') |
+                Where-Object { $_ -like "$wordToComplete*" } |
+                ForEach-Object {
+                    [System.Management.Automation.CompletionResult]::new(
+                        $_, $_, 'ParameterValue', $_
+                    )
+                }
+            return
+        }
+        if ($validateMode -and $previous -eq '--format') {
+            @('text', 'json', 'markdown') |
                 Where-Object { $_ -like "$wordToComplete*" } |
                 ForEach-Object {
                     [System.Management.Automation.CompletionResult]::new(

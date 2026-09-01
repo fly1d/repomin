@@ -99,6 +99,7 @@ jobs:
           ignore-path: nested/deep-noise.txt
           gitignore: true
           gitignore-recursive: true
+          step-summary: true
           artifact-name: action-smoke
       - name: Check action outputs
         shell: bash
@@ -119,6 +120,7 @@ jobs:
           ACTUAL_BYTE_RETENTION: ${{ steps.repomin.outputs.byte-retention-ratio }}
           ACTUAL_FINGERPRINT_MODE: ${{ steps.repomin.outputs.payload-fingerprint-mode }}
           ACTUAL_FINGERPRINT_VERIFIED: ${{ steps.repomin.outputs.payload-fingerprint-verified }}
+          ACTUAL_SUMMARY_PATH: ${{ steps.repomin.outputs.step-summary-path }}
         run: |
           set -euo pipefail
           [[ "$ACTUAL_PAYLOAD" == "$EXPECTED_PAYLOAD_PREFIX"* ]]
@@ -136,6 +138,18 @@ jobs:
           [[ "$ACTUAL_BYTE_RETENTION" =~ ^[0-9]+(\.[0-9]+)?$ ]]
           [[ "$ACTUAL_FINGERPRINT_MODE" == "exact" ]]
           [[ "$ACTUAL_FINGERPRINT_VERIFIED" == "true" ]]
+      - name: Check privacy-safe step summary
+        shell: bash
+        env:
+          SUMMARY_PATH: ${{ steps.repomin.outputs.step-summary-path }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SUMMARY_PATH" && -f "$SUMMARY_PATH" ]]
+          grep -F '# ReproMin validation summary' "$SUMMARY_PATH"
+          grep -F '| `oracle_mode` | `exit_code` |' "$SUMMARY_PATH"
+          ! grep -F 'reproduce.py' "$SUMMARY_PATH"
+          ! grep -F 'PRIVATE_MATCH_SENTINEL' "$SUMMARY_PATH"
+          ! grep -F 'PRIVATE_ENV_NAME' "$SUMMARY_PATH"
       - name: Download and validate action artifact
         uses: actions/download-artifact@v8
         with:

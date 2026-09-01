@@ -74,6 +74,8 @@ Important fields include:
 - `environment_names` and `environment_sha256`: names and a digest of explicit
   environment values. Values are intentionally never recorded.
 - `timeout_seconds`: configured timeout for each reproduction command.
+- `budget_exhausted`: boolean indicating whether an optional reduction budget
+  stopped the search before the normal fixed-point condition.
 
 Docker reports additionally contain the image reference, resolved immutable
 image ID, network policy, and configured resource limits when applicable.
@@ -173,9 +175,9 @@ has `summary_schema_version: 1` and includes `valid`, `schema_version`,
 `holdout_status`, the report path, `repomin_version`, `backend`, the
 privacy-safe `oracle_mode`, source/output file and byte counts, removed
 file/byte counts, file/byte retention ratios, `attempts`,
-`accepted_mutations`, `cache_hits`, `budget_exhausted`, and the count of
-explicit environment names. Holdout run/pass counts are included without
-including command output or environment values. The version is `null` for
+`accepted_mutations`, `cache_hits`, and `budget_exhausted`. Holdout run/pass
+counts are included without including command output,
+environment names, or environment values. The version is `null` for
 legacy reports that predate version provenance. Ratios are `null` when the
 source denominator is zero; otherwise they are descriptive fractions rounded
 to six decimal places. A negative removal count is possible for a report whose
@@ -185,6 +187,25 @@ derived from the validated report; they do not add a new correctness claim.
 `payload_fingerprint_verified` distinguishes a cryptographic tree match from
 count-only validation of a legacy report, and `payload_fingerprint_mode` is
 `exact`, `content`, or `unavailable` when `--payload` is supplied.
+
+For a human-readable, shareable version of the same safe fields, request the
+Markdown exporter:
+
+```sh
+repomin report validate OUTPUT.repomin/report.json \
+  --payload OUTPUT --format markdown
+```
+
+The exporter is deterministic and uses a fixed whitelist: summary/report
+schema and version, execution backend, oracle type, source/output sizes,
+removal and retention figures, reduction attempt/mutation counts, holdout
+status/counts, and payload-fingerprint status. Every value is escaped for a
+Markdown table. It never renders the report path, payload path, reproduction
+command, match expression, logs, environment names or values, signatures, or
+other report fields. A missing payload is represented as `n/a` for fingerprint
+fields; it does not trigger command execution. Invalid JSON, unsupported schema,
+inconsistent evidence, or a mismatched payload returns exit code `2` and emits
+no Markdown summary.
 
 After reviewing the unsigned command in a report, consumers can also run a
 fresh-copy [replay](REPLAY.md):

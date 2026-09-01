@@ -56,6 +56,9 @@ outputs:
   payload-fingerprint-verified:
     description: Whether the exported payload fingerprint was verified
     value: ${{ steps.reduce.outputs.payload-fingerprint-verified }}
+  step-summary-path:
+    description: Runner path to the generated step summary when enabled
+    value: ${{ steps.reduce.outputs.step-summary-path }}
 inputs:
   command:
     description: Shell command that reproduces the failure
@@ -143,6 +146,10 @@ inputs:
     description: Name of the uploaded GitHub Actions artifact
     required: false
     default: repomin-result
+  step-summary:
+    description: Append a privacy-safe validation summary to GITHUB_STEP_SUMMARY
+    required: false
+    default: "false"
 runs:
   using: composite
   steps:
@@ -179,6 +186,7 @@ runs:
         REPOMIN_DOCKER_NETWORK: ${{ inputs.docker-network }}
         REPOMIN_TIMEOUT: ${{ inputs.timeout }}
         REPOMIN_JOBS: ${{ inputs.jobs }}
+        REPOMIN_STEP_SUMMARY: ${{ inputs.step-summary }}
       run: |
         set -euo pipefail
 
@@ -225,6 +233,13 @@ runs:
           true|false) ;;
           *)
             echo "gitignore-recursive must be true or false" >&2
+            exit 2
+            ;;
+        esac
+        case "$REPOMIN_STEP_SUMMARY" in
+          true|false) ;;
+          *)
+            echo "step-summary must be true or false" >&2
             exit 2
             ;;
         esac
@@ -295,10 +310,28 @@ runs:
           exit 1
         fi
         repomin report validate "$report_path" --payload "$payload_path" --json >/dev/null
+        summary_path=""
+        if [[ "$REPOMIN_STEP_SUMMARY" == true ]]; then
+          if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+            summary_path="$GITHUB_STEP_SUMMARY"
+            repomin report validate "$report_path" --payload "$payload_path" --format markdown >> "$summary_path"
+            {
+              printf '\n## ReproMin artifact\n\n'
+              if [[ "${GITHUB_SERVER_URL:-}" =~ ^https://[A-Za-z0-9.-]+$ && "${GITHUB_REPOSITORY:-}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ && "${GITHUB_RUN_ID:-}" =~ ^[0-9]+$ ]]; then
+                printf '[Open the workflow run to download the artifact](%s/%s/actions/runs/%s).\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+              else
+                printf 'The minimized payload and report were uploaded as the configured artifact.\n'
+              fi
+            } >> "$summary_path"
+          else
+            echo "step-summary requested but GITHUB_STEP_SUMMARY is unavailable; skipping" >&2
+          fi
+        fi
         {
           printf 'payload-path=%s\n' "$payload_path"
           printf 'report-path=%s\n' "$report_path"
           printf 'metadata-path=%s\n' "$payload_path.repomin"
+          printf 'step-summary-path=%s\n' "$summary_path"
           python - "$report_path" "$payload_path" <<'PY'
         import json
         from pathlib import Path

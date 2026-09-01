@@ -11,18 +11,19 @@ PyPI。建议先使用虚拟环境，避免修改系统 Python：
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-REPOMIN_VERSION=0.1.0.dev7
+REPOMIN_VERSION=0.1.0.dev8
 python -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 python -m repomin --version
 ```
 
-当前版本应显示 `repomin 0.1.0.dev7`。发布页同时提供 wheel 和源码归档，以及对应的
+当前版本应显示 `repomin 0.1.0.dev8`。发布页同时提供 wheel 和源码归档，以及对应的
 SHA-256 校验值；需要供应链校验时，请先核对
-[发布页](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev7)再安装。wheel 不需要
+[发布页](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev8)再安装。wheel 不需要
 本地构建，首次使用更快。
 
-本页后面的 `report replay` 和传输 fingerprint 功能已包含在 `v0.1.0.dev7` 发布包中。
+本页后面的 `report replay`、传输 fingerprint 和 Markdown 摘要功能已包含在
+`v0.1.0.dev8` 发布包中。
 参与 pilot 前仍请阅读[真实失败 pilot 指南](REAL_FAILURE_PILOT.md)，并按其中的隐私和
 安全边界检查报告与 payload。
 
@@ -91,8 +92,18 @@ repomin report validate "$demo_dir/reduced.repomin/report.json" \
 ```
 
 这个 JSON 摘要包含 oracle 类型、缩减前后文件/字节数、保留比例、holdout 计数和预算状态，
-但不会包含命令、匹配正则、日志或环境变量值，适合贴到 CI 记录或用户反馈中。提交前仍要
+但不会包含命令、匹配正则、日志或环境变量名称和值，适合贴到 CI 记录或用户反馈中。提交前仍要
 单独检查 payload 和 `report.json` 是否含有敏感信息。
+
+如果需要贴到 Issue 或 CI 摘要中，也可以生成确定性的 Markdown 摘要：
+
+```sh
+repomin report validate "$demo_dir/reduced.repomin/report.json" \
+  --payload "$demo_dir/reduced" --format markdown
+```
+
+该表只包含经过转义的版本、后端、oracle 类型、大小、缩减计数、holdout 和指纹状态，
+不会输出命令、正则、日志、路径或环境变量信息。
 
 验证器检查报告结构、阶段和 holdout 统计，以及可用的 payload 指纹；它不会重新运行
 `--command`，也不等于证明代码或失败根因的正确性。报告格式错误、统计不一致或指纹不匹配

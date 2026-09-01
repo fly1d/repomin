@@ -12,7 +12,7 @@ job's failure-handling step:
 ```yaml
 - name: Minimize failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev7
+  uses: fly1d/repomin@v0.1.0.dev8
   with:
     command: python -m pytest -q
     match: "FAILED tests/test_regression.py"
@@ -53,6 +53,17 @@ runtime from an earlier failed step; set `python-version` to the version used
 by the failing job (or invoke an explicit interpreter) when that distinction
 matters. `artifact-name` controls the uploaded artifact name.
 
+Set `step-summary: true` when the job should append a compact, privacy-safe
+validation table to GitHub's step summary. The option is `false` by default, so
+existing workflows keep their current output contract. The summary contains
+only schema/version, backend, oracle type, source/payload sizes, reduction
+counts, holdout status/counts, and payload-fingerprint status. It deliberately
+omits the reproduction command, match expression, logs, file paths, and
+environment names or values. A workflow-run link is added when GitHub provides
+validated run context. On local action runners or older hosts where
+`GITHUB_STEP_SUMMARY` is unset, the request is reported as a warning and the
+action continues without a summary.
+
 `ignore` and `ignore-path` accept one exact entry per line. Use them for
 secrets or private fixtures that must never enter the uploaded payload;
 `gitignore: true` applies the repository's root `.gitignore`, and
@@ -76,7 +87,7 @@ result through `holdout-status`:
 ```yaml
 - name: Certify minimized failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev7
+  uses: fly1d/repomin@v0.1.0.dev8
   with:
     command: python -m pytest -q
     match: "FAILED tests/test_regression.py"
@@ -90,7 +101,7 @@ For a command with a stable exit code but unstable output:
 ```yaml
 - name: Minimize failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev7
+  uses: fly1d/repomin@v0.1.0.dev8
   with:
     command: python -m pytest -q
     exit-code: "1"
@@ -102,7 +113,7 @@ existing local image:
 ```yaml
 - name: Minimize Docker failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev7
+  uses: fly1d/repomin@v0.1.0.dev8
   with:
     command: python3 reproduce.py
     match: "ORIGINAL_FAILURE"
@@ -123,16 +134,17 @@ exposes the privacy-safe `oracle-mode`, `file-retention-ratio`,
 `payload-fingerprint-verified` values from the validated report. Ratios are
 fractions rounded to six decimal places; they are empty when the source size is
 zero. These outputs omit the reproduction command, match expression, logs, and
-environment values.
+environment names or values.
 
 ```yaml
 - name: Minimize failure
   if: ${{ failure() }}
   id: minimize
-  uses: fly1d/repomin@v0.1.0.dev7
+  uses: fly1d/repomin@v0.1.0.dev8
   with:
     command: python -m pytest -q
     match: "FAILED tests/test_regression.py"
+    step-summary: true
 
 - name: Validate minimized report
   if: ${{ always() && steps.minimize.conclusion == 'success' }}
@@ -147,6 +159,10 @@ environment values.
 `artifact-name` is the name passed to
 `actions/upload-artifact`. The numeric outputs are copied from the generated
 report and are strings, as required by the Actions output protocol.
+When `step-summary: true` and `GITHUB_STEP_SUMMARY` is available,
+`step-summary-path` contains that runner-managed summary file path; otherwise it
+is empty. The path is provided for smoke tests and diagnostics, while the
+summary content itself remains limited to the privacy-safe Markdown whitelist.
 `holdout-status` is `not_requested` when no holdout inputs are supplied.
 The action validates the report and payload fingerprint before publishing its
 outputs. Report validation returns exit code `2` for an invalid report or

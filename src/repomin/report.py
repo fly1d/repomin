@@ -100,6 +100,10 @@ def validate_report_document(report: object) -> Dict[str, object]:
         )
         if timeout <= 0.0:
             raise ReportValidationError("execution.timeout_seconds must be positive")
+    if "budget_exhausted" in execution and not isinstance(
+        execution["budget_exhausted"], bool
+    ):
+        raise ReportValidationError("execution.budget_exhausted must be boolean")
     _validate_execution_limits(execution)
     _validate_execution_environment(execution)
 

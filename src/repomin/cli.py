@@ -1536,7 +1536,6 @@ def _validation_summary(
         "accepted_mutations": report["accepted_mutations"],
         "cache_hits": report["cache_hits"],
         "budget_exhausted": execution.get("budget_exhausted", False),
-        "environment_names_count": len(execution.get("environment_names", [])),
         "report": str(report_path.resolve()),
     }
     if payload is not None:
@@ -1550,6 +1549,98 @@ def _validation_summary(
     return result
 
 
+_VALIDATION_MARKDOWN_FIELDS = (
+    ("valid", "valid"),
+    ("summary_schema_version", "summary_schema_version"),
+    ("schema_version", "schema_version"),
+    ("repomin_version", "repomin_version"),
+    ("backend", "backend"),
+    ("oracle_mode", "oracle_mode"),
+    ("source_files", "source_files"),
+    ("source_bytes", "source_bytes"),
+    ("output_files", "output_files"),
+    ("output_bytes", "output_bytes"),
+    ("files_removed", "files_removed"),
+    ("bytes_removed", "bytes_removed"),
+    ("file_retention_ratio", "file_retention_ratio"),
+    ("byte_retention_ratio", "byte_retention_ratio"),
+    ("attempts", "attempts"),
+    ("accepted_mutations", "accepted_mutations"),
+    ("cache_hits", "cache_hits"),
+    ("budget_exhausted", "budget_exhausted"),
+    ("holdout_status", "holdout_status"),
+    ("holdout_planned_runs", "holdout_planned_runs"),
+    ("holdout_completed_runs", "holdout_completed_runs"),
+    ("holdout_passes", "holdout_passes"),
+    ("holdout_exact_rate_gate_passed", "holdout_exact_rate_gate_passed"),
+    ("payload_fingerprint_mode", "payload_fingerprint_mode"),
+    ("payload_fingerprint_verified", "payload_fingerprint_verified"),
+)
+
+
+def _markdown_cell(value: object) -> str:
+    """Render one untrusted scalar as a safe Markdown table cell.
+
+    The report validator constrains the value types, but legacy provenance
+    strings can still contain arbitrary text. Escape both table syntax and
+    inline Markdown, and make line/control separators visible instead of
+    allowing a value to create additional rows or blocks.
+    """
+    if value is None:
+        text = "n/a"
+    elif isinstance(value, bool):
+        text = "true" if value else "false"
+    else:
+        text = str(value)
+    escaped = []
+    for character in text:
+        codepoint = ord(character)
+        if character == "\\":
+            escaped.append("\\\\")
+        elif character == "|":
+            escaped.append("\\|")
+        elif character in "\r\n":
+            escaped.append("\\r" if character == "\r" else "\\n")
+        elif codepoint < 0x20 or codepoint == 0x7F:
+            escaped.append("\\u%04x" % codepoint)
+        else:
+            escaped.append(character)
+    rendered = "".join(escaped)
+    # Keep values in code spans so status names such as ``not_requested`` do
+    # not become emphasis. Pick a fence longer than any input run of backticks
+    # so even legacy provenance strings cannot terminate the cell early.
+    fence = "`"
+    while fence in rendered:
+        fence += "`"
+    return "%s%s%s" % (fence, rendered, fence)
+
+
+def format_validation_markdown(summary: dict) -> str:
+    """Format a deterministic, privacy-safe validation summary.
+
+    Only fields in ``_VALIDATION_MARKDOWN_FIELDS`` are rendered. In
+    particular, report/payload paths, command text, match expressions, logs,
+    and environment metadata are intentionally excluded even when present in
+    the source summary dictionary.
+    """
+    lines = [
+        "# ReproMin validation summary",
+        "",
+        (
+            "This is privacy-safe evidence for one configured failure oracle in "
+            "the recorded environment. It does not establish code correctness, "
+            "production reliability, or sandbox security."
+        ),
+        "",
+        "| Field | Value |",
+        "| --- | --- |",
+    ]
+    for label, key in _VALIDATION_MARKDOWN_FIELDS:
+        value = summary.get(key)
+        lines.append("| `%s` | %s |" % (label, _markdown_cell(value)))
+    return "\n".join(lines) + "\n"
+
+
 def _report_validate_command(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(prog="repomin report validate")
     parser.add_argument("report", type=Path, help="report.json to validate")
@@ -1558,10 +1649,17 @@ def _report_validate_command(argv: Sequence[str]) -> int:
         type=Path,
         help="exported payload directory whose holdout fingerprint should match",
     )
-    parser.add_argument(
+    output_group = parser.add_mutually_exclusive_group()
+    output_group.add_argument(
         "--json",
         action="store_true",
         help="print a compact machine-readable validation result",
+    )
+    output_group.add_argument(
+        "--format",
+        choices=("text", "json", "markdown"),
+        default="text",
+        help="output format (default: text; markdown is privacy-safe)",
     )
     try:
         args = parser.parse_args(list(argv))
@@ -1570,8 +1668,11 @@ def _report_validate_command(argv: Sequence[str]) -> int:
         print("repomin report: %s" % exc, file=sys.stderr)
         return 2
     result = _validation_summary(report, args.report, args.payload)
-    if args.json:
+    output_format = "json" if args.json else args.format
+    if output_format == "json":
         print(json.dumps(result, sort_keys=True))
+    elif output_format == "markdown":
+        print(format_validation_markdown(result), end="")
     else:
         print(
             "Valid ReproMin report (schema %s, oracle %s, holdout %s)."

@@ -354,6 +354,20 @@ class CliTest(unittest.TestCase):
         self.assertEqual(0, exit_code)
         self.assertIn("-a 'bash zsh fish powershell'", stdout.getvalue())
 
+    def test_report_validate_completion_includes_output_formats(self) -> None:
+        for shell in ("bash", "zsh", "fish", "powershell"):
+            with self.subTest(shell=shell):
+                stdout = io.StringIO()
+                with contextlib.redirect_stdout(stdout):
+                    exit_code = main(["completion", shell])
+                self.assertEqual(0, exit_code)
+                script = stdout.getvalue()
+                self.assertIn("validate", script)
+                self.assertIn("-l format" if shell == "fish" else "--format", script)
+                self.assertIn("text", script)
+                self.assertIn("json", script)
+                self.assertIn("markdown", script)
+
     def test_match_is_required_without_process_failure_mode(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "source"

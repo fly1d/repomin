@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from repomin import __version__
-from repomin.cli import main
+from repomin.cli import format_validation_markdown, main
 from repomin.model import FailureSpec, ReductionResult, ReductionStats, RunResult
 from repomin.report import (
     ReportValidationError,
@@ -212,6 +212,16 @@ class ReportValidationTest(unittest.TestCase):
         report["repomin_version"] = ""
         with self.assertRaisesRegex(ReportValidationError, "repomin_version"):
             validate_report_document(report)
+
+    def test_rejects_non_boolean_budget_state_before_summary(self) -> None:
+        for value in ({"private": "SECRET"}, "false", 1, None):
+            with self.subTest(value=value):
+                report = _report()
+                report["execution"]["budget_exhausted"] = value
+                with self.assertRaisesRegex(
+                    ReportValidationError, "budget_exhausted"
+                ):
+                    validate_report_document(report)
 
     def test_schema_versions_must_be_integer_one(self) -> None:
         for path, value in (
@@ -613,7 +623,7 @@ class ReportValidationTest(unittest.TestCase):
         self.assertEqual(0, result["holdout_completed_runs"])
         self.assertEqual(0, result["holdout_passes"])
         self.assertFalse(result["budget_exhausted"])
-        self.assertEqual(0, result["environment_names_count"])
+        self.assertNotIn("environment_names_count", result)
         self.assertEqual(1, result["files_removed"])
         self.assertEqual(5, result["bytes_removed"])
         self.assertEqual(0.5, result["file_retention_ratio"])
@@ -640,6 +650,108 @@ class ReportValidationTest(unittest.TestCase):
         result = json.loads(output.getvalue())
         self.assertIsNone(result["file_retention_ratio"])
         self.assertIsNone(result["byte_retention_ratio"])
+
+    def test_cli_validate_markdown_is_deterministic_and_privacy_safe(self) -> None:
+        report = _report()
+        report["command"] = "python3 reproduce.py --secret COMMAND_SENTINEL"
+        report["failure_match"] = "PRIVATE_MATCH_SENTINEL"
+        report["repomin_version"] = "v1|candidate`\nnext"
+        report["execution"]["environment_names"] = ["PRIVATE_ENV_NAME"]
+        report["events"] = [
+            {
+                "phase": "files",
+                "description": "PRIVATE_LOG_SENTINEL",
+                "duration_seconds": 0.0,
+                "oracle_runs": 0,
+                "oracle_passes": 0,
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            report_path = Path(directory) / "report.json"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            from contextlib import redirect_stdout
+            from io import StringIO
+
+            first = StringIO()
+            with redirect_stdout(first):
+                first_code = main(
+                    ["report", "validate", str(report_path), "--format", "markdown"]
+                )
+            second = StringIO()
+            with redirect_stdout(second):
+                second_code = main(
+                    ["report", "validate", str(report_path), "--format", "markdown"]
+                )
+
+        self.assertEqual(0, first_code)
+        self.assertEqual(0, second_code)
+        rendered = first.getvalue()
+        self.assertEqual(rendered, second.getvalue())
+        self.assertTrue(rendered.startswith("# ReproMin validation summary\n"))
+        self.assertTrue(rendered.endswith("\n"))
+        self.assertIn("| `oracle_mode` | `match` |", rendered)
+        self.assertIn("v1\\|candidate", rendered)
+        self.assertIn("\\nnext", rendered)
+        self.assertNotIn("COMMAND_SENTINEL", rendered)
+        self.assertNotIn("PRIVATE_MATCH_SENTINEL", rendered)
+        self.assertNotIn("PRIVATE_LOG_SENTINEL", rendered)
+        self.assertNotIn("PRIVATE_ENV_NAME", rendered)
+        self.assertNotIn("report.json", rendered)
+        self.assertNotIn("command", rendered)
+
+    def test_markdown_renderer_ignores_non_whitelisted_summary_fields(self) -> None:
+        rendered = format_validation_markdown(
+            {
+                "summary_schema_version": 1,
+                "schema_version": 1,
+                "backend": "host",
+                "oracle_mode": "exit_code",
+                "source_files": 1,
+                "source_bytes": 2,
+                "output_files": 1,
+                "output_bytes": 2,
+                "files_removed": 0,
+                "bytes_removed": 0,
+                "file_retention_ratio": 1.0,
+                "byte_retention_ratio": 1.0,
+                "attempts": 0,
+                "accepted_mutations": 0,
+                "holdout_status": "not_requested",
+                "holdout_planned_runs": 0,
+                "holdout_completed_runs": 0,
+                "holdout_passes": 0,
+                "command": "DO_NOT_RENDER",
+                "report": "/private/report.json",
+                "payload": "/private/payload",
+                "environment_names_count": 9,
+            }
+        )
+        self.assertNotIn("DO_NOT_RENDER", rendered)
+        self.assertNotIn("/private", rendered)
+        self.assertNotIn("environment_names_count", rendered)
+        self.assertIn("| `payload_fingerprint_mode` | `n/a` |", rendered)
+
+    def test_cli_validate_markdown_rejects_invalid_report_with_exit_code_two(
+        self,
+    ) -> None:
+        report = _report()
+        report["schema_version"] = 99
+        with tempfile.TemporaryDirectory() as directory:
+            report_path = Path(directory) / "report.json"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            from contextlib import redirect_stderr, redirect_stdout
+            from io import StringIO
+
+            stdout = StringIO()
+            stderr = StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                exit_code = main(
+                    ["report", "validate", str(report_path), "--format", "markdown"]
+                )
+
+        self.assertEqual(2, exit_code)
+        self.assertEqual("", stdout.getvalue())
+        self.assertIn("unsupported report schema_version", stderr.getvalue())
 
 
 if __name__ == "__main__":
