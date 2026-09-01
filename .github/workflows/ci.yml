@@ -146,6 +146,7 @@ jobs:
           set -euo pipefail
           [[ -n "$SUMMARY_PATH" && -f "$SUMMARY_PATH" ]]
           grep -F '# ReproMin validation summary' "$SUMMARY_PATH"
+          grep -F '| `summary_schema_version` | `2` |' "$SUMMARY_PATH"
           grep -F '| `oracle_mode` | `exit_code` |' "$SUMMARY_PATH"
           ! grep -F 'reproduce.py' "$SUMMARY_PATH"
           ! grep -F 'PRIVATE_MATCH_SENTINEL' "$SUMMARY_PATH"

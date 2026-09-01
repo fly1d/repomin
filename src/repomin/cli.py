@@ -1498,6 +1498,9 @@ def _failure_contract_mode(report: dict) -> str:
     return "legacy"
 
 
+VALIDATION_SUMMARY_SCHEMA_VERSION = 2
+
+
 def _validation_summary(
     report: dict,
     report_path: Path,
@@ -1514,7 +1517,7 @@ def _validation_summary(
     output_bytes = output["bytes"]
     result = {
         "valid": True,
-        "summary_schema_version": 1,
+        "summary_schema_version": VALIDATION_SUMMARY_SCHEMA_VERSION,
         "schema_version": report["schema_version"],
         "repomin_version": report.get("repomin_version"),
         "holdout_status": holdout["status"],
@@ -1576,7 +1579,6 @@ _VALIDATION_MARKDOWN_FIELDS = (
     ("payload_fingerprint_mode", "payload_fingerprint_mode"),
     ("payload_fingerprint_verified", "payload_fingerprint_verified"),
 )
-
 
 def _markdown_cell(value: object) -> str:
     """Render one untrusted scalar as a safe Markdown table cell.

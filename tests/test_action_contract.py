@@ -135,6 +135,8 @@ class ActionContractTests(unittest.TestCase):
         self.assertIn('ACTUAL_HOLDOUT" == "not_requested"', self.workflow)
         self.assertIn("step-summary: true", self.workflow)
         self.assertIn("# ReproMin validation summary", self.workflow)
+        self.assertIn("summary_schema_version", self.workflow)
+        self.assertIn("| `summary_schema_version` | `2` |", self.workflow)
         self.assertIn("PRIVATE_MATCH_SENTINEL", self.workflow)
         self.assertIn("step-summary-path", self.workflow)
         self.assertIn("SUMMARY_PATH", self.workflow)

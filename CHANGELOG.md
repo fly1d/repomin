@@ -23,8 +23,8 @@ _No unreleased changes._
 ### Changed
 
 - Validation summaries no longer expose even an explicit-environment name
-  count; environment names and values remain outside the shareable summary
-  contract.
+  count; `summary_schema_version` is now `2`, and environment names and values
+  remain outside the shareable summary contract.
 - Shell completion scripts now suggest `text`, `json`, and `markdown` for
   `report validate --format`.
 

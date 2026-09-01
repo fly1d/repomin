@@ -170,8 +170,9 @@ inconsistent phase/holdout accounting, unsafe payload entries, size drift, or
 a payload fingerprint mismatch. Legacy reports without an output or holdout
 fingerprint still receive safe-tree and file/byte-count validation.
 
-Add `--json` when a CI step or issue report needs a compact summary. The result
-has `summary_schema_version: 1` and includes `valid`, `schema_version`,
+Add `--json` when a CI step or issue report needs a compact summary. The
+current result has `summary_schema_version: 2` and includes `valid`,
+`schema_version`,
 `holdout_status`, the report path, `repomin_version`, `backend`, the
 privacy-safe `oracle_mode`, source/output file and byte counts, removed
 file/byte counts, file/byte retention ratios, `attempts`,
@@ -187,6 +188,11 @@ derived from the validated report; they do not add a new correctness claim.
 `payload_fingerprint_verified` distinguishes a cryptographic tree match from
 count-only validation of a legacy report, and `payload_fingerprint_mode` is
 `exact`, `content`, or `unavailable` when `--payload` is supplied.
+
+Summary schema version `1` (used by `v0.1.0.dev7`) included an
+`environment_names_count` field. Version `2` removes that field so shareable
+summaries contain no environment metadata; consumers should branch on
+`summary_schema_version` instead of assuming fields are stable across releases.
 
 For a human-readable, shareable version of the same safe fields, request the
 Markdown exporter:

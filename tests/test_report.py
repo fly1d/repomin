@@ -617,7 +617,7 @@ class ReportValidationTest(unittest.TestCase):
         self.assertEqual(0, exit_code)
         serialized = output.getvalue()
         result = json.loads(serialized)
-        self.assertEqual(1, result["summary_schema_version"])
+        self.assertEqual(2, result["summary_schema_version"])
         self.assertEqual("match", result["oracle_mode"])
         self.assertEqual(0, result["holdout_planned_runs"])
         self.assertEqual(0, result["holdout_completed_runs"])
