@@ -69,6 +69,14 @@ The replay and transport-fingerprint workflow is included in the current
 `v0.1.0.dev9` pre-release. The [real-failure pilot guide](docs/REAL_FAILURE_PILOT.md)
 describes the report and privacy boundaries.
 
+Trying ReproMin on a real workflow? A successful, inconclusive, or blocked run
+is useful feedback. Use the [pilot issue](https://github.com/fly1d/repomin/issues/11)
+for a sanitized CI/dependency failure, or the [user workflow feedback
+template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md)
+when you want to report value, friction, or compatibility without publishing a
+failure. Review the payload and report first; do not upload credentials,
+private URLs, proprietary source, raw logs, commands, or environment values.
+
 中文用户可以先阅读[中文快速开始](docs/QUICKSTART.zh-CN.md)，其中包含一个
 可直接运行的最小缩减示例、安全边界和报告说明。
 
