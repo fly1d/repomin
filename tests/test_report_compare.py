@@ -2,6 +2,7 @@ import contextlib
 import io
 import json
 import tempfile
+import traceback
 import unittest
 from pathlib import Path
 
@@ -404,6 +405,65 @@ class ReportCompareTest(unittest.TestCase):
 
         self.assertEqual("report 1: invalid report input report 1: private", message)
 
+    def test_full_path_redaction_requires_path_boundaries(self) -> None:
+        for rendered_path in (
+            "/tmp/report.json",
+            "/tmp/report-old",
+            "/prefix/tmp/report",
+        ):
+            with self.subTest(rendered_path=rendered_path):
+                message = _safe_error(
+                    1,
+                    Path("/tmp/report"),
+                    ValueError("invalid report %s: private" % rendered_path),
+                )
+                if rendered_path == "/prefix/tmp/report":
+                    self.assertEqual(
+                        "report 1: invalid report /prefix/tmp/input report 1: private",
+                        message,
+                    )
+                else:
+                    self.assertEqual(
+                        "report 1: invalid report %s: private" % rendered_path,
+                        message,
+                    )
+
+        root_message = _safe_error(
+            1,
+            Path("/"),
+            ValueError("invalid report /other/private.json: detail"),
+        )
+        self.assertEqual(
+            "report 1: invalid report /other/private.json: detail",
+            root_message,
+        )
+
+    def test_path_redaction_handles_cross_platform_and_uri_spellings(self) -> None:
+        for rendered_path in (
+            r"\tmp\report",
+            "file:///tmp/report",
+        ):
+            with self.subTest(rendered_path=rendered_path):
+                message = _safe_error(
+                    1,
+                    Path("/tmp/report"),
+                    ValueError("invalid report %s: private" % rendered_path),
+                )
+                self.assertEqual(
+                    "report 1: invalid report input report 1: private",
+                    message,
+                )
+
+        unc_message = _safe_error(
+            1,
+            Path(r"\\server\share\report.json"),
+            ValueError("invalid report //server/share/report.json: private"),
+        )
+        self.assertEqual(
+            "report 1: invalid report input report 1: private",
+            unc_message,
+        )
+
     def test_path_redaction_handles_basename_inside_unknown_path(self) -> None:
         message = _safe_error(
             1,
@@ -416,6 +476,120 @@ class ReportCompareTest(unittest.TestCase):
             "report 1: invalid report /other/input report 1: private",
             message,
         )
+
+    def test_path_redaction_covers_lists_and_backtick_quoting(self) -> None:
+        known = "/tmp/foo.txt"
+        other = "/other/foo.txt"
+        for error_message in (
+            "invalid %s and %s" % (known, other),
+            "invalid %s and %s" % (other, known),
+            "invalid `%s` or `%s`" % (known, other),
+        ):
+            with self.subTest(error_message=error_message):
+                message = _safe_error(1, Path(known), ValueError(error_message))
+                self.assertNotIn(known, message)
+                self.assertNotIn(other, message)
+                self.assertEqual(2, message.count("input report 1"))
+
+    def test_word_like_basename_does_not_corrupt_validation_diagnostic(self) -> None:
+        self.assertEqual(
+            "report 1: report root must be a JSON object",
+            _safe_error(1, Path("report"), ValueError("report root must be a JSON object")),
+        )
+        self.assertEqual(
+            "report 1: command must be non-empty text",
+            _safe_error(1, Path("must"), ValueError("command must be non-empty text")),
+        )
+
+    def test_word_like_filenames_do_not_corrupt_real_validation_errors(self) -> None:
+        cases = []
+        report_root = []
+        cases.append(("report", report_root, "report root must be a JSON object"))
+        cases.append(("must", {"schema_version": 1}, "command must be non-empty text"))
+        invalid_backend = _report()
+        invalid_backend["execution"]["backend"] = "invalid"
+        cases.append(
+            ("host", invalid_backend, "execution.backend must be host or docker")
+        )
+        invalid_phase = _report()
+        invalid_phase["phase_statistics"]["phases"] = [None]
+        cases.append(("0", invalid_phase, "phase 0 must be an object"))
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            valid = _write_report(root, "valid.json", _report())
+            for filename, document, diagnostic in cases:
+                with self.subTest(filename=filename):
+                    invalid = root / filename
+                    invalid.write_text(json.dumps(document), encoding="utf-8")
+                    with self.assertRaises(ReportComparisonError) as raised:
+                        compare_reports([invalid, valid])
+                    self.assertEqual("report 1: " + diagnostic, str(raised.exception))
+
+    def test_basename_fallback_requires_a_complete_path_segment(self) -> None:
+        message = _safe_error(
+            1,
+            Path("foo.txt"),
+            ValueError("invalid report /other/foo.txt.bak: private"),
+        )
+
+        self.assertEqual(
+            "report 1: invalid report /other/foo.txt.bak: private",
+            message,
+        )
+
+    def test_path_is_redacted_before_whitespace_is_normalized(self) -> None:
+        private_path = Path("/tmp/private\treport.json")
+        message = _safe_error(
+            1,
+            private_path,
+            ValueError("invalid report %s: detail" % private_path),
+        )
+
+        self.assertNotIn("private", message)
+        self.assertNotIn("report.json", message)
+        self.assertEqual("report 1: invalid report input report 1: detail", message)
+
+    def test_public_errors_discard_sensitive_exception_context(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            private_path = Path(directory) / "PRIVATE_REPORT_PATH.json"
+            try:
+                compare_reports([private_path, Path(directory) / "second.json"])
+            except ReportComparisonError as error:
+                captured_error = error
+                rendered = "".join(
+                    traceback.format_exception(type(error), error, error.__traceback__)
+                )
+            else:
+                self.fail("missing report must fail comparison")
+
+        self.assertIsNone(captured_error.__cause__)
+        self.assertIsNone(captured_error.__context__)
+        self.assertNotIn("PRIVATE_REPORT_PATH", rendered)
+        self.assertNotIn(str(private_path), rendered)
+        self.assertEqual("report 1: report could not be read", str(captured_error))
+
+    def test_invalid_path_like_error_discards_sensitive_context(self) -> None:
+        sentinel = "PRIVATE_PATH_OBJECT_VALUE"
+
+        class InvalidPath:
+            def __fspath__(self) -> str:
+                raise ValueError(sentinel)
+
+        try:
+            compare_reports([InvalidPath(), Path("second.json")])  # type: ignore[list-item]
+        except ReportComparisonError as error:
+            captured_error = error
+            rendered = "".join(
+                traceback.format_exception(type(error), error, error.__traceback__)
+            )
+        else:
+            self.fail("invalid path-like object must fail comparison")
+
+        self.assertIsNone(captured_error.__cause__)
+        self.assertIsNone(captured_error.__context__)
+        self.assertNotIn(sentinel, rendered)
+        self.assertEqual("report paths must be path-like", str(captured_error))
 
     def test_validation_errors_redact_dynamic_values_and_malicious_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

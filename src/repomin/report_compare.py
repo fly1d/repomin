@@ -549,7 +549,8 @@ def _safe_error(index: int, path: Path, error: BaseException) -> str:
     if isinstance(error, OSError):
         message = "report could not be read"
     else:
-        message = " ".join(str(error).split())
+        message = str(error)
+    normalized_message = " ".join(message.split())
     dynamic_prefixes = (
         "report could not be read",
         "unsupported report schema_version",
@@ -561,35 +562,59 @@ def _safe_error(index: int, path: Path, error: BaseException) -> str:
     )
     dynamic_message = False
     for prefix in dynamic_prefixes:
-        if message.startswith(prefix):
+        if normalized_message.startswith(prefix):
             message = prefix
             dynamic_message = True
             break
     else:
         unknown_marker = " has unknown outcome:"
-        if unknown_marker in message:
-            message = message.split(unknown_marker, 1)[0] + " has unknown outcome"
+        if unknown_marker in normalized_message:
+            message = (
+                normalized_message.split(unknown_marker, 1)[0]
+                + " has unknown outcome"
+            )
             dynamic_message = True
     if not dynamic_message:
         path_candidates = {
             str(path),
-            str(path.absolute()),
             path.name,
         }
+        try:
+            path_candidates.add(str(path.absolute()))
+        except (OSError, RuntimeError):
+            pass
         try:
             path_candidates.add(str(path.resolve()))
         except (OSError, RuntimeError):
             pass
-        # Replace complete path spellings first, then redact a basename that
-        # appears inside an otherwise unknown path.  A private marker protects
-        # the first replacement from a second pass when the basename is itself
-        # a word such as ``report``.
+        # Validation errors can cross a shell, log transport, or platform
+        # boundary before comparison.  Match both separator spellings so a
+        # Windows Path still redacts a POSIX-rendered path and vice versa.
+        for candidate in tuple(path_candidates):
+            if "/" in candidate:
+                path_candidates.add(candidate.replace("/", "\\"))
+            if "\\" in candidate:
+                path_candidates.add(candidate.replace("\\", "/"))
+        for candidate in tuple(path_candidates):
+            if not candidate.strip("/\\"):
+                continue
+            uri_path = candidate.replace("\\", "/")
+            if uri_path.startswith("//"):
+                path_candidates.add("file:" + uri_path)
+            elif uri_path.startswith("/"):
+                path_candidates.add("file://" + uri_path)
+            elif re.match(r"^[A-Za-z]:/", uri_path):
+                path_candidates.add("file:///" + uri_path)
+        # Replace complete path spellings first, then redact a basename only
+        # when it is visibly the final segment of another path.  A private
+        # marker protects the first replacement from the fallback pass when a
+        # basename is itself a word such as ``report``.
         full_paths = sorted(
             (
                 candidate
                 for candidate in path_candidates
                 if candidate
-                and candidate != path.name
+                and candidate.strip("/\\")
                 and ("/" in candidate or "\\" in candidate)
             ),
             key=lambda candidate: (-len(candidate), candidate),
@@ -597,26 +622,39 @@ def _safe_error(index: int, path: Path, error: BaseException) -> str:
         marker = "\x00REPOMIN_PATH_%d\x00" % index
         while marker in message:
             marker += "_"
-        full_path_replaced = False
         if full_paths:
-            before = message
+            path_prefix = r"(?:^|(?<=[\s,;(\[{'\"`=<]))"
+            path_suffix = r"(?=$|[\s:;,\)\]\}'\"`>])"
             message = re.sub(
-                "|".join(re.escape(candidate) for candidate in full_paths),
+                path_prefix
+                + "(?:"
+                + "|".join(re.escape(candidate) for candidate in full_paths)
+                + ")"
+                + path_suffix,
                 marker,
                 message,
             )
-            full_path_replaced = message != before
-        if path.name and not full_path_replaced:
-            # A separator immediately before the basename identifies a path
-            # segment without turning a short name such as ``a`` into a match
-            # inside ordinary prose such as ``read``.  The word-boundary form
-            # also covers a bare relative filename when the error quotes it.
+        basenames = {
+            re.split(r"[/\\]", candidate)[-1]
+            for candidate in path_candidates
+            if candidate
+        }
+        basenames.discard("")
+        for basename in sorted(basenames, key=lambda value: (-len(value), value)):
+            # Restrict the trailing boundary to punctuation used to delimit a
+            # rendered path.  Whitespace would make ``/x/report details``
+            # indistinguishable from a different filename beginning with the
+            # ordinary word ``report``.
             basename_pattern = (
-                r"(?:(?<=[/\\])|(?<![\w/\\]))%s(?!\w)"
-                % re.escape(path.name)
+                r"(?<=[/\\])%s(?=$|[:;,\)\]\}'\"`]"
+                r"|\s+(?:and|or)\s)" % re.escape(basename)
             )
             message = re.sub(basename_pattern, marker, message)
         message = message.replace(marker, "input report %d" % index)
+        # Redact before folding whitespace so tabs or newlines embedded in a
+        # path cannot be transformed into a spelling absent from the candidate
+        # set and survive into the diagnostic.
+        message = " ".join(message.split())
     if not message:
         return "validation failed"
     if len(message) > 240:
@@ -637,10 +675,16 @@ def compare_reports(
     """
     # Normalize path-like inputs once so both the public helper and CLI share
     # identical diagnostics and no string path can bypass redaction.
+    path_error = False
     try:
         paths = [Path(path) for path in report_paths]
-    except (TypeError, ValueError) as exc:
-        raise ReportComparisonError("report paths must be path-like") from exc
+    except (TypeError, ValueError):
+        paths = []
+        path_error = True
+    if path_error:
+        # Raise after leaving the handler so the public exception has no raw,
+        # potentially sensitive exception context attached to its traceback.
+        raise ReportComparisonError("report paths must be path-like") from None
     if len(paths) < 2:
         raise ReportComparisonError("at least two report paths are required")
     if len(paths) > MAX_REPORTS:
@@ -649,10 +693,16 @@ def compare_reports(
     rows: List[Dict[str, object]] = []
     contexts: List[Dict[str, object]] = []
     for index, path in enumerate(paths, start=1):
+        safe_error = None
         try:
             report = validate_report_file(path)
         except (OSError, ReportValidationError, ValueError) as exc:
-            raise ReportComparisonError(_safe_error(index, path, exc)) from exc
+            safe_error = _safe_error(index, path, exc)
+        if safe_error is not None:
+            # Deliberately raise outside the handler.  Suppressing display with
+            # ``from None`` alone would still retain the private exception in
+            # ``__context__`` for callers of this public API.
+            raise ReportComparisonError(safe_error) from None
         row, context = _row(report, index, normalized_labels[index - 1])
         rows.append(row)
         contexts.append(context)
