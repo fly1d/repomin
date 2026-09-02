@@ -5,6 +5,8 @@ benchmarks, issue reports, and discussions.
 
 ## Highlighted contributions
 
+- [ShravyaHegade](https://github.com/ShravyaHegade) - runnable Gradle
+  multi-module reduction workflow and example documentation.
 - [WilliamK112](https://github.com/WilliamK112) - runnable Go module workflow
   and example documentation.
 - [lzx0903](https://github.com/lzx0903) - shared `Directory.Build.props`

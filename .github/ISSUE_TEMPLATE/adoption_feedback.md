@@ -18,22 +18,17 @@ security sandbox.
 
 ## Workflow
 
-- Goal or job you wanted to improve:
-- Language and build/test system:
-- Repository shape (single project, monorepo, generated sources, or other):
-- Runner OS and architecture:
+- What were you trying to reduce or make easier?
+- Language, build/test system, and runner OS:
+- Repository shape (optional):
 
 ## Run
 
+- Outcome (`useful`, `inconclusive`, or `could not run`), and where you stopped:
 - ReproMin version and install source:
-- Backend (`host` or `docker`):
-- Adapter and source/text reducer:
-- Sanitized command and oracle type (`match`, `exit-code`, or `process-failure`):
-- `repomin doctor` result (optional):
-- Reduction outcome (`useful`, `inconclusive`, or `could not run`):
-- Payload size before and after (files/bytes, optional):
-- `report validate` result (optional):
-- `report replay` result (optional):
+- Optional evidence: backend, adapter/reducer, sanitized oracle type, aggregate
+  before/after sizes, or privacy-safe `repomin doctor`, `report validate`, and
+  `report replay` results:
 
 For a compact, privacy-safe result to paste here, append `--json` to
 `repomin report validate`; review the payload separately before sharing it.
@@ -42,16 +37,14 @@ environment values.
 
 ## Value and friction
 
-- What became easier, smaller, or more reproducible?
-- What was confusing, slow, or unexpectedly difficult?
-- Which documentation, command, or output helped most?
-- What one change would make you use ReproMin again?
-- Known limitations or compatibility boundaries:
+- What became easier, smaller, or more reproducible, if anything?
+- What was the main confusing, slow, or incompatible step?
+- What one change would make you try ReproMin again?
 
 ## Privacy and redistribution
 
-- [ ] Secrets, credentials, tokens, private URLs, and customer data were removed.
-- [ ] Proprietary source and confidential logs were removed.
+- [ ] Secrets, credentials, private URLs, customer data, proprietary source, and
+      confidential logs were removed.
 - [ ] The remaining description may be used to improve documentation,
       compatibility notes, or a public benchmark.
 - [ ] I understand that replay and holdout results are current-environment

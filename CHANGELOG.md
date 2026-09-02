@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a `report validate --payload` check, and the Docker/network evidence boundary.
 - A successful reduction now reports source/output byte sizes and the exact
   `report.json` path on stderr while keeping stdout limited to the payload path.
+- The user-workflow feedback template now focuses on outcome, value, and one
+  main friction point while keeping detailed run evidence optional.
+
 ### Fixed
 
 - `repomin report compare` now redacts malformed-report paths without allowing
