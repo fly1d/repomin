@@ -1229,8 +1229,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             ),
             file=sys.stderr,
         )
+        print(
+            "Size: %d -> %d bytes." % (stats.source_bytes, stats.output_bytes),
+            file=sys.stderr,
+        )
         print(str(output))
         print("Metadata: %s" % metadata_output, file=sys.stderr)
+        print("Report: %s" % (metadata_output / "report.json"), file=sys.stderr)
         return 0
     except KeyboardInterrupt:
         if session_path is not None:

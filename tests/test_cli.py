@@ -1175,6 +1175,7 @@ class CliTest(unittest.TestCase):
                 )
 
             self.assertEqual(0, exit_code, stderr.getvalue())
+            self.assertEqual(str(output.resolve()) + "\n", stdout.getvalue())
             self.assertTrue((output / "reproduce.py").exists())
             self.assertTrue((output / "required.txt").exists())
             self.assertFalse((output / "unused.txt").exists())
@@ -1182,6 +1183,15 @@ class CliTest(unittest.TestCase):
             self.assertEqual("ORIGINAL_FAILURE", report["failure_match"])
             self.assertEqual(3, report["source"]["files"])
             self.assertEqual(2, report["output"]["files"])
+            self.assertIn(
+                "Size: %d -> %d bytes."
+                % (report["source"]["bytes"], report["output"]["bytes"]),
+                stderr.getvalue(),
+            )
+            self.assertIn(
+                "Report: %s" % (_metadata_output(output.resolve()) / "report.json"),
+                stderr.getvalue(),
+            )
             self.assertEqual(2, report["execution"]["jobs"])
             self.assertFalse(report["execution"]["cache_enabled"])
             self.assertEqual("host", report["execution"]["backend"])

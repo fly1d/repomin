@@ -62,8 +62,11 @@ reproduce.py
 required.txt
 ```
 
-The sibling `../example-minimal.repomin/report.json` records the attempts,
-accepted mutations, and phase accounting.
+The completion receipt keeps stdout limited to the payload path for scripts;
+stderr shows the file reduction, source/output byte sizes, metadata directory,
+and exact report path. The sibling
+`../example-minimal.repomin/report.json` records the attempts, accepted
+mutations, and phase accounting.
 
 ## Compare repeated reduction reports
 
