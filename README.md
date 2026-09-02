@@ -73,6 +73,10 @@ The [public tsdown pilot](docs/CASE_STUDY_TSDOWN_979.md) shows an actual
 `14 -> 8` file reduction, a strengthened executable oracle, exact payload
 validation, and `3/3` fresh-copy replays without making a root-cause claim.
 
+The [public pydoctor pilot](docs/CASE_STUDY_PYDOCTOR_728.md) shows how a strict
+late-failure oracle turned a long-standing upstream request into a nine-file
+fixture with green public CI, exact validation, and `3/3` fresh-copy replay.
+
 Trying ReproMin on a real workflow? A successful, inconclusive, or blocked run
 is useful feedback. Use the [pilot issue](https://github.com/fly1d/repomin/issues/11)
 for a sanitized CI/dependency failure, or the [user workflow feedback

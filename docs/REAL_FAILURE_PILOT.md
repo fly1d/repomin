@@ -4,9 +4,11 @@ Use this guide to share a sanitized ReproMin run from a real CI or dependency
 failure. The goal is to learn which defaults, adapters, and report fields help
 in practice; a complete private repository is not required.
 
-For a completed public workflow, see the
-[tsdown CSS module pilot](CASE_STUDY_TSDOWN_979.md). It records both the useful
-result and an oracle weakness found during the first reduction attempt.
+For completed public workflows, see the
+[tsdown CSS module pilot](CASE_STUDY_TSDOWN_979.md), which records an oracle
+weakness found during its first reduction, and the
+[pydoctor Sphinx pilot](CASE_STUDY_PYDOCTOR_728.md), which verifies successful
+intermediate artifacts before accepting a late build failure.
 
 ## Install the pilot build
 
@@ -49,6 +51,8 @@ so make recipient-facing quality part of the oracle when it matters:
   so an unrelated command failure cannot pass.
 - Execute or load the generated artifact when a successful build alone does
   not prove it is usable.
+- When a late build step is the target, verify that the expected intermediate
+  artifacts exist so an earlier configuration or import failure cannot pass.
 - Pin dependencies and warm an offline cache before a many-attempt reduction
   when the toolchain supports it.
 - Protect the oracle, public license, and required lock files from whole-file
@@ -119,6 +123,9 @@ payload for secrets before sharing.
 
 The sidecar contains `report.json` and a human-readable `REPOMIN.md`. Review
 both files and the minimized payload for secrets before posting anything.
+Do not run exploratory commands directly against the payload while validation
+or replay is reading it; use a copy so generated files cannot cause fingerprint
+drift.
 
 ## Replay a pilot artifact
 
