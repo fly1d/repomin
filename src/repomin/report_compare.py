@@ -548,6 +548,12 @@ def _safe_error(index: int, path: Path, error: BaseException) -> str:
     """
     if isinstance(error, OSError):
         message = "report could not be read"
+    elif not isinstance(error, ReportValidationError):
+        # ValueError is caught defensively around report validation, but its
+        # text is not part of the validator's public diagnostic contract.  Do
+        # not try to infer every possible path spelling in an unexpected
+        # exception; a fixed fallback is the only reliable privacy boundary.
+        message = "validation failed"
     else:
         message = str(error)
     normalized_message = " ".join(message.split())

@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from repomin.cli import main
+from repomin.report import ReportValidationError
 from repomin.report_compare import (
     ReportComparisonError,
     _safe_error,
@@ -400,12 +401,12 @@ class ReportCompareTest(unittest.TestCase):
         message = _safe_error(
             1,
             Path("/tmp/report"),
-            ValueError("invalid report /tmp/report: private"),
+            ReportValidationError("invalid report /tmp/report: private"),
         )
 
         self.assertEqual("report 1: invalid report input report 1: private", message)
 
-    def test_full_path_redaction_requires_path_boundaries(self) -> None:
+    def test_unexpected_validation_errors_use_a_fixed_diagnostic(self) -> None:
         for rendered_path in (
             "/tmp/report.json",
             "/tmp/report-old",
@@ -417,26 +418,15 @@ class ReportCompareTest(unittest.TestCase):
                     Path("/tmp/report"),
                     ValueError("invalid report %s: private" % rendered_path),
                 )
-                if rendered_path == "/prefix/tmp/report":
-                    self.assertEqual(
-                        "report 1: invalid report /prefix/tmp/input report 1: private",
-                        message,
-                    )
-                else:
-                    self.assertEqual(
-                        "report 1: invalid report %s: private" % rendered_path,
-                        message,
-                    )
+                self.assertNotIn(rendered_path, message)
+                self.assertEqual("report 1: validation failed", message)
 
         root_message = _safe_error(
             1,
             Path("/"),
             ValueError("invalid report /other/private.json: detail"),
         )
-        self.assertEqual(
-            "report 1: invalid report /other/private.json: detail",
-            root_message,
-        )
+        self.assertEqual("report 1: validation failed", root_message)
 
     def test_path_redaction_handles_cross_platform_and_uri_spellings(self) -> None:
         for rendered_path in (
@@ -447,7 +437,9 @@ class ReportCompareTest(unittest.TestCase):
                 message = _safe_error(
                     1,
                     Path("/tmp/report"),
-                    ValueError("invalid report %s: private" % rendered_path),
+                    ReportValidationError(
+                        "invalid report %s: private" % rendered_path
+                    ),
                 )
                 self.assertEqual(
                     "report 1: invalid report input report 1: private",
@@ -457,14 +449,16 @@ class ReportCompareTest(unittest.TestCase):
         unc_message = _safe_error(
             1,
             Path(r"\\server\share\report.json"),
-            ValueError("invalid report //server/share/report.json: private"),
+            ReportValidationError(
+                "invalid report //server/share/report.json: private"
+            ),
         )
         self.assertEqual(
             "report 1: invalid report input report 1: private",
             unc_message,
         )
 
-    def test_path_redaction_handles_basename_inside_unknown_path(self) -> None:
+    def test_unexpected_validation_error_does_not_echo_unknown_path(self) -> None:
         message = _safe_error(
             1,
             Path("foo.txt"),
@@ -472,12 +466,9 @@ class ReportCompareTest(unittest.TestCase):
         )
 
         self.assertNotIn("foo.txt", message)
-        self.assertEqual(
-            "report 1: invalid report /other/input report 1: private",
-            message,
-        )
+        self.assertEqual("report 1: validation failed", message)
 
-    def test_path_redaction_covers_lists_and_backtick_quoting(self) -> None:
+    def test_unexpected_validation_error_fallback_covers_path_lists(self) -> None:
         known = "/tmp/foo.txt"
         other = "/other/foo.txt"
         for error_message in (
@@ -489,16 +480,69 @@ class ReportCompareTest(unittest.TestCase):
                 message = _safe_error(1, Path(known), ValueError(error_message))
                 self.assertNotIn(known, message)
                 self.assertNotIn(other, message)
-                self.assertEqual(2, message.count("input report 1"))
+                self.assertEqual("report 1: validation failed", message)
+
+    def test_unexpected_validation_error_fallback_covers_path_spellings(self) -> None:
+        known = "/tmp/first.json"
+        other = "/private/second.json"
+        for error_message in (
+            "invalid %s %s" % (known, other),
+            "invalid %s and %s" % (known, other),
+            "invalid %s or %s" % (other, known),
+            "invalid `%s` and `%s`" % (known, other),
+        ):
+            with self.subTest(error_message=error_message):
+                message = _safe_error(1, Path(known), ValueError(error_message))
+                self.assertNotIn(known, message)
+                self.assertNotIn(other, message)
+                self.assertEqual("report 1: validation failed", message)
+
+        cross_platform_cases = (
+            (r"C:\private\first.json", r"D:\secret\second.json"),
+            (r"\\server\private\first.json", r"\\other\secret\second.json"),
+            ("file:///private/first.json", "file:///secret/second.json"),
+            ("work/first.json", "private/second.json"),
+        )
+        for known, other in cross_platform_cases:
+            with self.subTest(known=known, other=other):
+                message = _safe_error(
+                    1,
+                    Path(known),
+                    ValueError("invalid `%s` or `%s`" % (known, other)),
+                )
+                self.assertNotIn(known, message)
+                self.assertNotIn(other, message)
+                self.assertEqual("report 1: validation failed", message)
+
+    def test_unexpected_error_fallback_covers_quoted_whitespace_paths(self) -> None:
+        known = Path("work/first.json")
+        other = "private dir/second report.json"
+        message = _safe_error(
+            1,
+            known,
+            ValueError('invalid "%s" and `%s`' % (known, other)),
+        )
+
+        self.assertNotIn(str(known), message)
+        self.assertNotIn(other, message)
+        self.assertEqual("report 1: validation failed", message)
 
     def test_word_like_basename_does_not_corrupt_validation_diagnostic(self) -> None:
         self.assertEqual(
             "report 1: report root must be a JSON object",
-            _safe_error(1, Path("report"), ValueError("report root must be a JSON object")),
+            _safe_error(
+                1,
+                Path("report"),
+                ReportValidationError("report root must be a JSON object"),
+            ),
         )
         self.assertEqual(
             "report 1: command must be non-empty text",
-            _safe_error(1, Path("must"), ValueError("command must be non-empty text")),
+            _safe_error(
+                1,
+                Path("must"),
+                ReportValidationError("command must be non-empty text"),
+            ),
         )
 
     def test_word_like_filenames_do_not_corrupt_real_validation_errors(self) -> None:
@@ -526,24 +570,21 @@ class ReportCompareTest(unittest.TestCase):
                         compare_reports([invalid, valid])
                     self.assertEqual("report 1: " + diagnostic, str(raised.exception))
 
-    def test_basename_fallback_requires_a_complete_path_segment(self) -> None:
+    def test_unexpected_validation_error_does_not_echo_unknown_basename(self) -> None:
         message = _safe_error(
             1,
             Path("foo.txt"),
             ValueError("invalid report /other/foo.txt.bak: private"),
         )
 
-        self.assertEqual(
-            "report 1: invalid report /other/foo.txt.bak: private",
-            message,
-        )
+        self.assertEqual("report 1: validation failed", message)
 
     def test_path_is_redacted_before_whitespace_is_normalized(self) -> None:
         private_path = Path("/tmp/private\treport.json")
         message = _safe_error(
             1,
             private_path,
-            ValueError("invalid report %s: detail" % private_path),
+            ReportValidationError("invalid report %s: detail" % private_path),
         )
 
         self.assertNotIn("private", message)
