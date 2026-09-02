@@ -80,6 +80,7 @@ class PackagingContractTests(unittest.TestCase):
         self.assertIn("Operating System :: OS Independent", metadata["classifiers"])
         self.assertIn("Programming Language :: Python :: 3.9", metadata["classifiers"])
         self.assertIn("Programming Language :: Python :: 3.13", metadata["classifiers"])
+        self.assertIn("Programming Language :: Python :: 3.14", metadata["classifiers"])
 
     def test_development_extra_contains_release_and_test_tools(self) -> None:
         config = _setup_config()
@@ -96,6 +97,7 @@ class PackagingContractTests(unittest.TestCase):
             ".gitattributes",
             "scripts/check_contribution.py",
             "scripts/check_docs.py",
+            "scripts/check_release_artifacts.py",
             "benchmarks/python-requirements/README.md",
             "benchmarks/python-requirements/requirements.txt",
             "benchmarks/python-requirements/requirements/runtime.txt",

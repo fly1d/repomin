@@ -26,7 +26,7 @@ jobs:
             python: "3.13"
             java: "11"
           - os: ubuntu-latest
-            python: "3.13"
+            python: "3.14"
             java: "21"
           - os: macos-latest
             python: "3.13"
@@ -201,6 +201,14 @@ jobs:
         run: python -m build
       - name: Check distribution metadata
         run: python -m twine check dist/*
+      - name: Validate release artifacts
+        shell: bash
+        run: |
+          version=$(PYTHONPATH=src python -c 'import repomin; print(repomin.__version__)')
+          python scripts/check_release_artifacts.py \
+            --tag "v$version" \
+            "dist/repomin-$version-py3-none-any.whl" \
+            "dist/repomin-$version.tar.gz"
       - name: Upload distributions
         uses: actions/upload-artifact@v6
         with:

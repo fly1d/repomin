@@ -47,23 +47,37 @@ the release command from deleting an existing checkout's `dist/` or `build/`:
 ```sh
 python -m pip install --upgrade build twine
 release_dir="$(mktemp -d "${TMPDIR:-/tmp}/repomin-release.XXXXXX")"
+release_version="X.Y.Z"
+release_tag="v$release_version"
 python -m build --outdir "$release_dir"
 python -m twine check "$release_dir"/*
+wheel_path="$release_dir/repomin-$release_version-py3-none-any.whl"
+sdist_path="$release_dir/repomin-$release_version.tar.gz"
+release_record="$(mktemp "${TMPDIR:-/tmp}/repomin-release-record.XXXXXX")"
+python scripts/check_release_artifacts.py \
+  --tag "$release_tag" \
+  "$wheel_path" \
+  "$sdist_path" | tee "$release_record"
 printf 'Release artifacts: %s\n' "$release_dir"
+printf 'Release record: %s\n' "$release_record"
 ```
+
+The artifact check requires exactly the expected wheel and source-distribution
+filenames, verifies their package name and version metadata, confirms the wheel
+is pure Python with the `py3-none-any` tag, and checks the source archive's
+top-level directory. Its JSON output records the SHA-256 digest of each
+validated file outside the artifact directory; keep that record with the
+release notes.
 
 Run the following snippets in one shell session so `release_dir` remains set.
 Install the wheel and source distribution in separate temporary virtual
 environments. Run both the console entry point and `python -m repomin` from
 outside the source tree, then run the complete test suite. Confirm that the
 installed package imports from its virtual environment rather than from the
-checkout. The following shell sketch shows the required checks; replace the
-artifact paths with the files in `release_dir`:
+checkout. The following shell sketch uses the validated artifact paths set
+above:
 
 ```sh
-wheel_path="$release_dir"/*.whl
-sdist_path="$release_dir"/*.tar.gz
-
 wheel_venv="$(mktemp -d "${TMPDIR:-/tmp}/repomin-wheel-venv.XXXXXX")"
 python -m venv "$wheel_venv"
 "$wheel_venv/bin/python" -m pip install --no-deps "$wheel_path"
@@ -93,16 +107,10 @@ may still need the build-system requirements declared in `pyproject.toml`;
 that build isolation step is expected to contact the package index unless those
 requirements are already available locally.
 
-Record SHA-256 checksums before uploading:
-
-```sh
-shasum -a 256 "$release_dir"/*
-```
-
-Use `sha256sum` instead of `shasum` on Linux systems that do not provide the
-BSD command. On Windows PowerShell, use
-`Get-FileHash "<release-dir>\repomin-*.whl" -Algorithm SHA256` and the
-equivalent command for the source archive.
+Run `scripts/check_release_artifacts.py` again if either artifact changes. Its
+standard-library implementation provides the same structural and SHA-256
+checks on Linux, macOS, and Windows. Never publish an artifact whose digest
+differs from the recorded JSON output.
 
 ## GitHub Release
 

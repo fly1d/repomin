@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A dependency-free release artifact checker now validates the exact wheel and
+  source-distribution filenames, package identity, versions, pure-Python wheel
+  tag, source archive root, archive integrity, and SHA-256 digests. CI runs the
+  same check on every build, and source distributions include the checker.
 - An English five-minute quick start now covers release installation, a
   self-contained file-and-text reduction, exact payload validation, fresh-copy
   replay, and the host-backend safety boundary.
@@ -22,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Linux CI now covers Python 3.14 while the cross-platform matrix retains
+  Python 3.13 coverage, matching the package's open-ended Python requirement.
 - The real-failure pilot guide now treats stale-output cleanup, generated
   artifact execution, protected oracle and lock files, and syntax-aware text
   reduction as explicit oracle-design requirements.
