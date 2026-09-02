@@ -201,72 +201,66 @@ jobs:
         run: python -m build
       - name: Check distribution metadata
         run: python -m twine check dist/*
-      - name: Test installed wheel
+      - name: Upload distributions
+        uses: actions/upload-artifact@v6
+        with:
+          name: distributions
+          path: dist/*
+          if-no-files-found: error
+
+  installed-distribution:
+    name: Installed ${{ matrix.label }}
+    needs: quality
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: wheel
+            pattern: "*.whl"
+          - label: source distribution
+            pattern: "*.tar.gz"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "11"
+      - name: Download distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: distributions
+          path: dist
+      - name: Test installed ${{ matrix.label }}
         shell: bash
+        env:
+          DISTRIBUTION_LABEL: ${{ matrix.label }}
+          DISTRIBUTION_PATTERN: ${{ matrix.pattern }}
         run: |
           set -euo pipefail
 
-          wheels=("$GITHUB_WORKSPACE"/dist/*.whl)
-          if [[ ${#wheels[@]} -ne 1 || ! -f "${wheels[0]}" ]]; then
-            echo "expected exactly one wheel in dist/" >&2
+          distributions=("$GITHUB_WORKSPACE"/dist/$DISTRIBUTION_PATTERN)
+          if [[ ${#distributions[@]} -ne 1 || ! -f "${distributions[0]}" ]]; then
+            echo "expected exactly one $DISTRIBUTION_LABEL in dist/" >&2
             exit 1
           fi
 
-          venv="$RUNNER_TEMP/repomin-wheel-venv"
-          run_dir="$RUNNER_TEMP/repomin-wheel-tests"
+          venv="$RUNNER_TEMP/repomin-installed-venv"
+          run_dir="$RUNNER_TEMP/repomin-installed-tests"
           python -m venv "$venv"
           mkdir "$run_dir"
-          "$venv/bin/python" -m pip install --no-cache-dir "${wheels[0]}"
+          "$venv/bin/python" -m pip install --no-cache-dir "${distributions[0]}"
 
           cd "$run_dir"
           "$venv/bin/repomin" --help >/dev/null
           expected_version=$("$venv/bin/python" -c 'import repomin; print("repomin " + repomin.__version__)')
           version_output=$("$venv/bin/repomin" --version)
           if [[ "$version_output" != "$expected_version" ]]; then
-            echo "unexpected installed wheel version: $version_output" >&2
-            exit 1
-          fi
-          "$venv/bin/python" -I - <<'PY'
-          from pathlib import Path
-          import sys
-
-          import repomin
-
-          package_path = Path(repomin.__file__).resolve()
-          environment_path = Path(sys.prefix).resolve()
-          try:
-              package_path.relative_to(environment_path)
-          except ValueError:
-              raise SystemExit(
-                  f"repomin imported outside isolated environment: {package_path}"
-              )
-          print(f"testing installed package at {package_path}")
-          PY
-          "$venv/bin/python" -I -m unittest discover \
-            -s "$GITHUB_WORKSPACE/tests" -v
-      - name: Test installed source distribution
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          sdists=("$GITHUB_WORKSPACE"/dist/*.tar.gz)
-          if [[ ${#sdists[@]} -ne 1 || ! -f "${sdists[0]}" ]]; then
-            echo "expected exactly one source distribution in dist/" >&2
-            exit 1
-          fi
-
-          venv="$RUNNER_TEMP/repomin-sdist-venv"
-          run_dir="$RUNNER_TEMP/repomin-sdist-tests"
-          python -m venv "$venv"
-          mkdir "$run_dir"
-          "$venv/bin/python" -m pip install --no-cache-dir "${sdists[0]}"
-
-          cd "$run_dir"
-          "$venv/bin/repomin" --help >/dev/null
-          expected_version=$("$venv/bin/python" -c 'import repomin; print("repomin " + repomin.__version__)')
-          version_output=$("$venv/bin/repomin" --version)
-          if [[ "$version_output" != "$expected_version" ]]; then
-            echo "unexpected installed source distribution version: $version_output" >&2
+            echo "unexpected installed $DISTRIBUTION_LABEL version: $version_output" >&2
             exit 1
           fi
           "$venv/bin/python" -I - <<'PY'
