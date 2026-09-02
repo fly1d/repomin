@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- An English five-minute quick start now covers release installation, a
+  self-contained file-and-text reduction, exact payload validation, fresh-copy
+  replay, and the host-backend safety boundary.
 - A public tsdown pilot case study now records a real `14 -> 8` file reduction,
   exact payload validation, `3/3` fresh-copy replay, upstream delivery, and the
   limits of the resulting evidence.

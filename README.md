@@ -41,9 +41,11 @@ a security sandbox. For automatic CI artifacts, see the
 
 ReproMin requires Python 3.9 or newer and has no runtime dependencies.
 
-For a copy-paste, network-free workflow, start with the
-[examples guide](docs/EXAMPLES.md). It creates a tiny failing project, reduces
-it, and explains where the payload and evidence report are written.
+For a five-minute, copy-paste workflow, start with the
+[English quick start](docs/QUICKSTART.md). It installs the current release,
+creates a tiny network-free failing project, reduces both files and text, and
+validates the exported payload fingerprint. The larger
+[examples guide](docs/EXAMPLES.md) covers individual languages and build tools.
 
 Before a long reduction, run the read-only [doctor preflight](docs/DOCTOR.md)
 to detect supported reducers and verify that an optional failure command passes
@@ -1182,6 +1184,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for extension points and project rules,
 - [docs/DOCTOR.md](docs/DOCTOR.md) - read-only toolchain and baseline preflight.
 - [docs/GITHUB_ACTION.md](docs/GITHUB_ACTION.md) - use ReproMin in CI to upload
   a minimized failure reproduction and its report.
+- [docs/QUICKSTART.md](docs/QUICKSTART.md) - complete a self-contained first
+  reduction and validate its evidence in five minutes.
+- [docs/QUICKSTART.zh-CN.md](docs/QUICKSTART.zh-CN.md) - install and run a
+  minimal reduction with Chinese guidance.
 - [docs/ROADMAP.md](docs/ROADMAP.md) - current priorities, future directions,
   and explicit non-goals.
 - [benchmarks/README.md](benchmarks/README.md) - real fixtures and acceptance

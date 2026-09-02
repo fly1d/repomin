@@ -9,8 +9,9 @@ https://github.com/fly1d/repomin/issues/new/choose
 
 Before opening an issue:
 
-- Check the [quick start](docs/QUICKSTART.zh-CN.md), [examples](docs/EXAMPLES.md),
-  and [report schema](docs/REPORT_SCHEMA.md).
+- Check the [quick start](docs/QUICKSTART.md),
+  [Chinese quick start](docs/QUICKSTART.zh-CN.md),
+  [examples](docs/EXAMPLES.md), and [report schema](docs/REPORT_SCHEMA.md).
 - Search existing issues for the command, adapter, or error message.
 - For a sanitized real CI workflow, follow the [real failure pilot
   guide](docs/REAL_FAILURE_PILOT.md), then use the [real CI or dependency
