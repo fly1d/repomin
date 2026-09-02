@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A public tsdown pilot case study now records a real `14 -> 8` file reduction,
+  exact payload validation, `3/3` fresh-copy replay, upstream delivery, and the
+  limits of the resulting evidence.
+
 ### Changed
 
+- The real-failure pilot guide now treats stale-output cleanup, generated
+  artifact execution, protected oracle and lock files, and syntax-aware text
+  reduction as explicit oracle-design requirements.
 - The FastAPI/Docker pilot documentation now includes the exact reduced payload,
   a `report validate --payload` check, and the Docker/network evidence boundary.
 - A successful reduction now reports source/output byte sizes and the exact

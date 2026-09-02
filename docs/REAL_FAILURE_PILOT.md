@@ -4,6 +4,10 @@ Use this guide to share a sanitized ReproMin run from a real CI or dependency
 failure. The goal is to learn which defaults, adapters, and report fields help
 in practice; a complete private repository is not required.
 
+For a completed public workflow, see the
+[tsdown CSS module pilot](CASE_STUDY_TSDOWN_979.md). It records both the useful
+result and an oracle weakness found during the first reduction attempt.
+
 ## Install the pilot build
 
 The replay and transport-fingerprint workflow described below is included in
@@ -33,6 +37,47 @@ can use the same release installation described in the [README](../README.md).
   cannot be shared.
 - Read the [security policy](../SECURITY.md). The host backend runs commands
   directly, and Docker is not a complete security boundary.
+
+## Design a useful oracle
+
+ReproMin preserves exactly the configured failure contract. A narrow marker
+can retain the target symptom while allowing a malformed or unusable artifact,
+so make recipient-facing quality part of the oracle when it matters:
+
+- Delete stale generated output before building or testing each candidate.
+- Use an exact exit code together with a stable marker when both are available,
+  so an unrelated command failure cannot pass.
+- Execute or load the generated artifact when a successful build alone does
+  not prove it is usable.
+- Pin dependencies and warm an offline cache before a many-attempt reduction
+  when the toolchain supports it.
+- Protect the oracle, public license, and required lock files from whole-file
+  removal with repeatable `--keep` options. Disable a structured, source, or
+  text reducer when the protected file's content must remain unchanged;
+  `--keep` alone does not block those content edits.
+- Use `--text-file` only when the oracle rejects malformed syntax and other
+  low-quality results for that file type.
+
+For example, a public Node fixture can keep an explicit evidence boundary:
+
+```sh
+repomin /path/to/public-fixture \
+  --command 'pnpm install --offline --frozen-lockfile && node reproduce.mjs' \
+  --match 'STABLE_FAILURE_MARKER' \
+  --exit-code 23 \
+  --adapter none \
+  --source-reducer none \
+  --text-file src/index.ts \
+  --keep reproduce.mjs \
+  --keep package.json \
+  --keep pnpm-lock.yaml \
+  --keep LICENSE \
+  --output /tmp/repomin-pilot-result
+```
+
+The lock file can dominate byte retention while still being essential for a
+portable reproduction. Report file counts and the concrete behavior removed,
+not only byte ratios.
 
 ## Capture a run
 

@@ -38,6 +38,9 @@ dates. Concrete contribution tasks live in
   criteria and maintainers' scope notes.
 - Collect reproducible reductions from real repositories and turn failures into
   minimized public fixtures when licensing permits.
+- Use the [first public upstream pilot](CASE_STUDY_TSDOWN_979.md) to improve
+  oracle design guidance, and wait for recipient feedback before generalizing
+  its workflow into new product behavior.
 - Use the comparison workflow with real pilot artifacts and publish trend
   summaries without making unsupported performance claims.
 - Keep the dependency-free `benchmarks/compare.py` summary comparison useful

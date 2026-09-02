@@ -69,6 +69,10 @@ The replay and transport-fingerprint workflow is included in the current
 `v0.1.0.dev9` pre-release. The [real-failure pilot guide](docs/REAL_FAILURE_PILOT.md)
 describes the report and privacy boundaries.
 
+The [public tsdown pilot](docs/CASE_STUDY_TSDOWN_979.md) shows an actual
+`14 -> 8` file reduction, a strengthened executable oracle, exact payload
+validation, and `3/3` fresh-copy replays without making a root-cause claim.
+
 Trying ReproMin on a real workflow? A successful, inconclusive, or blocked run
 is useful feedback. Use the [pilot issue](https://github.com/fly1d/repomin/issues/11)
 for a sanitized CI/dependency failure, or the [user workflow feedback
@@ -1185,6 +1189,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for extension points and project rules,
   issue reports.
 - [docs/REAL_FAILURE_PILOT.md](docs/REAL_FAILURE_PILOT.md) - how to share a
   sanitized real CI or dependency failure.
+- [docs/CASE_STUDY_TSDOWN_979.md](docs/CASE_STUDY_TSDOWN_979.md) - a public
+  upstream pilot, its reduction evidence, and oracle-design lessons.
 - [CHANGELOG.md](CHANGELOG.md) - notable changes by release.
 - [docs/RELEASING.md](docs/RELEASING.md) - GitHub Release checklist and artifact verification.
 
