@@ -215,9 +215,7 @@ runtime dependency pinned to `1.0.0` and the `packages/required` workspace
 entry. The removable manifest noise that the reducer drops includes the
 `unused-sdk` dependency, the `unused-test-tool` dev dependency, the unused
 `unused` script, the unused workspace entry, and the `unused-transitive`
-override. The `engines` block is not consulted by this adapter and is
-removable in principle; treat any exact file shape in the minimized payload
-as informational rather than a contract.
+override. The `engines` block is outside the adapter categories and is preserved unchanged.
 
 Validate the sidecar report and the exported payload fingerprint without
 rerunning the failure command:
@@ -230,8 +228,8 @@ PYTHONPATH=src python3 -m repomin report validate \
 
 The validator reports `valid: true`, `payload_checked: true`, and
 `payload_fingerprint_verified: true` with `payload_fingerprint_mode: "exact"`,
-which means the report's recorded tree fingerprint matches the exported
-payload byte-for-byte under the `tree-sha256-v2` policy.
+which means the exported tree content and recorded metadata match exactly
+under the `tree-sha256-v2` policy. The transport-friendly content-only fallback is a separate mode.
 
 Run the configured oracle independently from the exported payload to confirm
 the reduction still fails for the same reason:
