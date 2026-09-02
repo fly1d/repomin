@@ -6,10 +6,10 @@ and follow [CONTRIBUTING.md](../CONTRIBUTING.md) for tests and documentation.
 
 ## Ready to claim
 
-- [Add a runnable FastAPI/Docker pilot example](https://github.com/fly1d/repomin/issues/19)
-  adds the existing Docker-oriented FastAPI fixture to the main examples guide.
-  The issue is documentation-only and includes the exact reduction,
-  validation, expected-payload, and security-boundary acceptance criteria.
+- [Add a runnable Node package manifest walkthrough](https://github.com/fly1d/repomin/issues/20)
+  brings the existing network-free `package.json` fixture into the main
+  examples guide. The documentation-only issue covers reduction, payload
+  validation, an independent oracle rerun, and the no-install trust boundary.
 
 Completed tasks are removed from this section so contributors do not start
 work against a closed issue. New scoped tasks are added after their user
@@ -17,6 +17,9 @@ workflow and acceptance criteria are ready.
 
 ## Recently completed
 
+- [Add a runnable FastAPI/Docker pilot example](https://github.com/fly1d/repomin/issues/19)
+  now documents the local image build, exact retained payload, payload
+  validation, and Docker/network/security boundaries in the main examples.
 - [Add an end-to-end report replay benchmark](https://github.com/fly1d/repomin/issues/17)
   now ships as the `report-replay` offline check. Run
   `python3 benchmarks/run_offline.py --only report-replay` when adding or
