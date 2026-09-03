@@ -180,6 +180,76 @@ repomin . \
 Only direct entries in `[packages]`, `[dev-packages]`, and `[requires]` are
 eligible. Pipenv source settings and `Pipfile.lock` are preserved.
 
+## Shrink a Node package manifest without Node
+
+The Node manifest reducer is a structural `package.json` shrinker. It does not
+need a Node runtime, package install, registry access, lifecycle scripts, or
+external network: the oracle in the fixture is plain Python. The repository
+ships a network-free fixture under `benchmarks/node-package/` that exercises
+this path end to end. See the [fixture notes](../benchmarks/node-package/README.md)
+for the original layout and the [host-backend boundary](../SECURITY.md) before
+running anything else through it.
+
+Create a temporary output parent outside the fixture and run the reduction
+from the repository root:
+
+```sh
+out_parent="$(mktemp -d /tmp/repomin-node-package.XXXXXX)"
+PYTHONPATH=src python3 -m repomin benchmarks/node-package \
+  --command 'python3 reproduce.py' \
+  --match 'ORIGINAL_FAILURE' \
+  --adapter node \
+  --source-reducer none \
+  --output "$out_parent/result"
+```
+
+The reducer keeps exactly two files in the exported payload:
+
+```text
+package.json
+reproduce.py
+```
+
+Inside `package.json` the required entries are preserved: the `required-sdk`
+runtime dependency pinned to `1.0.0` and the `packages/required` workspace
+entry. The removable manifest noise that the reducer drops includes the
+`unused-sdk` dependency, the `unused-test-tool` dev dependency, the unused
+`unused` script, the unused workspace entry, and the `unused-transitive`
+override. The `engines` block is outside the adapter categories and is preserved unchanged.
+
+Validate the sidecar report and the exported payload fingerprint without
+rerunning the failure command:
+
+```sh
+PYTHONPATH=src python3 -m repomin report validate \
+  "$out_parent/result.repomin/report.json" \
+  --payload "$out_parent/result" --json
+```
+
+The validator reports `valid: true`, `payload_checked: true`, and
+`payload_fingerprint_verified: true` with `payload_fingerprint_mode: "exact"`,
+which means the exported tree content and recorded metadata match exactly
+under the `tree-sha256-v2` policy. The transport-friendly content-only fallback is a separate mode.
+
+Run the configured oracle independently from the exported payload to confirm
+the reduction still fails for the same reason:
+
+```sh
+( cd "$out_parent/result" && python3 reproduce.py )
+```
+
+The command exits with status `1` and prints `ORIGINAL_FAILURE` on stderr.
+That marker is emitted by the fixture's Python oracle only when
+`required-sdk` is still pinned to `1.0.0` and `packages/required` is still
+listed in `workspaces`, so the exit status and marker together cover the
+required/workspace contract without depending on npm.
+
+This workflow is adapter evidence for the configured Python oracle, not a
+guarantee that an arbitrary minimized `package.json` installs, builds, or
+runs as an npm application. To assert anything about a real npm project, you
+still need a Node toolchain and a real `npm install` plus lifecycle
+verification, both of which are outside this fixture by design.
+
 ## Shrink a Cargo workspace without network access
 
 The repository includes a local-only Rust workspace with one required path
