@@ -6,17 +6,17 @@ and follow [CONTRIBUTING.md](../CONTRIBUTING.md) for tests and documentation.
 
 ## Ready to claim
 
-- [Add a runnable Node package manifest walkthrough](https://github.com/fly1d/repomin/issues/20)
-  brings the existing network-free `package.json` fixture into the main
-  examples guide. The documentation-only issue covers reduction, payload
-  validation, an independent oracle rerun, and the no-install trust boundary.
-
-Completed tasks are removed from this section so contributors do not start
-work against a closed issue. New scoped tasks are added after their user
-workflow and acceptance criteria are ready.
+There are currently no scoped starter issues ready to claim. Completed tasks
+are removed from this section so contributors do not start work against a
+closed issue; new scoped tasks are added after their user workflow and
+acceptance criteria are ready.
 
 ## Recently completed
 
+- [Add a runnable Node package manifest walkthrough](https://github.com/fly1d/repomin/issues/20)
+  now documents the network-free `package.json` reduction, retained payload
+  validation, an independent oracle rerun, and the no-install trust boundary
+  in the main examples.
 - [Add a runnable FastAPI/Docker pilot example](https://github.com/fly1d/repomin/issues/19)
   now documents the local image build, exact retained payload, payload
   validation, and Docker/network/security boundaries in the main examples.

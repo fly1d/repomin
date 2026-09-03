@@ -5,6 +5,8 @@ benchmarks, issue reports, and discussions.
 
 ## Highlighted contributions
 
+- [shoaibyazdani](https://github.com/shoaibyazdani) - runnable Node package
+  manifest walkthrough and example documentation.
 - [ShravyaHegade](https://github.com/ShravyaHegade) - runnable Gradle
   multi-module reduction workflow and example documentation.
 - [WilliamK112](https://github.com/WilliamK112) - runnable Go module workflow
