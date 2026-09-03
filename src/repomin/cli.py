@@ -576,8 +576,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         metavar="RELATIVE_PATH",
         help=(
-            "line-reduce one exact repository-relative UTF-8 text file; "
-            "repeat for multiple files"
+            "line-reduce one existing readable UTF-8 regular file by exact "
+            "repository-relative path; repeat for multiple files"
         ),
     )
     parser.add_argument(

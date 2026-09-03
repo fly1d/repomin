@@ -1915,6 +1915,51 @@ class CliTest(unittest.TestCase):
                 _report(output)["execution"]["text_files"],
             )
 
+    def test_kept_text_file_can_override_ignore_and_still_be_reduced(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            output = root / "output"
+            source.mkdir()
+            (source / "reproduce.py").write_text(
+                "import sys\n"
+                "print('ORIGINAL_FAILURE', file=sys.stderr)\n"
+                "raise SystemExit(1)\n",
+                encoding="utf-8",
+            )
+            (source / "data.txt").write_text("unneeded\n", encoding="utf-8")
+
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                exit_code = main(
+                    [
+                        str(source),
+                        "--command",
+                        "python3 reproduce.py",
+                        "--match",
+                        "ORIGINAL_FAILURE",
+                        "--source-reducer",
+                        "none",
+                        "--adapter",
+                        "none",
+                        "--ignore",
+                        "data.txt",
+                        "--keep",
+                        "data.txt",
+                        "--text-file",
+                        "data.txt",
+                        "--output",
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(0, exit_code, stderr.getvalue())
+            self.assertTrue((output / "data.txt").is_file())
+            self.assertEqual("", (output / "data.txt").read_text(encoding="utf-8"))
+            report = _report(output)
+            self.assertEqual(["data.txt"], report["execution"]["keep_paths"])
+            self.assertEqual(["data.txt"], report["execution"]["text_files"])
+
     def test_explicit_environment_reaches_host_runner_without_leaking_value(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

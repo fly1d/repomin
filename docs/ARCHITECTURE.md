@@ -785,9 +785,13 @@ The opt-in text reducer targets only the exact repository-relative paths given
 with repeatable `--text-file RELATIVE_PATH`. It splits each selected UTF-8 text
 file into newline-preserving line ranges and reuses the same interval-batch
 scheduler plus `remove_text_targets` validation as the structured manifest
-reducers. Binary files and files that fail UTF-8 decoding are skipped. Because
-line offsets are content-hashed and the tree is re-scanned after each accepted
-batch, a stale range is fail-closed rather than guessing at shifted text.
+reducers. Before runner or session creation, every selected path must resolve
+to a readable UTF-8 regular file in the effective source tree; missing,
+ignored, non-regular, symbolic-link, unreadable, and non-UTF-8 targets are
+rejected. A target can still disappear after a valid earlier file-reduction
+mutation, so later discovery tolerates an absent target. Because line offsets
+are content-hashed and the tree is re-scanned after each accepted batch, a
+stale range is fail-closed rather than guessing at shifted text.
 
 Maven batches locate every selected XML node before deleting any node and
 serialize each affected POM once. Gradle and Python text batches validate every
