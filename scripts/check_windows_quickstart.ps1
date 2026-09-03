@@ -9,6 +9,8 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $Python = (Resolve-Path -LiteralPath $Python).Path
+$PythonDirectory = Split-Path -Parent $Python
+$env:PATH = $PythonDirectory + [System.IO.Path]::PathSeparator + $env:PATH
 $DemoRoot = Join-Path `
     ([System.IO.Path]::GetTempPath()) `
     ("repomin-windows-quickstart-" + [System.Guid]::NewGuid().ToString("N"))
@@ -75,8 +77,8 @@ try {
         throw "Expected baseline exit 1 with ORIGINAL_FAILURE; exit was $BaselineExit"
     }
 
-    # cmd.exe needs the executable quoted when a temporary path contains spaces.
-    $Oracle = '"{0}" reproduce.py' -f $Python
+    # Keep the recorded command portable; PATH is scoped to this process.
+    $Oracle = "python reproduce.py"
 
     & $Python -m repomin doctor $Case `
         --command $Oracle `

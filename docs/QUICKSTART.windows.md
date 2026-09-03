@@ -5,9 +5,11 @@ environment, creates a three-file failing project, checks it, reduces it, and
 validates the exported evidence. Installation downloads the release wheel;
 the example itself does not access the network.
 
-ReproMin requires Python 3.9 or newer. Run these commands in PowerShell. Every
-ReproMin command uses the virtual environment's explicit Python path, so the
-workflow does not depend on activation policy or the current `PATH`.
+ReproMin requires Python 3.9 or newer. Run these commands in PowerShell. Direct
+ReproMin commands use the virtual environment's explicit Python path. Its
+Scripts directory is prepended only to this PowerShell process's `PATH`, so the
+recorded oracle stays portable without depending on activation policy or the
+pre-existing `PATH`.
 
 ## 1. Install in an isolated environment
 
@@ -21,6 +23,8 @@ $Venv = Join-Path $DemoRoot ".venv"
 New-Item -ItemType Directory -Path $DemoRoot | Out-Null
 py -3 -m venv $Venv
 $Python = Join-Path $Venv "Scripts\python.exe"
+$env:PATH = (Split-Path -Parent $Python) + `
+  [System.IO.Path]::PathSeparator + $env:PATH
 
 & $Python -m pip install --upgrade pip
 $env:REPOMIN_VERSION = "0.1.0.dev9"
@@ -89,12 +93,13 @@ its combined output still matches that text.
 
 ## 3. Preflight and reduce the project
 
-Quote the explicit Python path in the recorded command because a Windows
-temporary path can contain spaces. Doctor runs the failure oracle twice in
-fresh copies without creating the configured output:
+The virtual environment directory added to this process's `PATH` lets the
+recorded command use a portable interpreter name even when the environment's
+absolute path contains spaces. Doctor runs the failure oracle twice in fresh
+copies without creating the configured output:
 
 ```powershell
-$Oracle = '"{0}" reproduce.py' -f $Python
+$Oracle = "python reproduce.py"
 
 & $Python -m repomin doctor $Case `
   --command $Oracle `
