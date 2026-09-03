@@ -44,14 +44,20 @@ termination signature. `exit-code` and `process-failure` are mutually
 exclusive, while `match` may be combined with either to narrow the oracle.
 
 `source`, `output`, `adapter`, `source-reducer`, `backend`, `docker-image`,
-`docker-network`, `timeout`, and `jobs` map directly to the corresponding CLI
-options. `python-version` selects the interpreter used to install and run
-ReproMin. `actions/setup-python` also prepends that interpreter to `PATH` for
-the action steps, so a reproduction command that resolves `python` or
-`python3` can run under this version. It does not reconstruct the PATH or
-runtime from an earlier failed step; set `python-version` to the version used
-by the failing job (or invoke an explicit interpreter) when that distinction
-matters. `artifact-name` controls the uploaded artifact name.
+`docker-network`, `timeout`, `jobs`, `max-attempts`, and `max-duration` map
+directly to the corresponding CLI options. Set one or both budget inputs for a
+large repository so a diagnostic job has an explicit CI cost ceiling. A run
+that reaches a budget still validates and exports its best accepted payload;
+the report and step summary mark `budget_exhausted` instead of presenting it as
+a fixed point.
+
+`python-version` selects the interpreter used to install and run ReproMin.
+`actions/setup-python` also prepends that interpreter to `PATH` for the action
+steps, so a reproduction command that resolves `python` or `python3` can run
+under this version. It does not reconstruct the PATH or runtime from an earlier
+failed step; set `python-version` to the version used by the failing job (or
+invoke an explicit interpreter) when that distinction matters.
+`artifact-name` controls the uploaded artifact name.
 
 Set `step-summary: true` when the job should append a compact, privacy-safe
 validation table to GitHub's step summary. The option is `false` by default, so
@@ -78,6 +84,23 @@ file or invalid path causes the action to fail before it publishes an artifact.
     ignore-path: |
       test/private-fixtures
     gitignore: true
+```
+
+`keep` and `text-file` also accept one exact repository-relative path per line.
+`keep` protects a path from whole-file deletion and takes precedence over an
+ignore rule, but other enabled reducers may still edit it. `text-file` opts a
+readable UTF-8 regular file into line reduction. Every selected text file is
+validated in the effective source tree before the failure command runs, so a
+missing, ignored, symbolic-link, unreadable, or non-UTF-8 target fails instead
+of silently producing an artifact without the requested text reduction.
+
+```yaml
+    keep: |
+      LICENSE
+      reproduce.py
+    text-file: fixtures/input.txt
+    max-attempts: "500"
+    max-duration: "900"
 ```
 
 For a fresh final certification, set all three holdout inputs. The action keeps

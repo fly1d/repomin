@@ -113,6 +113,25 @@ class ActionContractTests(unittest.TestCase):
         self.assertIn("args+=(--gitignore-recursive)", self.action)
         self.assertIn("value=\"${value%$'\\r'}\"", self.action)
 
+    def test_protected_text_and_budget_inputs_are_forwarded(self) -> None:
+        for name in ("keep", "text-file", "max-attempts", "max-duration"):
+            self.assertIn("  %s:\n" % name, self.action)
+            variable = "REPOMIN_%s" % name.upper().replace("-", "_")
+            self.assertIn(variable, self.action)
+        self.assertIn("append_repeated_option --keep \"$REPOMIN_KEEP\"", self.action)
+        self.assertIn(
+            "append_repeated_option --text-file \"$REPOMIN_TEXT_FILE\"",
+            self.action,
+        )
+        self.assertIn(
+            'args+=(--max-attempts "$REPOMIN_MAX_ATTEMPTS")',
+            self.action,
+        )
+        self.assertIn(
+            'args+=(--max-duration "$REPOMIN_MAX_DURATION")',
+            self.action,
+        )
+
     def test_smoke_workflow_exercises_exit_code_and_outputs(self) -> None:
         self.assertIn('exit-code: "7"', self.workflow)
         self.assertNotIn("          match: INPUT_CONTROLS_FAILURE", self.workflow)
@@ -120,6 +139,16 @@ class ActionContractTests(unittest.TestCase):
         self.assertIn("          ignore-path: nested/deep-noise.txt", self.workflow)
         self.assertIn("          gitignore: true", self.workflow)
         self.assertIn("          gitignore-recursive: true", self.workflow)
+        self.assertIn("          keep: keep-me.txt", self.workflow)
+        self.assertIn("          text-file: exit-sentinel.txt", self.workflow)
+        self.assertIn('          max-attempts: "100"', self.workflow)
+        self.assertIn('          max-duration: "120"', self.workflow)
+        self.assertIn('execution["keep_paths"] == ["keep-me.txt"]', self.workflow)
+        self.assertIn(
+            'execution["text_files"] == ["exit-sentinel.txt"]', self.workflow
+        )
+        self.assertIn('execution["max_attempts"] == 100', self.workflow)
+        self.assertIn('execution["max_duration_seconds"] == 120.0', self.workflow)
         for name in (
             "ACTUAL_SCHEMA",
             "ACTUAL_SOURCE_FILES",
@@ -149,6 +178,10 @@ class ActionContractTests(unittest.TestCase):
         self.assertIn("min-holdout-rate", self.docs)
         self.assertIn("ignore-path", self.docs)
         self.assertIn("gitignore-recursive", self.docs)
+        self.assertIn("max-attempts", self.docs)
+        self.assertIn("max-duration", self.docs)
+        self.assertIn("text-file", self.docs)
+        self.assertIn("keep", self.docs)
         self.assertIn("step-summary", self.docs)
         self.assertIn("GITHUB_STEP_SUMMARY", self.docs)
 

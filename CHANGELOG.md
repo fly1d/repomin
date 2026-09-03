@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The GitHub Action now forwards protected paths, explicit text-reduction
+  targets, and total attempt/time budgets, with its CI smoke test exercising
+  all four inputs against the uploaded payload and recorded execution contract.
 - A complete Windows PowerShell quick start now covers isolated installation,
   Doctor preflight, reduction, exact payload validation, and fresh-copy replay;
   the Windows CI job executes the same `3 -> 2` workflow as a smoke test.

@@ -117,8 +117,12 @@ jobs:
             removable-a.txt
             removable-b.txt
           ignore-path: nested/deep-noise.txt
+          keep: keep-me.txt
+          text-file: exit-sentinel.txt
           gitignore: true
           gitignore-recursive: true
+          max-attempts: "100"
+          max-duration: "120"
           step-summary: true
           artifact-name: action-smoke
       - name: Check action outputs
@@ -188,6 +192,20 @@ jobs:
             exit 1
           fi
           repomin report validate "$report" --payload "$payload" --json
+          [[ -f "$payload/keep-me.txt" ]]
+          [[ -f "$payload/exit-sentinel.txt" ]]
+          [[ ! -s "$payload/exit-sentinel.txt" ]]
+          python - "$report" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              execution = json.load(stream)["execution"]
+          assert execution["keep_paths"] == ["keep-me.txt"]
+          assert execution["text_files"] == ["exit-sentinel.txt"]
+          assert execution["max_attempts"] == 100
+          assert execution["max_duration_seconds"] == 120.0
+          PY
 
   quality:
     name: Packaging and static checks

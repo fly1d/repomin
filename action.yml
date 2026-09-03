@@ -95,6 +95,14 @@ inputs:
     description: Newline-separated exact repository-relative paths to exclude
     required: false
     default: ""
+  keep:
+    description: Newline-separated exact repository-relative paths to protect from file deletion
+    required: false
+    default: ""
+  text-file:
+    description: Newline-separated existing UTF-8 files to reduce by line
+    required: false
+    default: ""
   gitignore:
     description: Apply the repository .gitignore as an additional exclusion
     required: false
@@ -134,6 +142,14 @@ inputs:
     description: Maximum seconds for each reproduction command
     required: false
     default: "120"
+  max-attempts:
+    description: Optional maximum number of logical candidate attempts for the reduction
+    required: false
+    default: ""
+  max-duration:
+    description: Optional maximum total reduction duration in seconds
+    required: false
+    default: ""
   jobs:
     description: Candidate commands to run concurrently
     required: false
@@ -177,6 +193,8 @@ runs:
         REPOMIN_HOLDOUT_CONFIDENCE: ${{ inputs.holdout-confidence }}
         REPOMIN_IGNORE: ${{ inputs.ignore }}
         REPOMIN_IGNORE_PATH: ${{ inputs.ignore-path }}
+        REPOMIN_KEEP: ${{ inputs.keep }}
+        REPOMIN_TEXT_FILE: ${{ inputs.text-file }}
         REPOMIN_GITIGNORE: ${{ inputs.gitignore }}
         REPOMIN_GITIGNORE_RECURSIVE: ${{ inputs.gitignore-recursive }}
         REPOMIN_ADAPTER: ${{ inputs.adapter }}
@@ -185,6 +203,8 @@ runs:
         REPOMIN_DOCKER_IMAGE: ${{ inputs.docker-image }}
         REPOMIN_DOCKER_NETWORK: ${{ inputs.docker-network }}
         REPOMIN_TIMEOUT: ${{ inputs.timeout }}
+        REPOMIN_MAX_ATTEMPTS: ${{ inputs.max-attempts }}
+        REPOMIN_MAX_DURATION: ${{ inputs.max-duration }}
         REPOMIN_JOBS: ${{ inputs.jobs }}
         REPOMIN_STEP_SUMMARY: ${{ inputs.step-summary }}
       run: |
@@ -293,6 +313,14 @@ runs:
         }
         append_repeated_option --ignore "$REPOMIN_IGNORE"
         append_repeated_option --ignore-path "$REPOMIN_IGNORE_PATH"
+        append_repeated_option --keep "$REPOMIN_KEEP"
+        append_repeated_option --text-file "$REPOMIN_TEXT_FILE"
+        if [[ -n "$REPOMIN_MAX_ATTEMPTS" ]]; then
+          args+=(--max-attempts "$REPOMIN_MAX_ATTEMPTS")
+        fi
+        if [[ -n "$REPOMIN_MAX_DURATION" ]]; then
+          args+=(--max-duration "$REPOMIN_MAX_DURATION")
+        fi
         if [[ "$REPOMIN_GITIGNORE" == true ]]; then
           args+=(--gitignore)
         fi
