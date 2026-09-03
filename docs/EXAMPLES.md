@@ -250,6 +250,85 @@ runs as an npm application. To assert anything about a real npm project, you
 still need a Node toolchain and a real `npm install` plus lifecycle
 verification, both of which are outside this fixture by design.
 
+## Shrink a Composer manifest without PHP
+
+The Composer manifest reducer is a structural `composer.json` shrinker. It does
+not need a PHP runtime, Composer install, package-index access,
+declared-repository access, lifecycle scripts, or external network: the
+oracle in the fixture is plain Python, and the fixture deliberately does not
+contact the declared `repositories` or fetch from any package index. The
+repository ships a network-free fixture under `benchmarks/composer-package/`
+that exercises this path end to end. See the
+[fixture notes](../benchmarks/composer-package/README.md) for the original
+layout and the [host-backend boundary](../SECURITY.md) before running anything
+else through it.
+
+Create a temporary output parent outside the fixture and run the reduction
+from the repository root:
+
+```sh
+out_parent="$(mktemp -d /tmp/repomin-composer-package.XXXXXX)"
+PYTHONPATH=src python3 -m repomin benchmarks/composer-package \
+  --command 'python3 reproduce.py' \
+  --match 'ORIGINAL_FAILURE' \
+  --adapter composer \
+  --source-reducer none \
+  --output "$out_parent/result"
+```
+
+The reducer keeps exactly two files in the exported payload:
+
+```text
+composer.json
+reproduce.py
+```
+
+Inside `composer.json` the required entries are preserved: the
+`repomin/required` runtime dependency pinned to `1.0.0` and the
+`autoload.psr-4` entry. The removable manifest noise that the reducer drops
+inside the adapter categories includes the `php` runtime constraint, the
+`repomin/unused` requirement, the `repomin/unused-test-tool` dev requirement,
+the `repomin/replaced` replacement metadata, and the `test` and `unused`
+scripts. The top-level `extra` block is outside the current adapter categories
+and remains unchanged.
+
+Validate the sidecar report and the exported payload fingerprint without
+rerunning the failure command:
+
+```sh
+PYTHONPATH=src python3 -m repomin report validate \
+  "$out_parent/result.repomin/report.json" \
+  --payload "$out_parent/result" --json
+```
+
+The validator reports `valid: true`, `payload_checked: true`, and
+`payload_fingerprint_verified: true` with `payload_fingerprint_mode: "exact"`,
+which means the exported tree content and recorded metadata match exactly
+under the `tree-sha256-v2` policy. The transport-friendly content-only
+fallback is a separate mode.
+
+Run the configured oracle independently from the exported payload to confirm
+the reduction still fails for the same reason:
+
+```sh
+( cd "$out_parent/result" && python3 reproduce.py )
+```
+
+The command exits with status `1` and emits `ORIGINAL_FAILURE` in its
+command output. The fixture's Python oracle writes that marker via a plain
+`print()` call, so it appears on stdout rather than stderr; treating it as
+command output keeps the description stream-agnostic. The marker is emitted
+only when `repomin/required` is still pinned to `1.0.0` and `autoload.psr-4`
+is still present, so the exit status and marker together cover the
+required/autoload contract without depending on PHP.
+
+This workflow is adapter evidence for the configured Python oracle, not a
+guarantee that an arbitrary minimized `composer.json` installs, autoloads, or
+behaves correctly as a Composer project. To assert anything about a real
+Composer project, you still need a PHP toolchain and a real `composer install`
+plus autoloader verification, both of which are outside this fixture by
+design.
+
 ## Shrink a Cargo workspace without network access
 
 The repository includes a local-only Rust workspace with one required path
