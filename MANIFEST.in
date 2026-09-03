@@ -8,6 +8,7 @@ include .github/workflows/release-candidate.yml
 include scripts/check_contribution.py
 include scripts/check_docs.py
 include scripts/check_release_artifacts.py
+include scripts/check_windows_quickstart.ps1
 recursive-include docs *.md
 include tests/test_*.py
 

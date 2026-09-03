@@ -5,9 +5,10 @@ failing project, reduces it, and validates the exported evidence. The example
 is self-contained and does not access the network after installation.
 
 ReproMin requires Python 3.9 or newer. The commands below use Bash or Zsh on
-macOS or Linux. Windows users can follow the PowerShell installation in the
-[README](../README.md#install), then use an ordinary scratch directory with
-the same ReproMin arguments.
+macOS or Linux. Windows users can follow the complete
+[PowerShell quick start](QUICKSTART.windows.md), including the isolated
+installation, fixture creation, Doctor preflight, reduction, validation, and
+replay steps.
 
 ## 1. Install in an isolated environment
 

@@ -46,7 +46,27 @@ jobs:
           distribution: temurin
           java-version: ${{ matrix.java }}
       - name: Install package
+        if: runner.os != 'Windows'
         run: python -m pip install .
+      - name: Install package in an isolated Windows environment
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $venv = Join-Path $env:RUNNER_TEMP "repomin-test-venv"
+          python -m venv $venv
+          $venvPython = Join-Path $venv "Scripts\python.exe"
+          & $venvPython -m pip install --disable-pip-version-check --no-deps $env:GITHUB_WORKSPACE
+          if ($LASTEXITCODE -ne 0) {
+            throw "Checkout installation failed"
+          }
+          "REPOMIN_TEST_PYTHON=$venvPython" | Out-File -FilePath $env:GITHUB_ENV -Append
+          (Split-Path -Parent $venvPython) | Out-File -FilePath $env:GITHUB_PATH -Append
+      - name: Run Windows quick-start smoke
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "$env:GITHUB_WORKSPACE\scripts\check_windows_quickstart.ps1" `
+            -Python $env:REPOMIN_TEST_PYTHON
       - name: Validate PowerShell completion
         if: runner.os == 'Windows'
         shell: pwsh

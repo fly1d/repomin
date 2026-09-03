@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 _RELEASE_DOCUMENTS = (
     ROOT / "README.md",
     ROOT / "docs" / "QUICKSTART.md",
+    ROOT / "docs" / "QUICKSTART.windows.md",
     ROOT / "docs" / "QUICKSTART.zh-CN.md",
     ROOT / "docs" / "GITHUB_ACTION.md",
     ROOT / "docs" / "REPLAY.md",
@@ -99,6 +100,7 @@ class PackagingContractTests(unittest.TestCase):
             "scripts/check_contribution.py",
             "scripts/check_docs.py",
             "scripts/check_release_artifacts.py",
+            "scripts/check_windows_quickstart.ps1",
             "benchmarks/python-requirements/README.md",
             "benchmarks/python-requirements/requirements.txt",
             "benchmarks/python-requirements/requirements/runtime.txt",
@@ -114,7 +116,7 @@ class PackagingContractTests(unittest.TestCase):
 
     def test_common_text_files_are_pinned_to_lf(self) -> None:
         attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
-        for pattern in ("*.md", "*.py", "*.yml", "*.txt"):
+        for pattern in ("*.md", "*.ps1", "*.py", "*.yml", "*.txt"):
             self.assertIn(pattern + " text eol=lf", attributes)
 
     def test_release_document_references_match_runtime_version(self) -> None:

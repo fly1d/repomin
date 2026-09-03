@@ -46,6 +46,8 @@ For a five-minute, copy-paste workflow, start with the
 creates a tiny network-free failing project, reduces both files and text, and
 validates the exported payload fingerprint. The larger
 [examples guide](docs/EXAMPLES.md) covers individual languages and build tools.
+Windows users can run the same complete workflow with explicit virtual
+environment paths in the [PowerShell quick start](docs/QUICKSTART.windows.md).
 
 Before a long reduction, run the read-only [doctor preflight](docs/DOCTOR.md)
 to detect supported reducers and verify that an optional failure command passes
@@ -120,7 +122,9 @@ python -m repomin --version
 
 If PowerShell blocks `Activate.ps1` because of its execution policy, leave the
 environment unactivated and replace `python` above with
-`.venv\Scripts\python.exe`.
+`.venv\Scripts\python.exe`. The [complete PowerShell quick
+start](docs/QUICKSTART.windows.md) uses that explicit interpreter for every
+install, preflight, reduction, validation, and replay command.
 
 The [release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev9)
 includes SHA-256 checksums for the wheel and source archive; verify the
