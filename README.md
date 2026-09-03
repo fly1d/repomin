@@ -332,10 +332,13 @@ repomin /path/to/project \
   --output /tmp/repro
 ```
 
-`--text-file` uses the same exact relative-path grammar as `--keep`. It edits
-only the explicitly listed files; binary files and files not decodable as UTF-8
-are skipped. The selected paths are part of the session identity, so a changed
-set is rejected on `--resume`.
+`--text-file` uses the same exact relative-path grammar as `--keep`. Before the
+first baseline run, every explicitly selected path must be a readable UTF-8
+regular file (not a symbolic link) in the effective source tree. Missing,
+non-text, or ignored targets are rejected before any output or session is
+created. A valid target can still be removed later when the file reducer proves
+that the whole file is unnecessary. The selected paths are part of the session
+identity, so a changed set is rejected on `--resume`.
 
 Use repeatable `--env NAME=VALUE` options when the reproduction needs explicit
 environment flags. The same values are passed to host and Docker runners, while

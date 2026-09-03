@@ -75,6 +75,7 @@ from repomin.text_reducer import TextReducer
 from repomin.session import (
     DEFAULT_IGNORES,
     HoldoutCertificationError,
+    IgnoreSet,
     ReductionSession,
     SessionError,
     _validate_repository_entries,
@@ -697,6 +698,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             ignore_paths=args.ignore_paths,
         )
         _validate_keep_paths(source, args.keep_paths)
+        _validate_text_file_paths(
+            source,
+            args.text_files,
+            ignore_names=args.ignore_names,
+            ignore_paths=args.ignore_paths,
+            gitignore_matcher=gitignore_matcher,
+            keep_paths=args.keep_paths,
+        )
         metadata_output = _metadata_output_path(output)
         _reject_symbolic_link(metadata_output, "metadata output")
         if metadata_output.exists() and not args.resume:
@@ -2030,6 +2039,73 @@ def _validate_keep_paths(source: Path, keep_paths: Sequence[str]) -> None:
                 "keep path must be a regular file or directory: %s "
                 "(check --keep %s)" % (value, value)
             )
+
+
+def _validate_text_file_paths(
+    source: Path,
+    text_files: Sequence[str],
+    *,
+    ignore_names: Sequence[str] = (),
+    ignore_paths: Sequence[str] = (),
+    gitignore_matcher: Optional[GitignoreMatcher] = None,
+    keep_paths: Sequence[str] = (),
+) -> None:
+    """Reject explicit text targets that are absent from the effective tree."""
+    ignores = IgnoreSet(
+        DEFAULT_IGNORES,
+        sorted(set(ignore_paths)),
+        gitignore_matcher,
+        sorted(set(keep_paths)),
+    )
+    ignores.update(ignore_names)
+    for value in sorted(set(text_files)):
+        relative = Path(*PurePosixPath(value).parts)
+        candidate = source / relative
+        try:
+            status = candidate.lstat()
+        except FileNotFoundError as exc:
+            raise ValueError(
+                "text file does not exist in the source repository: %s "
+                "(check --text-file %s)" % (value, value)
+            ) from exc
+        except OSError as exc:
+            raise ValueError(
+                "text file could not be inspected: %s (check --text-file %s)"
+                % (value, value)
+            ) from exc
+
+        if ignores.matches(
+            relative,
+            is_directory=stat.S_ISDIR(status.st_mode),
+        ):
+            raise ValueError(
+                "text file is excluded by the effective ignore rules: %s "
+                "(check --text-file %s or the configured ignore rules)"
+                % (value, value)
+            )
+        if stat.S_ISLNK(status.st_mode):
+            raise ValueError(
+                "text file must not be a symbolic link: %s "
+                "(check --text-file %s)" % (value, value)
+            )
+        if not stat.S_ISREG(status.st_mode):
+            raise ValueError(
+                "text file must be a regular file: %s (check --text-file %s)"
+                % (value, value)
+            )
+        try:
+            with candidate.open("r", encoding="utf-8", newline="") as stream:
+                stream.read()
+        except UnicodeDecodeError as exc:
+            raise ValueError(
+                "text file is not UTF-8: %s (check --text-file %s)"
+                % (value, value)
+            ) from exc
+        except OSError as exc:
+            raise ValueError(
+                "text file could not be read: %s (check --text-file %s)"
+                % (value, value)
+            ) from exc
 
 
 def _reject_symbolic_link(path: Path, label: str) -> None:

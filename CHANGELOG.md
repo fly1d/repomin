@@ -49,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Explicit `--text-file` targets are now validated before runner, session, or
+  output creation, so missing, non-regular, symbolic-link, unreadable,
+  non-UTF-8, and effectively ignored paths fail closed instead of being
+  silently skipped.
 - `repomin report compare` now redacts malformed-report paths without allowing
   short or word-like basenames to corrupt the diagnostic text or recursively
   alter its replacement marker. Redaction covers Windows/POSIX, URI, UNC, and

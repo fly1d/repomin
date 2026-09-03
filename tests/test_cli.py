@@ -1705,6 +1705,216 @@ class CliTest(unittest.TestCase):
             report = _report(output)
             self.assertEqual(["data.txt"], report["execution"]["text_files"])
 
+    def test_text_file_targets_fail_closed_before_runner_or_artifacts(self) -> None:
+        cases = (
+            ("missing", "missing.txt", "does not exist", ()),
+            ("directory", "selected", "must be a regular file", ()),
+            ("non-utf8", "selected.txt", "is not UTF-8", ()),
+            (
+                "default-ignore",
+                "build/selected.txt",
+                "excluded by the effective ignore rules",
+                (),
+            ),
+            (
+                "ignore-name",
+                "selected.txt",
+                "excluded by the effective ignore rules",
+                ("--ignore", "selected.txt"),
+            ),
+            (
+                "ignore-path",
+                "selected.txt",
+                "excluded by the effective ignore rules",
+                ("--ignore-path", "selected.txt"),
+            ),
+            (
+                "gitignore",
+                "selected.txt",
+                "excluded by the effective ignore rules",
+                ("--gitignore",),
+            ),
+        )
+        for kind, text_file, expected, extra_arguments in cases:
+            with self.subTest(kind=kind):
+                with tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    source = root / "source"
+                    output = root / "output"
+                    session = root / "session"
+                    source.mkdir()
+                    (source / "reproduce.py").write_text(
+                        "raise SystemExit(1)\n",
+                        encoding="utf-8",
+                    )
+                    selected = source / text_file
+                    if kind == "directory":
+                        selected.mkdir()
+                    elif kind == "non-utf8":
+                        selected.write_bytes(b"\xff\xfe")
+                    elif kind != "missing":
+                        selected.parent.mkdir(parents=True, exist_ok=True)
+                        selected.write_text("selected\n", encoding="utf-8")
+                    if kind == "gitignore":
+                        (source / ".gitignore").write_text(
+                            "selected.txt\n",
+                            encoding="utf-8",
+                        )
+
+                    stderr = io.StringIO()
+                    with patch("repomin.cli._build_runner") as build_runner:
+                        with contextlib.redirect_stderr(stderr):
+                            exit_code = main(
+                                [
+                                    str(source),
+                                    "--command",
+                                    "python3 reproduce.py",
+                                    "--match",
+                                    "failure",
+                                    "--text-file",
+                                    text_file,
+                                    "--session",
+                                    str(session),
+                                    "--output",
+                                    str(output),
+                                    *extra_arguments,
+                                ]
+                            )
+
+                    self.assertEqual(2, exit_code)
+                    self.assertIn(expected, stderr.getvalue())
+                    self.assertIn(text_file, stderr.getvalue())
+                    build_runner.assert_not_called()
+                    self.assertFalse(output.exists())
+                    self.assertFalse(_metadata_output(output).exists())
+                    self.assertFalse(session.exists())
+
+    def test_text_file_symbolic_link_fails_before_runner_or_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            output = root / "output"
+            session = root / "session"
+            source.mkdir()
+            target = source / "target.txt"
+            target.write_text("target\n", encoding="utf-8")
+            selected = source / "selected.txt"
+            try:
+                selected.symlink_to(target.name)
+            except (NotImplementedError, OSError) as exc:
+                self.skipTest("file symlinks are unavailable: %s" % exc)
+
+            stderr = io.StringIO()
+            with patch("repomin.cli._build_runner") as build_runner:
+                with contextlib.redirect_stderr(stderr):
+                    exit_code = main(
+                        [
+                            str(source),
+                            "--command",
+                            "python3 reproduce.py",
+                            "--match",
+                            "failure",
+                            "--text-file",
+                            "selected.txt",
+                            "--session",
+                            str(session),
+                            "--output",
+                            str(output),
+                        ]
+                    )
+
+            self.assertEqual(2, exit_code)
+            self.assertIn("must not be a symbolic link", stderr.getvalue())
+            build_runner.assert_not_called()
+            self.assertFalse(output.exists())
+            self.assertFalse(_metadata_output(output).exists())
+            self.assertFalse(session.exists())
+
+    def test_unreadable_text_file_fails_before_runner_or_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            output = root / "output"
+            session = root / "session"
+            source.mkdir()
+            selected = source / "selected.txt"
+            selected.write_text("selected\n", encoding="utf-8")
+            resolved_selected = selected.resolve()
+            original_open = Path.open
+
+            def open_with_denied_target(path, *args, **kwargs):
+                if path == resolved_selected:
+                    raise PermissionError("denied for test")
+                return original_open(path, *args, **kwargs)
+
+            stderr = io.StringIO()
+            with patch.object(Path, "open", open_with_denied_target):
+                with patch("repomin.cli._build_runner") as build_runner:
+                    with contextlib.redirect_stderr(stderr):
+                        exit_code = main(
+                            [
+                                str(source),
+                                "--command",
+                                "python3 reproduce.py",
+                                "--match",
+                                "failure",
+                                "--text-file",
+                                "selected.txt",
+                                "--session",
+                                str(session),
+                                "--output",
+                                str(output),
+                            ]
+                        )
+
+            self.assertEqual(2, exit_code)
+            self.assertIn("could not be read", stderr.getvalue())
+            build_runner.assert_not_called()
+            self.assertFalse(output.exists())
+            self.assertFalse(_metadata_output(output).exists())
+            self.assertFalse(session.exists())
+
+    def test_valid_text_file_can_be_deleted_before_text_reduction(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            output = root / "output"
+            source.mkdir()
+            (source / "reproduce.py").write_text(
+                "import sys\n"
+                "print('ORIGINAL_FAILURE', file=sys.stderr)\n"
+                "raise SystemExit(1)\n",
+                encoding="utf-8",
+            )
+            (source / "data.txt").write_text("unneeded\n", encoding="utf-8")
+
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                exit_code = main(
+                    [
+                        str(source),
+                        "--command",
+                        "python3 reproduce.py",
+                        "--match",
+                        "ORIGINAL_FAILURE",
+                        "--source-reducer",
+                        "none",
+                        "--adapter",
+                        "none",
+                        "--text-file",
+                        "data.txt",
+                        "--output",
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(0, exit_code, stderr.getvalue())
+            self.assertFalse((output / "data.txt").exists())
+            self.assertEqual(
+                ["data.txt"],
+                _report(output)["execution"]["text_files"],
+            )
+
     def test_explicit_environment_reaches_host_runner_without_leaking_value(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
