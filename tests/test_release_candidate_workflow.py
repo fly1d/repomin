@@ -1,6 +1,7 @@
 """Static safety contract for the tag-bound release-candidate workflow."""
 
 from pathlib import Path
+import re
 import textwrap
 import unittest
 
@@ -15,18 +16,45 @@ class ReleaseCandidateWorkflowTests(unittest.TestCase):
         cls.workflow = WORKFLOW.read_text(encoding="utf-8")
 
     def _named_step(self, name: str) -> str:
+        lines = self.workflow.splitlines(keepends=True)
         marker = f"      - name: {name}\n"
-        start = self.workflow.index(marker)
-        end = self.workflow.find("\n      - name:", start + len(marker))
-        if end == -1:
-            end = len(self.workflow)
-        return self.workflow[start:end]
+        start = lines.index(marker)
+        end = len(lines)
+        for index, line in enumerate(lines[start + 1 :], start + 1):
+            if line.startswith("      - ") or (
+                line.startswith("  ") and not line.startswith("    ")
+            ):
+                end = index
+                break
+        return "".join(lines[start:end])
 
     def _named_step_run(self, name: str) -> str:
         step = self._named_step(name)
         marker = "        run: |\n"
         self.assertIn(marker, step)
         return textwrap.dedent(step[step.index(marker) + len(marker) :])
+
+    def _named_job(self, name: str) -> str:
+        lines = self.workflow.splitlines(keepends=True)
+        marker = f"  {name}:\n"
+        start = lines.index(marker)
+        end = len(lines)
+        for index, line in enumerate(lines[start + 1 :], start + 1):
+            if line.startswith("  ") and not line.startswith("    "):
+                end = index
+                break
+        return "".join(lines[start:end])
+
+    def _job_condition(self, name: str) -> str:
+        lines = self._named_job(name).splitlines()
+        marker = "    if: >-"
+        start = lines.index(marker) + 1
+        condition = []
+        for line in lines[start:]:
+            if not line.startswith("      "):
+                break
+            condition.append(line.strip())
+        return " ".join(condition)
 
     def test_trigger_is_limited_to_tag_pushes(self) -> None:
         self.assertIn('on:\n  push:\n    tags:\n      - "v*"\n', self.workflow)
@@ -39,7 +67,7 @@ class ReleaseCandidateWorkflowTests(unittest.TestCase):
         build = self.workflow.index("python -m build --outdir release-dist")
         artifact_check = self.workflow.index("scripts/check_release_artifacts.py")
         installed_test = self.workflow.index("Test exact release candidate")
-        storage = self.workflow.index("actions/upload-artifact@v6")
+        storage = self.workflow.index("actions/upload-artifact@")
 
         self.assertLess(source_check, build)
         self.assertLess(build, artifact_check)
@@ -61,7 +89,7 @@ class ReleaseCandidateWorkflowTests(unittest.TestCase):
 
     def test_exact_built_archives_are_tested_before_storage(self) -> None:
         installed_test = self.workflow.index("Test exact release candidate")
-        storage = self.workflow.index("actions/upload-artifact@v6")
+        storage = self.workflow.index("actions/upload-artifact@")
         installed_step = self._named_step("Test exact release candidate")
         storage_step = self._named_step("Store validated release candidate")
         installed_run = self._named_step_run("Test exact release candidate")
@@ -196,7 +224,8 @@ class ReleaseCandidateWorkflowTests(unittest.TestCase):
 
     def test_installed_suite_uses_java_11(self) -> None:
         java_setup = (
-            "      - uses: actions/setup-java@v5\n"
+            "      - uses: actions/setup-java@"
+            "b6effb05e454b25005698d916606bdc6ffcbf961 # v5\n"
             "        with:\n"
             "          distribution: temurin\n"
             '          java-version: "11"\n'
@@ -207,11 +236,12 @@ class ReleaseCandidateWorkflowTests(unittest.TestCase):
             self.workflow.index("Test exact release candidate"),
         )
 
-    def test_workflow_has_no_package_or_release_publication_authority(self) -> None:
+    def test_candidate_build_has_no_publication_authority(self) -> None:
+        build_job = self._named_job("build")
         self.assertIn("permissions:\n  contents: read\n", self.workflow)
-        self.assertIn("persist-credentials: false", self.workflow)
-        self.assertIn("actions/upload-artifact@v6", self.workflow)
-        self.assertEqual(1, self.workflow.count("actions/upload-artifact@v6"))
+        self.assertIn("persist-credentials: false", build_job)
+        self.assertIn("actions/upload-artifact@", build_job)
+        self.assertEqual(1, self.workflow.count("actions/upload-artifact@"))
         for forbidden in (
             "contents: write",
             "id-token: write",
@@ -224,7 +254,166 @@ class ReleaseCandidateWorkflowTests(unittest.TestCase):
             "softprops/action-gh-release",
             "overwrite: true",
         ):
-            self.assertNotIn(forbidden, self.workflow)
+            self.assertNotIn(forbidden, build_job)
+
+    def test_release_actions_are_commit_pinned(self) -> None:
+        actions = re.findall(
+            r"^\s*(?:-\s+)?uses\s*:\s+([^\s#]+)", self.workflow, re.MULTILINE
+        )
+        self.assertEqual(9, len(actions))
+        for action in actions:
+            self.assertRegex(action, r"^[^@]+@[0-9a-f]{40}$")
+
+    def test_pypi_candidate_is_revalidated_without_oidc(self) -> None:
+        build_job = self._named_job("build")
+        verify_job = self._named_job("verify-pypi-candidate")
+        expected_condition = (
+            "github.repository == 'fly1d/repomin' && "
+            "vars.PYPI_PUBLISH_ENABLED == 'true'"
+        )
+        self.assertEqual(
+            expected_condition, self._job_condition("verify-pypi-candidate")
+        )
+        for required in (
+            "    needs: build\n",
+            "    permissions:\n"
+            "      actions: read\n"
+            "      contents: read\n",
+            "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "actions/download-artifact@"
+            "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+            "artifact-ids: ${{ needs.build.outputs.candidate-artifact-id }}",
+            "path: candidate",
+            "scripts/check_release_artifacts.py",
+            'cmp -s "$stored_record" "$verified_record"',
+        ):
+            self.assertIn(required, verify_job)
+        self.assertIn("id: store-candidate", build_job)
+        self.assertIn(
+            "candidate-artifact-id: "
+            "${{ steps.store-candidate.outputs.artifact-id }}",
+            build_job,
+        )
+        self.assertNotIn("id-token: write", verify_job)
+        self.assertNotIn("environment:", verify_job)
+
+        download = verify_job.index("Download validated release candidate")
+        validation = verify_job.index("Revalidate stored release candidate")
+        download_step = self._named_step("Download validated release candidate")
+        validation_step = self._named_step("Revalidate stored release candidate")
+        for step in (download_step, validation_step):
+            self.assertNotRegex(step, r"(?m)^\s*if\s*:")
+            self.assertNotRegex(step, r"(?m)^\s*continue-on-error\s*:")
+        validation_run = self._named_step_run("Revalidate stored release candidate")
+        stored_assignment = 'stored_record="candidate/release-record.json"'
+        verified_assignment = (
+            'verified_record="$RUNNER_TEMP/release-record-before-publish.json"'
+        )
+        for variable, expected in (
+            ("stored_record", stored_assignment),
+            ("verified_record", verified_assignment),
+        ):
+            assignments = [
+                line.strip()
+                for line in validation_run.splitlines()
+                if re.match(rf"^\s*{variable}\s*=", line)
+            ]
+            self.assertEqual([expected], assignments)
+        regular_file_guard = (
+            'if [[ ! -f "$stored_record" || -L "$stored_record" ]]; then'
+        )
+        self.assertEqual(
+            1, validation_run.splitlines().count(regular_file_guard)
+        )
+        record_guard = 'if ! cmp -s "$stored_record" "$verified_record"; then'
+        self.assertEqual(1, validation_run.splitlines().count(record_guard))
+        guard_start = validation_run.index(record_guard)
+        guard_end = validation_run.index("\nfi", guard_start)
+        self.assertIn("\n  exit 1", validation_run[guard_start:guard_end])
+        validation_order = (
+            validation_run.index(stored_assignment),
+            validation_run.index(regular_file_guard),
+            validation_run.index(verified_assignment),
+            validation_run.index("scripts/check_release_artifacts.py"),
+            guard_start,
+        )
+        self.assertEqual(tuple(sorted(validation_order)), validation_order)
+        self.assertLess(download, validation)
+
+    def test_pypi_publish_is_dormant_approved_and_oidc_only(self) -> None:
+        publish_job = self._named_job("publish-pypi")
+        expected_condition = (
+            "github.repository == 'fly1d/repomin' && "
+            "vars.PYPI_PUBLISH_ENABLED == 'true'"
+        )
+        self.assertEqual(expected_condition, self._job_condition("publish-pypi"))
+        for required in (
+            "    needs:\n"
+            "      - build\n"
+            "      - verify-pypi-candidate\n",
+            "    environment:\n      name: pypi\n",
+            "    permissions:\n"
+            "      actions: read\n"
+            "      id-token: write\n",
+            "actions/download-artifact@"
+            "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+            "artifact-ids: ${{ needs.build.outputs.candidate-artifact-id }}",
+            "path: candidate",
+            "pypa/gh-action-pypi-publish@"
+            "dc37677b2e1c63e2034f94d8a5b11f265b73ba33",
+            "packages-dir: candidate/release-dist/",
+            "verify-metadata: true",
+            "skip-existing: false",
+            "attestations: true",
+        ):
+            self.assertIn(required, publish_job)
+        self.assertEqual(1, self.workflow.count("id-token: write"))
+        self.assertEqual(1, self.workflow.count("pypa/gh-action-pypi-publish@"))
+        for forbidden in (
+            "contents: write",
+            "packages: write",
+            "secrets",
+            "password:",
+            "repository-url:",
+            "python -m build",
+            "twine upload",
+            "pip install",
+            "actions/checkout",
+            "actions/setup-python",
+            "actions/upload-artifact",
+            "scripts/check_release_artifacts.py",
+            "cmp -s",
+            "run:",
+            "continue-on-error",
+            "if: always()",
+        ):
+            self.assertNotIn(forbidden, publish_job)
+
+        for forbidden_key in ("run", "password", "repository-url"):
+            self.assertNotRegex(
+                publish_job, rf"(?m)^\s*(?:-\s+)?{forbidden_key}\s*:"
+            )
+        self.assertNotIn("contents: read", publish_job)
+        publish_actions = re.findall(
+            r"^\s*(?:-\s+)?uses\s*:\s+([^\s#]+)",
+            publish_job,
+            re.MULTILINE,
+        )
+        self.assertEqual(
+            [
+                "actions/download-artifact@"
+                "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+                "pypa/gh-action-pypi-publish@"
+                "dc37677b2e1c63e2034f94d8a5b11f265b73ba33",
+            ],
+            publish_actions,
+        )
+        download = publish_job.index("Download revalidated release candidate")
+        publication = publish_job.index(
+            "Publish exact candidate with trusted publishing"
+        )
+        self.assertLess(download, publication)
 
     def test_run_scoped_artifact_contains_only_candidate_evidence(self) -> None:
         for expected in (

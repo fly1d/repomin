@@ -17,16 +17,18 @@ jobs:
     name: Build and validate ${{ github.ref_name }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      candidate-artifact-id: ${{ steps.store-candidate.outputs.artifact-id }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.13"
           cache: pip
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: "11"
@@ -163,7 +165,8 @@ jobs:
             exit 1
           fi
       - name: Store validated release candidate
-        uses: actions/upload-artifact@v6
+        id: store-candidate
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: release-candidate-${{ github.ref_name }}
           path: |
@@ -173,3 +176,86 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
+
+  verify-pypi-candidate:
+    name: Revalidate candidate before PyPI approval
+    needs: build
+    if: >-
+      github.repository == 'fly1d/repomin' &&
+      vars.PYPI_PUBLISH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.13"
+      - name: Download validated release candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          artifact-ids: ${{ needs.build.outputs.candidate-artifact-id }}
+          path: candidate
+      - name: Revalidate stored release candidate
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          wheels=(candidate/release-dist/*.whl)
+          sdists=(candidate/release-dist/*.tar.gz)
+          if (( ${#wheels[@]} != 1 || ${#sdists[@]} != 1 )); then
+            printf 'expected one stored wheel and one source distribution; found %d and %d\n' \
+              "${#wheels[@]}" "${#sdists[@]}" >&2
+            exit 1
+          fi
+          stored_record="candidate/release-record.json"
+          if [[ ! -f "$stored_record" || -L "$stored_record" ]]; then
+            echo "stored release candidate is missing its regular validation record" >&2
+            exit 1
+          fi
+          verified_record="$RUNNER_TEMP/release-record-before-publish.json"
+          python scripts/check_release_artifacts.py \
+            --tag "$RELEASE_TAG" \
+            "${wheels[0]}" \
+            "${sdists[0]}" \
+            > "$verified_record"
+          if ! cmp -s "$stored_record" "$verified_record"; then
+            echo "stored release candidate does not match its validation record" >&2
+            exit 1
+          fi
+
+  publish-pypi:
+    name: Publish validated candidate to PyPI
+    needs:
+      - build
+      - verify-pypi-candidate
+    if: >-
+      github.repository == 'fly1d/repomin' &&
+      vars.PYPI_PUBLISH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/repomin
+    permissions:
+      actions: read
+      id-token: write
+
+    steps:
+      - name: Download revalidated release candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          artifact-ids: ${{ needs.build.outputs.candidate-artifact-id }}
+          path: candidate
+      - name: Publish exact candidate with trusted publishing
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: candidate/release-dist/
+          verify-metadata: true
+          skip-existing: false
+          attestations: true

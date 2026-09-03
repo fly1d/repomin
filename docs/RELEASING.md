@@ -1,10 +1,11 @@
 # Releasing ReproMin
 
 This checklist describes the supported GitHub Release process for the
-pre-alpha project. ReproMin is not published to PyPI; do not add a PyPI upload
-step without an explicit maintainer decision. The runtime version in
-`src/repomin/__init__.py` is the single source of truth; `setup.cfg` reads it
-when building wheel and source-distribution metadata.
+pre-alpha project. ReproMin is not published to PyPI. Its trusted-publishing
+job is dormant unless a repository variable is deliberately enabled, and no
+PyPI upload is authorized without an explicit maintainer decision. The runtime
+version in `src/repomin/__init__.py` is the single source of truth; `setup.cfg`
+reads it when building wheel and source-distribution metadata.
 
 ## Before Tagging
 
@@ -148,6 +149,55 @@ create a new tag instead. If validation exposes a bad release commit, fix it
 under the next version and tag; do not publish artifacts from the failed run.
 A transient runner or package-index failure may be rerun against the same
 unchanged tag.
+
+## Hosted Release Controls
+
+The repository has an active `Protect release tags` ruleset for `v*` tags.
+Once created, a matching tag cannot be updated, force-pushed, or deleted, and
+the ruleset has no bypass actor. Tag syntax is still checked by the
+release-candidate workflow and `scripts/check_release_artifacts.py`; GitHub
+does not currently accept the project's stricter tag-name regex rule for this
+personal repository.
+
+The `pypi` GitHub environment requires approval from the `fly1d` maintainer and
+accepts deployments only from `v*` tags. Self-review is allowed because the
+repository currently has one maintainer. GitHub also allows repository
+administrators to use its explicit environment-bypass control; treat that as
+break-glass recovery, never as the routine release path. The repository
+variable `PYPI_PUBLISH_ENABLED` is `false` by default, so creating or rerunning
+a tag cannot even queue the publishing job while the channel is disabled.
+
+These controls live in GitHub rather than the checkout. Before any release,
+inspect the `Protect release tags` ruleset, the `pypi` environment's reviewer
+and tag policy, and the current value of `PYPI_PUBLISH_ENABLED`. A missing,
+renamed, or weakened control blocks publication even when candidate CI is
+green.
+
+## Dormant PyPI Trusted Publishing
+
+The release-candidate workflow contains separate verification and publishing
+jobs, but they run only when `PYPI_PUBLISH_ENABLED` is exactly `true`. The
+verification job has no OIDC permission. It downloads the build's immutable
+artifact by ID, requires exactly one wheel and one source distribution, and
+recomputes their structural checks and SHA-256 record. Only after that job
+succeeds can the publishing job enter the protected `pypi` environment.
+
+The publishing job alone receives `id-token: write`. It has no source checkout,
+Python setup, or shell commands: its only steps download that same artifact ID
+and send the contained distributions to PyPI without rebuilding them. Every
+action in the release workflow is pinned to a full commit. No API token or
+repository secret is used, and the PyPI action requests attestations.
+
+The dormant path is not a completed PyPI setup. Immediately before the first
+deliberate release, configure a pending trusted publisher for the not-yet-
+created `repomin` project and bind it to repository `fly1d/repomin`, workflow
+`release-candidate.yml`, and environment `pypi`. A pending publisher can create
+the project on the first matching OIDC upload, but it does not reserve the
+project name. Confirm those values on PyPI, then set the repository variable to
+`true` only for the new release. After the approved upload is verified, return
+the variable to `false`. Never enable the job merely to test authentication
+against an existing version; PyPI artifacts are immutable and the workflow
+intentionally refuses to skip an already-published filename.
 
 ## GitHub Release
 

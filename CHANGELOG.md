@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Release tags are now immutable through a no-bypass `v*` ruleset, and a
+  reviewer-gated `pypi` environment fronts a default-disabled OIDC publishing
+  path that revalidates the immutable candidate in a non-OIDC job. The minimal
+  publishing job only downloads that artifact and invokes SHA-pinned actions.
 - Maintenance contracts now keep the FastAPI fixture's Docker and project
   pytest pins aligned, reject its former unreachable package index, and ensure
   pull-request CI remains unfiltered across repository paths.
