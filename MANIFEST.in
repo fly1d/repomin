@@ -4,6 +4,7 @@ include SUPPORT.md
 include CONTRIBUTORS.md
 include action.yml
 include .gitattributes
+include .github/workflows/release-candidate.yml
 include scripts/check_contribution.py
 include scripts/check_docs.py
 include scripts/check_release_artifacts.py

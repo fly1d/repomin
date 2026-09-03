@@ -168,6 +168,19 @@ class ReleaseArtifactCheckTest(unittest.TestCase):
                             "v" + version, supplied[0], supplied[1]
                         )
 
+    def test_dev9_artifacts_do_not_validate_against_dev10_tag(self) -> None:
+        artifact_version = "0.1.0.dev9"
+        with tempfile.TemporaryDirectory() as directory:
+            wheel, sdist = self._paths(Path(directory), artifact_version)
+            _write_wheel(wheel, artifact_version)
+            _write_sdist(sdist, artifact_version)
+
+            with self.assertRaisesRegex(
+                _MODULE.ArtifactValidationError,
+                "wheel filename must be repomin-0.1.0.dev10-py3-none-any.whl",
+            ):
+                _MODULE.validate_release_artifacts("v0.1.0.dev10", wheel, sdist)
+
     def test_package_name_and_version_must_match(self) -> None:
         version = "1.2.3"
         cases = (

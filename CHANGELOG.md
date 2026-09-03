@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A tag-bound release-candidate workflow now rejects tag/source/archive
+  version mismatches, reuses the release artifact checker, and stores only a
+  short-lived Actions artifact without publishing to PyPI or GitHub Releases.
 - A dependency-free release artifact checker now validates the exact wheel and
   source-distribution filenames, package identity, versions, pure-Python wheel
   tag, source archive root, archive integrity, and SHA-256 digests. CI runs the

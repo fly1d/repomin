@@ -112,6 +112,34 @@ standard-library implementation provides the same structural and SHA-256
 checks on Linux, macOS, and Windows. Never publish an artifact whose digest
 differs from the recorded JSON output.
 
+## Tag-bound Release Candidate
+
+Pushing a new `v*` tag starts `.github/workflows/release-candidate.yml`. The
+workflow has no branch, manual-dispatch, or GitHub Release trigger. It first
+requires a tag ref whose name exactly equals `v` plus the runtime version in
+`src/repomin/__init__.py`. After building, it passes that same event tag and
+the resulting wheel and source distribution to
+`scripts/check_release_artifacts.py`. A malformed tag, a source-version
+mismatch, a normalized filename mismatch, or inconsistent archive metadata
+fails the run before any candidate is stored.
+
+A successful run stores the wheel, source distribution, and
+`release-record.json` together in the run-scoped
+`release-candidate-vX.Y.Z` Actions artifact for 14 days. This artifact is
+temporary release evidence, not a PyPI upload or a GitHub Release asset. The
+workflow has read-only repository permissions, does not receive publishing
+credentials, and cannot create or modify a GitHub Release. Both the normal CI
+workflow and the release-candidate workflow must be green before a maintainer
+uses the candidate in the manual process below.
+
+Do not move or recreate an existing release tag to obtain another candidate.
+In particular, never rebuild current `main` as `v0.1.0.dev9` or replace the
+published `v0.1.0.dev9` assets. Prepare a new version in a reviewed commit and
+create a new tag instead. If validation exposes a bad release commit, fix it
+under the next version and tag; do not publish artifacts from the failed run.
+A transient runner or package-index failure may be rerun against the same
+unchanged tag.
+
 ## GitHub Release
 
 Confirm that the commit used to build the artifacts is the commit that will be

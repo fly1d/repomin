@@ -95,6 +95,7 @@ class PackagingContractTests(unittest.TestCase):
         manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
         for relative in (
             ".gitattributes",
+            ".github/workflows/release-candidate.yml",
             "scripts/check_contribution.py",
             "scripts/check_docs.py",
             "scripts/check_release_artifacts.py",
