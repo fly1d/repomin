@@ -24,7 +24,9 @@ job's failure-handling step:
 The checkout must happen before this step. The action installs ReproMin from
 the selected ref and uses `GITHUB_WORKSPACE` as the repository boundary. Keep
 the action ref pinned to a reviewed release or full commit SHA for production
-CI; the version above is the current pre-release.
+CI; the version above is the current pre-release. That release still delegates
+to `actions/setup-python@v6` and `actions/upload-artifact@v6`. Current `main`
+pins both dependencies to reviewed full commit SHAs for the next release.
 
 When `output` is omitted, the action writes the payload and its `.repomin`
 metadata directory under the runner's temporary directory. This is the safe

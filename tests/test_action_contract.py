@@ -1,10 +1,18 @@
 """Static checks for the public GitHub Action metadata contract."""
 
 from pathlib import Path
+import re
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _uses_references(metadata: str) -> list[str]:
+    return [
+        value.split("#", 1)[0].strip()
+        for value in re.findall(r"(?m)^\s*(?:-\s*)?uses\s*:\s*(\S.*)$", metadata)
+    ]
 
 
 class ActionContractTests(unittest.TestCase):
@@ -15,6 +23,25 @@ class ActionContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         cls.docs = (ROOT / "docs" / "GITHUB_ACTION.md").read_text(encoding="utf-8")
+
+    def test_external_actions_are_reviewed_and_commit_pinned(self) -> None:
+        expected = [
+            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f",
+        ]
+        references = _uses_references(self.action)
+        external = [reference for reference in references if not reference.startswith("./")]
+
+        self.assertCountEqual(expected, external)
+        for reference in external:
+            action, marker, revision = reference.rpartition("@")
+            self.assertEqual("@", marker)
+            self.assertIn("/", action)
+            self.assertRegex(revision, r"^[0-9a-f]{40}$")
+        self.assertEqual(
+            ["owner/action@v1"],
+            _uses_references("steps:\n  - uses : owner/action@v1\n"),
+        )
 
     def test_failure_oracle_inputs_are_optional_and_forwarded(self) -> None:
         self.assertIn("  match:\n", self.action)

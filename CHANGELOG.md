@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The public composite Action now pins its Python setup and artifact upload
+  dependencies to reviewed full commit SHAs, so consumers do not inherit
+  floating major tags through an otherwise pinned ReproMin ref.
 - Release tags are now immutable through a no-bypass `v*` ruleset, and a
   reviewer-gated `pypi` environment fronts a default-disabled OIDC publishing
   path that revalidates the immutable candidate in a non-OIDC job. The minimal
