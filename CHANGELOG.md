@@ -35,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The FastAPI benchmark now pins the first patched pytest release for
+  CVE-2025-71176, and its removable extra-index fixture no longer prevents
+  Dependabot from resolving future security updates.
+- CI push runs are limited to `main` and release tags while pull requests keep
+  full coverage, avoiding duplicate runs for repository-hosted PR branches.
 - Release-candidate builds now install their exact validated wheel and source
   distribution in separate environments, run the complete test suite against
   each installed package, and recheck artifact digests before storage.
@@ -58,6 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Maven and input-control benchmark acceptance snippets now validate the
+  documented output size fields without rejecting additional report
+  fingerprint evidence.
 - Explicit `--text-file` targets are now validated before runner, session, or
   output creation, so missing, non-regular, symbolic-link, unreadable,
   non-UTF-8, and effectively ignored paths fail closed instead of being

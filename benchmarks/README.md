@@ -232,7 +232,8 @@ expected = {
     "app/src/test/java/dev/repomin/TriggerTest.java": "cdcb0e2ea632750efda7730d49fd87e31a38fb586f5695743b7fbe304d8c050e",
     "pom.xml": "bcce9cef2212b4db8172ff06fa5420a49f76efdeb5de5ebff43c7f2a1ea3d8a9",
 }
-assert report["output"] == {"files": 4, "bytes": 1525}
+assert report["output"]["files"] == 4
+assert report["output"]["bytes"] == 1525
 assert report["attempts"] <= 130
 assert sum(p["oracle_samples"] for p in report["phase_statistics"]["phases"]) <= 103
 assert report["phase_statistics"]["coverage"] == "complete"
@@ -513,7 +514,8 @@ actual = {p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file()
 assert actual == set(expected), sorted(actual)
 for relative, digest in expected.items():
     assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
-assert report["output"] == {"files": 5, "bytes": 385}
+assert report["output"]["files"] == 5
+assert report["output"]["bytes"] == 385
 assert report["baseline_exit_code"] == 7
 assert report["final_exit_code"] == 7
 assert report["failure_match"] is None

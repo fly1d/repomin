@@ -192,6 +192,18 @@ class ActionContractTests(unittest.TestCase):
         self.assertIn("version used", self.docs)
         self.assertIn("failing job", self.docs)
 
+    def test_ci_runs_branch_changes_once_and_keeps_release_tag_coverage(self) -> None:
+        trigger = (
+            "on:\n"
+            "  push:\n"
+            "    branches:\n"
+            "      - main\n"
+            "    tags:\n"
+            '      - "v*"\n'
+            "  pull_request:\n"
+        )
+        self.assertIn(trigger, self.workflow)
+
     def test_embedded_output_reader_is_indented_inside_yaml_block(self) -> None:
         lines = self.action.splitlines()
         start = lines.index("          python - \"$report_path\" \"$payload_path\" <<'PY'")

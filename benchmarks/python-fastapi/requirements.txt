@@ -1,4 +1,4 @@
 -r requirements/runtime.txt
 -c constraints.txt
---extra-index-url https://example.invalid/simple
+--extra-index-url https://pypi.org/simple
 rich==14.1.0
