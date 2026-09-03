@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Maintenance contracts now keep the FastAPI fixture's Docker and project
+  pytest pins aligned, reject its former unreachable package index, and ensure
+  pull-request CI remains unfiltered across repository paths.
 - The FastAPI benchmark now pins the first patched pytest release for
   CVE-2025-71176, and its removable extra-index fixture no longer prevents
   Dependabot from resolving future security updates.

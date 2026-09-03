@@ -55,6 +55,21 @@ def _setup_config() -> configparser.ConfigParser:
 
 
 class PackagingContractTests(unittest.TestCase):
+    def test_fastapi_fixture_dependency_sources_stay_maintainable(self) -> None:
+        fixture = ROOT / "benchmarks" / "python-fastapi"
+        dockerfile = (fixture / "Dockerfile").read_text(encoding="utf-8")
+        pyproject = (fixture / "pyproject.toml").read_text(encoding="utf-8")
+        requirements = (fixture / "requirements.txt").read_text(encoding="utf-8")
+
+        docker_pins = re.findall(r"(?m)^\s*pytest==([^\s\\]+)", dockerfile)
+        pyproject_pins = re.findall(
+            r'(?m)^\s*"pytest==([^"\s]+)",\s*$', pyproject
+        )
+        self.assertEqual(1, len(docker_pins))
+        self.assertEqual(docker_pins, pyproject_pins)
+        self.assertIn("--extra-index-url https://pypi.org/simple\n", requirements)
+        self.assertNotIn(".invalid", requirements)
+
     def test_metadata_version_is_bound_to_runtime_version(self) -> None:
         config = _setup_config()
         metadata_version = config["metadata"]["version"].strip()

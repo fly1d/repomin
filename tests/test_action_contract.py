@@ -204,6 +204,16 @@ class ActionContractTests(unittest.TestCase):
         )
         self.assertIn(trigger, self.workflow)
 
+        lines = self.workflow.splitlines()
+        pull_request = lines.index("  pull_request:")
+        nested_configuration = []
+        for line in lines[pull_request + 1 :]:
+            if line and not line.startswith(" "):
+                break
+            if line.strip():
+                nested_configuration.append(line)
+        self.assertEqual([], nested_configuration)
+
     def test_embedded_output_reader_is_indented_inside_yaml_block(self) -> None:
         lines = self.action.splitlines()
         start = lines.index("          python - \"$report_path\" \"$payload_path\" <<'PY'")
