@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Public-pilot guidance now requires checking recipient contribution and
+  AI-assistance policies, disclosing material agent involvement on first
+  contact, and distinguishing delivered evidence from upstream adoption.
 - Linux CI now covers Python 3.14 while the cross-platform matrix retains
   Python 3.13 coverage, matching the package's open-ended Python requirement.
 - The real-failure pilot guide now treats stale-output cleanup, generated

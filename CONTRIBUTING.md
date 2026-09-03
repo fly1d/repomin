@@ -94,6 +94,14 @@ integration assertion in `tests/test_offline_benchmarks.py`. Run the focused
 benchmark locally with `python3 benchmarks/run_offline.py --only <name>` and
 include its output in the pull request description.
 
+A public fixture or case study does not by itself authorize contacting another
+project. Before delivering evidence upstream, read that project's contribution
+and AI-assistance policies. Disclose material agent involvement in the first
+message. If the recipient accepts only human-created work or asks not to
+continue, stop the outreach and keep the result as local evidence unless they
+later invite it. Never describe a posted fixture as adopted, accepted, or
+useful to the recipient without an explicit response supporting that claim.
+
 Changes to a reducer must include a test proving both sides of its contract:
 the intended failure remains, and a different failure is rejected. Reducers
 must never modify the input repository or overwrite an existing output path.

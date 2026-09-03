@@ -89,9 +89,12 @@ instead of opening a duplicate issue or fix.
 
 Only the public fixture and scalar reduction evidence were shared. The private
 report contains a local interpreter path and was not uploaded; raw build logs,
-temporary paths, and local command output were also omitted. Upstream has not
-yet responded, so this is delivered reproduction evidence, not adoption or an
-accepted fix.
+temporary paths, and local command output were also omitted. An upstream
+maintainer subsequently asked whether an LLM agent created the work and stated
+that the project reviews human-created contributions. The ReproMin maintainer
+disclosed the agent authorship and accepted that boundary. No further upstream
+change or review will be pursued unless that project invites it. This remains
+delivered reproduction evidence, not adoption or an accepted fix.
 
 ## Reusable lessons
 
@@ -105,5 +108,8 @@ accepted fix.
   without recreating the maintainer's workstation.
 - Contribute evidence to the existing issue or pull request when the proposed
   fix already exists.
+- Check a recipient project's authorship and AI-assistance policy before first
+  contact, disclose material agent involvement immediately, and stop when the
+  recipient does not accept that form of contribution.
 - Keep the exported payload immutable during validation and replay; execute
   manual checks on fresh copies.

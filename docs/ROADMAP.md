@@ -40,8 +40,9 @@ dates. Concrete contribution tasks live in
   minimized public fixtures when licensing permits.
 - Use the [tsdown](CASE_STUDY_TSDOWN_979.md) and
   [pydoctor](CASE_STUDY_PYDOCTOR_728.md) public upstream pilots to improve
-  oracle design guidance, and wait for recipient feedback before generalizing
-  their workflows into new product behavior.
+  oracle design guidance. Treat delivered evidence separately from adoption,
+  honor recipient authorship policies, and wait for technical feedback before
+  generalizing either workflow into new product behavior.
 - Use the comparison workflow with real pilot artifacts and publish trend
   summaries without making unsupported performance claims.
 - Keep the dependency-free `benchmarks/compare.py` summary comparison useful
