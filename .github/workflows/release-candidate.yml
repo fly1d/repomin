@@ -26,6 +26,10 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "11"
       - name: Verify tag matches source version
         shell: bash
         env:
@@ -68,6 +72,96 @@ jobs:
             "${wheels[0]}" \
             "${sdists[0]}" \
             | tee release-record.json
+      - name: Test exact release candidate
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          wheels=(release-dist/*.whl)
+          sdists=(release-dist/*.tar.gz)
+          if (( ${#wheels[@]} != 1 || ${#sdists[@]} != 1 )); then
+            printf 'expected one wheel and one source distribution; found %d and %d\n' \
+              "${#wheels[@]}" "${#sdists[@]}" >&2
+            exit 1
+          fi
+
+          expected_version="repomin ${RELEASE_TAG#v}"
+          test_root="$RUNNER_TEMP/release-candidate-tests"
+          wheel_venv="$test_root/wheel-venv"
+          wheel_run="$test_root/wheel-run"
+          sdist_venv="$test_root/sdist-venv"
+          sdist_run="$test_root/sdist-run"
+
+          assert_installed_package() {
+            local interpreter="$1"
+            "$interpreter" -I - <<'PY'
+          from pathlib import Path
+          import sys
+
+          import repomin
+
+          package_path = Path(repomin.__file__).resolve()
+          environment_path = Path(sys.prefix).resolve()
+          try:
+              package_path.relative_to(environment_path)
+          except ValueError:
+              raise SystemExit(
+                  f"repomin imported outside isolated environment: {package_path}"
+              )
+          print(f"testing installed package at {package_path}")
+          PY
+          }
+
+          python -m venv "$wheel_venv"
+          "$wheel_venv/bin/python" -m pip install \
+            --no-deps --no-cache-dir "${wheels[0]}"
+          mkdir "$wheel_run"
+          cd "$wheel_run"
+          assert_installed_package "$wheel_venv/bin/python"
+          wheel_console_version="$("$wheel_venv/bin/repomin" --version)"
+          wheel_module_version="$("$wheel_venv/bin/python" -I -m repomin --version)"
+          if [[ "$wheel_console_version" != "$expected_version" || \
+                "$wheel_module_version" != "$expected_version" ]]; then
+            printf 'wheel version mismatch: console=%s module=%s expected=%s\n' \
+              "$wheel_console_version" "$wheel_module_version" "$expected_version" >&2
+            exit 1
+          fi
+          "$wheel_venv/bin/python" -m pip check
+          "$wheel_venv/bin/python" -I -m unittest discover \
+            -s "$GITHUB_WORKSPACE/tests" -v
+
+          cd "$GITHUB_WORKSPACE"
+          python -m venv "$sdist_venv"
+          "$sdist_venv/bin/python" -m pip install \
+            --no-deps --no-cache-dir "${sdists[0]}"
+          mkdir "$sdist_run"
+          cd "$sdist_run"
+          assert_installed_package "$sdist_venv/bin/python"
+          sdist_console_version="$("$sdist_venv/bin/repomin" --version)"
+          sdist_module_version="$("$sdist_venv/bin/python" -I -m repomin --version)"
+          if [[ "$sdist_console_version" != "$expected_version" || \
+                "$sdist_module_version" != "$expected_version" ]]; then
+            printf 'source distribution version mismatch: console=%s module=%s expected=%s\n' \
+              "$sdist_console_version" "$sdist_module_version" "$expected_version" >&2
+            exit 1
+          fi
+          "$sdist_venv/bin/python" -m pip check
+          "$sdist_venv/bin/python" -I -m unittest discover \
+            -s "$GITHUB_WORKSPACE/tests" -v
+
+          cd "$GITHUB_WORKSPACE"
+          post_install_record="$RUNNER_TEMP/release-record-after-install.json"
+          python scripts/check_release_artifacts.py \
+            --tag "$RELEASE_TAG" \
+            "${wheels[0]}" \
+            "${sdists[0]}" \
+            > "$post_install_record"
+          if ! cmp -s release-record.json "$post_install_record"; then
+            echo "release candidate changed during installed-package tests" >&2
+            exit 1
+          fi
       - name: Store validated release candidate
         uses: actions/upload-artifact@v6
         with:

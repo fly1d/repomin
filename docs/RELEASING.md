@@ -123,7 +123,16 @@ the resulting wheel and source distribution to
 mismatch, a normalized filename mismatch, or inconsistent archive metadata
 fails the run before any candidate is stored.
 
-A successful run stores the wheel, source distribution, and
+A candidate must also pass installed-package verification before it is stored.
+The workflow installs that exact wheel and source distribution with
+`--no-deps --no-cache-dir` in separate virtual environments outside the
+checkout, checks both the console and `python -m repomin` versions, and runs
+an isolated import-location assertion, `pip check`, and the complete test suite
+against each installed package. It then recomputes the artifact validation
+record and requires it to match the pre-install record, so the tested archive
+bytes and recorded SHA-256 digests cannot drift.
+
+A successful run then stores the wheel, source distribution, and
 `release-record.json` together in the run-scoped
 `release-candidate-vX.Y.Z` Actions artifact for 14 days. This artifact is
 temporary release evidence, not a PyPI upload or a GitHub Release asset. The

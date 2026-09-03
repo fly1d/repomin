@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Release-candidate builds now install their exact validated wheel and source
+  distribution in separate environments, run the complete test suite against
+  each installed package, and recheck artifact digests before storage.
 - Public-pilot guidance now requires checking recipient contribution and
   AI-assistance policies, disclosing material agent involvement on first
   contact, and distinguishing delivered evidence from upstream adoption.
