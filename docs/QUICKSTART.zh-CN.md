@@ -96,9 +96,10 @@ repomin report validate "$demo_dir/reduced.repomin/report.json" \
   --payload "$demo_dir/reduced" --json
 ```
 
-这个 JSON 摘要包含 oracle 类型、缩减前后文件/字节数、保留比例、holdout 计数和预算状态，
-但不会包含命令、匹配正则、日志或环境变量名称和值，适合贴到 CI 记录或用户反馈中。提交前仍要
-单独检查 payload 和 `report.json` 是否含有敏感信息。
+这个 JSON 摘要包含 oracle 类型、缩减前后文件/字节数、保留比例、holdout 计数和预算状态。
+它不会包含命令、匹配正则、日志或环境变量数据，但会包含解析后的 report 和 payload 路径，
+适合用于 CI 诊断；公开提交前请先删改这些路径，或改用下面不含路径的 Markdown 摘要。提交前
+仍要单独检查 payload 和 `report.json` 是否含有敏感信息。
 
 如果需要贴到 Issue 或 CI 摘要中，也可以生成确定性的 Markdown 摘要：
 

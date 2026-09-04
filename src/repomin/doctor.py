@@ -15,6 +15,12 @@ from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 from repomin.execution import CommandRunner, DockerRunner, RunnerError
 from repomin.gitignore import load_gitignore
+from repomin.input_paths import (
+    normalize_ignore_path,
+    normalize_text_file_path,
+    validate_keep_paths,
+    validate_text_file_paths,
+)
 from repomin.model import FailureSpec
 from repomin.oracle import FailureOracle, OracleError
 from repomin.session import (
@@ -242,12 +248,30 @@ def run_doctor(
     output: Optional[str] = None,
     ignore_names: Sequence[str] = (),
     ignore_paths: Sequence[str] = (),
+    keep_paths: Sequence[str] = (),
+    text_files: Sequence[str] = (),
     gitignore: bool = False,
     gitignore_files: Sequence[str] = (),
     gitignore_recursive: bool = False,
 ) -> Tuple[bool, Dict[str, object]]:
     """Run static checks and, when requested, a fresh-copy baseline check."""
     source = source.expanduser().resolve()
+    keep_path_error: Optional[ValueError] = None
+    text_file_error: Optional[ValueError] = None
+    try:
+        normalized_keep_paths = sorted(
+            {normalize_ignore_path(value) for value in keep_paths}
+        )
+    except ValueError as exc:
+        normalized_keep_paths = []
+        keep_path_error = exc
+    try:
+        normalized_text_files = sorted(
+            {normalize_text_file_path(value) for value in text_files}
+        )
+    except ValueError as exc:
+        normalized_text_files = []
+        text_file_error = exc
     checks: List[Dict[str, object]] = []
     result: Dict[str, object] = {
         "schema_version": 1,
@@ -259,6 +283,8 @@ def run_doctor(
         "gitignore_files": [],
         "gitignore_sha256": None,
         "gitignore_recursive": bool(gitignore_recursive),
+        "keep_paths": normalized_keep_paths,
+        "text_files": normalized_text_files,
     }
     if adapter not in ("auto", "none") + _ADAPTER_NAMES:
         _check(checks, "adapter", "fail", "unsupported adapter: %s" % adapter)
@@ -271,6 +297,13 @@ def run_doctor(
         )
     if backend not in {"host", "docker"}:
         _check(checks, "backend", "fail", "unsupported backend: %s" % backend)
+    selection_valid = keep_path_error is None and text_file_error is None
+    if keep_path_error is not None:
+        _check(checks, "keep-paths", "fail", str(keep_path_error))
+    if text_file_error is not None:
+        _check(checks, "text-targets", "fail", str(text_file_error))
+    elif not normalized_text_files:
+        _check(checks, "text-targets", "skip", "no text files requested")
     if not source.is_dir():
         _check(checks, "source", "fail", "source is not a directory: %s" % source)
         result["ok"] = False
@@ -301,14 +334,62 @@ def run_doctor(
         DEFAULT_IGNORES,
         sorted(set(ignore_paths)),
         gitignore_matcher,
+        normalized_keep_paths,
     )
     ignores.update(ignore_names)
     try:
         _validate_repository_entries(source, ignores)
     except (OSError, RuntimeError, ValueError) as exc:
         _check(checks, "source", "fail", str(exc))
+        if normalized_keep_paths and keep_path_error is None:
+            _check(
+                checks,
+                "keep-paths",
+                "fail",
+                "keep paths were not validated because the source repository is unsafe",
+            )
+        if normalized_text_files and text_file_error is None:
+            _check(
+                checks,
+                "text-targets",
+                "fail",
+                "text files were not validated because the source repository is unsafe",
+            )
         result["ok"] = False
         return False, result
+    if normalized_keep_paths:
+        try:
+            validate_keep_paths(source, normalized_keep_paths)
+        except ValueError as exc:
+            _check(checks, "keep-paths", "fail", str(exc))
+            selection_valid = False
+        else:
+            _check(
+                checks,
+                "keep-paths",
+                "pass",
+                "%d keep path(s) are valid" % len(normalized_keep_paths),
+            )
+    if normalized_text_files:
+        try:
+            validate_text_file_paths(
+                source,
+                normalized_text_files,
+                ignore_names=ignore_names,
+                ignore_paths=ignore_paths,
+                gitignore_matcher=gitignore_matcher,
+                keep_paths=normalized_keep_paths,
+            )
+        except ValueError as exc:
+            _check(checks, "text-targets", "fail", str(exc))
+            selection_valid = False
+        else:
+            _check(
+                checks,
+                "text-targets",
+                "pass",
+                "%d text file(s) are valid" % len(normalized_text_files),
+            )
 
     try:
         repository_files = _repository_files(source, ignores)
@@ -592,6 +673,7 @@ def run_doctor(
         and backend_valid
         and working_directory_valid
         and baseline_configuration_valid
+        and selection_valid
     ):
         try:
             runner = _runner(

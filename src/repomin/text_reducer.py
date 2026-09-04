@@ -7,7 +7,7 @@ from typing import List, Sequence, Tuple
 
 from repomin.batching import try_interval_batches
 from repomin.session import ReductionSession
-from repomin.text_edits import remove_text_targets
+from repomin.text_edits import _resolve_text_target, remove_text_targets
 
 
 @dataclass(frozen=True)
@@ -28,8 +28,7 @@ class TextReducer:
 
     def is_applicable(self) -> bool:
         return any(
-            (self.session.current / path).is_file()
-            and not (self.session.current / path).is_symlink()
+            _resolve_text_target(self.session.current, Path(path)) is not None
             for path in self.paths
         )
 
@@ -57,8 +56,8 @@ def _discover_targets(root: Path, paths: Sequence[str]) -> List[TextLineTarget]:
     targets: List[TextLineTarget] = []
     for relative_text in paths:
         relative = Path(relative_text)
-        path = root / relative
-        if not path.is_file() or path.is_symlink():
+        path = _resolve_text_target(root, relative)
+        if path is None:
             continue
         try:
             with path.open("r", encoding="utf-8", newline="") as stream:

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Doctor now accepts the reduction's repeatable `--keep` and `--text-file`
+  inputs, validates explicit text targets before running a baseline, and uses
+  protected paths consistently for source discovery and fresh baseline copies.
 - The GitHub Action now forwards protected paths, explicit text-reduction
   targets, and total attempt/time budgets, with its CI smoke test exercising
   all four inputs against the uploaded payload and recorded execution contract.
@@ -35,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The starter-contribution index now advertises a scoped Ruby `Gemfile`
+  walkthrough and separates an assigned contribution under review from work
+  that is still available to claim.
 - The public composite Action now pins its Python setup and artifact upload
   dependencies to reviewed full commit SHAs, so consumers do not inherit
   floating major tags through an otherwise pinned ReproMin ref.
@@ -73,6 +79,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Explicit keep/text targets now reject Windows drive syntax and symbolic-link
+  path components, while structured text mutations recheck root containment
+  immediately before writing or rolling back a file.
+- Validation guidance now states that machine-readable JSON includes resolved
+  report and optional payload paths, and directs public feedback to the
+  path-free Markdown summary instead of describing all JSON as privacy-safe.
+- CLI help now describes payload validation against the recorded output
+  fingerprint and size rather than implying that a holdout is required, and
+  explains that `--verbose` writes reduction progress to stderr.
 - Maven and input-control benchmark acceptance snippets now validate the
   documented output size fields without rejecting additional report
   fingerprint evidence.

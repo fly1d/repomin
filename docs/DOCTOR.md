@@ -39,6 +39,39 @@ counts, adapter detection, source-reducer detection, and optional baseline use
 the same effective tree as a reduction. A missing or malformed rule file is a
 failed check rather than a silently ignored option.
 
+Pass the same protected paths and explicit text-reduction targets that the
+reduction will use:
+
+```sh
+repomin doctor . \
+  --ignore generated \
+  --keep generated/failure.txt \
+  --text-file generated/failure.txt \
+  --output /tmp/project-repro
+```
+
+Repeat `--keep RELATIVE_PATH` for each regular file or directory that the file
+reducer must preserve. A protected path overrides built-in, exact, and
+gitignore-style exclusions for the target and the ancestors needed to reach
+it; protecting a directory also protects its descendants. Doctor applies that
+override to its source counts, adapter and source-reducer detection, and fresh
+baseline copies, matching the effective tree used by a reduction.
+
+Repeat `--text-file RELATIVE_PATH` for each file that the text reducer will
+line-reduce. Doctor checks that every target exists in the effective tree and
+is a readable, UTF-8 regular file and that no component of its path is a
+symbolic link; it does not reduce the file. Combine `--keep` with `--text-file`
+when an exclusion would otherwise hide the target. Both options accept exact
+repository-relative paths without glob syntax or Windows drive prefixes.
+Duplicate values are collapsed and the normalized `keep_paths` and
+`text_files` arrays are sorted in JSON output.
+
+With no `--text-file`, the text-target check is reported as skipped. A valid
+selection is reported as passed. A missing, ignored, non-regular, symbolic-link,
+unreadable, or non-UTF-8 target is a failed check: Doctor returns `1` and does
+not start the optional baseline. Invalid path syntax is an invalid invocation
+and returns `2` through the argument parser.
+
 When a reproduction command is available, ask Doctor to run the configured
 failure oracle twice in fresh copies before spending time on reduction:
 
@@ -58,15 +91,15 @@ an issue report and does not include stdout/stderr in its result.
 
 For CI scripts, add `--json`. The result contains `ok`, detected adapter and
 source-reducer details, the effective source size after all exclusion rules,
-resolved output and metadata paths, per-check status, and (when requested)
-baseline pass counts. When gitignore rules are enabled, `gitignore_files`,
-`gitignore_sha256`, and `gitignore_recursive` record the ordered rule-file
-labels, a digest of their contents, and whether nested discovery was enabled;
-rule contents are never copied into the result. Exit code `0` means all
-requested checks passed, `1` means a check or baseline failed, and `2` means
-the Doctor invocation itself was invalid. A passing baseline only says that the
-configured failure was observed in the recorded environment; it is not a
-correctness claim.
+resolved output and metadata paths, normalized `keep_paths` and `text_files`,
+per-check status, and (when requested) baseline pass counts. When gitignore
+rules are enabled, `gitignore_files`, `gitignore_sha256`, and
+`gitignore_recursive` record the ordered rule-file labels, a digest of their
+contents, and whether nested discovery was enabled; rule contents are never
+copied into the result. Exit code `0` means all requested checks passed, `1`
+means a check or baseline failed, and `2` means the Doctor invocation itself
+was invalid. A passing baseline only says that the configured failure was
+observed in the recorded environment; it is not a correctness claim.
 
 The baseline runs in disposable copies and inherits the normal host or Docker
 trust boundary. Do not run an untrusted command on the host backend, and review

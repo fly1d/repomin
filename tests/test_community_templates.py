@@ -67,8 +67,12 @@ class CommunityTemplateTest(unittest.TestCase):
             "credentials",
             "proprietary source",
             "current-environment",
+            "--format markdown",
+            "local report",
+            "review and redact",
         ):
             self.assertIn(required, text)
+        self.assertNotIn("compact, privacy-safe result", text)
 
     def test_issue_chooser_exposes_the_real_failure_template(self) -> None:
         config = (_ROOT / ".github" / "ISSUE_TEMPLATE" / "config.yml").read_text(

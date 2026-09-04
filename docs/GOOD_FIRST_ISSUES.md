@@ -6,14 +6,22 @@ and follow [CONTRIBUTING.md](../CONTRIBUTING.md) for tests and documentation.
 
 ## Ready to claim
 
-- [Add a runnable Composer manifest walkthrough](https://github.com/fly1d/repomin/issues/22)
-  brings the existing network-free `composer.json` fixture into the main
-  examples guide. The documentation-only issue covers reduction, payload
-  validation, an independent oracle rerun, and the no-install trust boundary.
+- [Add a runnable Ruby Gemfile walkthrough](https://github.com/fly1d/repomin/issues/25)
+  brings the existing network-free `Gemfile` fixture into the main examples
+  guide. The documentation-only issue covers reduction, exact payload
+  validation, an independent Ruby oracle rerun, and the no-Bundler/no-install
+  boundary.
 
 Completed tasks are removed from this section so contributors do not start
 work against a closed issue. New scoped tasks are added after their user
 workflow and acceptance criteria are ready.
+
+## In review
+
+- [Add a runnable Composer manifest walkthrough](https://github.com/fly1d/repomin/issues/22)
+  is assigned and has an open [pull request](https://github.com/fly1d/repomin/pull/24).
+  Please do not start a parallel implementation while that contribution is
+  under review.
 
 ## Recently completed
 

@@ -592,8 +592,39 @@ class ReportValidationTest(unittest.TestCase):
             self.assertEqual(1, result["attempts"])
             self.assertEqual(1, result["accepted_mutations"])
             self.assertEqual(0, result["cache_hits"])
+            self.assertEqual(str(report_path.resolve()), result["report"])
 
-    def test_cli_validate_json_includes_privacy_safe_adoption_summary(self) -> None:
+    def test_cli_validate_json_includes_resolved_diagnostic_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = root / "reduced"
+            payload.mkdir()
+            (payload / "case.txt").write_bytes(b"12345")
+            report_path = root / "report.json"
+            report_path.write_text(json.dumps(_report()), encoding="utf-8")
+            from contextlib import redirect_stdout
+            from io import StringIO
+
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = main(
+                    [
+                        "report",
+                        "validate",
+                        str(report_path),
+                        "--payload",
+                        str(payload),
+                        "--json",
+                    ]
+                )
+
+            self.assertEqual(0, exit_code)
+            result = json.loads(output.getvalue())
+            self.assertEqual(str(report_path.resolve()), result["report"])
+            self.assertEqual(str(payload.resolve()), result["payload"])
+            self.assertTrue(result["payload_checked"])
+
+    def test_cli_validate_json_omits_private_failure_contract_details(self) -> None:
         report = _report()
         report["failure_match"] = "PRIVATE_FAILURE_PATTERN"
         report["failure_spec"] = {

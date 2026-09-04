@@ -657,17 +657,17 @@ repomin report validate /tmp/checkout-repro.repomin/report.json \
   --payload /tmp/checkout-repro
 ```
 
-Use `--json` for a compact result suitable for CI checks.
-The result also includes a versioned, privacy-safe adoption summary: oracle
-type, source/output sizes and retention ratios, holdout counts, budget state,
-and reduction counts. It intentionally omits the reproduction command, match
-expression, command output, environment names, and environment values, so the
-JSON can be pasted into a feedback report after
-reviewing the payload separately.
+Use `--json` for a compact result suitable for CI checks. Its scalar adoption
+fields include oracle type, source/output sizes and retention ratios, holdout
+counts, budget state, and reduction counts while omitting the reproduction
+command, match expression, command output, environment names, and environment
+values. The JSON also includes resolved report and optional payload paths for
+diagnostics, so redact those fields before posting it publicly and review the
+payload separately.
 
-For a deterministic human-readable summary, use
-`--format markdown`. It renders the same deliberately limited evidence fields
-as an escaped table and omits report/payload paths, commands, match expressions,
+For a deterministic, path-free summary intended for sharing, use
+`--format markdown`. It renders the deliberately limited evidence fields as an
+escaped table and omits report/payload paths, commands, match expressions,
 logs, and environment metadata:
 
 ```sh

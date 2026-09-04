@@ -120,9 +120,11 @@ repomin report validate \
 ```
 
 A successful result has `"payload_fingerprint_verified": true`. The JSON
-summary omits the command, match expression, logs, paths, and environment
-values, but you must still inspect the payload and full report before sharing
-them.
+omits the command, match expression, logs, and environment data, but includes
+the resolved report and payload paths for CI diagnostics. Redact those paths
+before sharing the JSON, or use `--format markdown` for the path-free
+shareable summary. Inspect the payload and full report separately before
+sharing either one.
 
 To execute the recorded oracle again in fresh copies, first review the command
 inside `report.json`, then explicitly allow replay:

@@ -8,7 +8,7 @@ import os
 import re
 import stat
 import sys
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Callable, Optional, Sequence, Tuple
 
 from repomin import __version__
@@ -21,6 +21,12 @@ from repomin.doctor import format_doctor, run_doctor
 from repomin.go_manifest import GoManifestReducer
 from repomin.gradle import GradleReducer
 from repomin.gitignore import GitignoreMatcher, load_gitignore
+from repomin.input_paths import (
+    normalize_ignore_path,
+    normalize_text_file_path,
+    validate_keep_paths,
+    validate_text_file_paths,
+)
 from repomin.java import (
     JavaAnalysisClasspathEntry,
     JavaReducer,
@@ -75,7 +81,6 @@ from repomin.text_reducer import TextReducer
 from repomin.session import (
     DEFAULT_IGNORES,
     HoldoutCertificationError,
-    IgnoreSet,
     ReductionSession,
     SessionError,
     _validate_repository_entries,
@@ -167,43 +172,18 @@ def _parse_ignore_name(value: str) -> str:
 
 def _parse_ignore_path(value: str) -> str:
     """Validate one exact repository-relative path exclusion."""
-    if not isinstance(value, str):
-        raise argparse.ArgumentTypeError("ignore path must be text")
-    path = value.strip()
-    if (
-        not path
-        or "\x00" in path
-        or "\\" in path
-        or path.startswith("/")
-        or any(part in {"", ".", ".."} for part in path.split("/"))
-        or any(char in path for char in "*?[")
-    ):
-        raise argparse.ArgumentTypeError(
-            "ignore path must be an exact relative path without glob syntax"
-        )
-    normalized = PurePosixPath(path).as_posix()
-    if normalized in {"", "."}:
-        raise argparse.ArgumentTypeError("ignore path must not be the repository root")
-    return normalized
+    try:
+        return normalize_ignore_path(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def _parse_text_file_path(value: str) -> str:
     """Validate one exact repository-relative text file for the text reducer."""
-    if not isinstance(value, str):
-        raise argparse.ArgumentTypeError("text file path must be text")
-    path = value.strip()
-    if (
-        not path
-        or "\x00" in path
-        or "\\" in path
-        or path.startswith("/")
-        or any(part in {"", ".", ".."} for part in path.split("/"))
-        or any(char in path for char in "*?[")
-    ):
-        raise argparse.ArgumentTypeError(
-            "text file path must be an exact relative path without glob syntax"
-        )
-    return PurePosixPath(path).as_posix()
+    try:
+        return normalize_text_file_path(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def _load_gitignore(
@@ -627,7 +607,11 @@ def build_parser() -> argparse.ArgumentParser:
             "(does not change the reproduction command or Docker mounts)"
         ),
     )
-    parser.add_argument("--verbose", action="store_true")
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print reduction progress to stderr",
+    )
     return parser
 
 
@@ -697,8 +681,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             ignore_names=args.ignore_names,
             ignore_paths=args.ignore_paths,
         )
-        _validate_keep_paths(source, args.keep_paths)
-        _validate_text_file_paths(
+        validate_keep_paths(source, args.keep_paths)
+        validate_text_file_paths(
             source,
             args.text_files,
             ignore_names=args.ignore_names,
@@ -1382,6 +1366,24 @@ def _doctor_command(argv: Sequence[str]) -> int:
         help="exact repository path excluded from baseline copies; repeatable",
     )
     parser.add_argument(
+        "--keep",
+        dest="keep_paths",
+        action="append",
+        type=_parse_ignore_path,
+        default=[],
+        metavar="RELATIVE_PATH",
+        help="exact repository path protected from exclusions; repeatable",
+    )
+    parser.add_argument(
+        "--text-file",
+        dest="text_files",
+        action="append",
+        type=_parse_text_file_path,
+        default=[],
+        metavar="RELATIVE_PATH",
+        help="UTF-8 text file to validate as an explicit reduction target; repeatable",
+    )
+    parser.add_argument(
         "--gitignore",
         action="store_true",
         help="apply the repository .gitignore as additional exclusions",
@@ -1442,6 +1444,8 @@ def _doctor_command(argv: Sequence[str]) -> int:
             output=args.output,
             ignore_names=args.ignore_names,
             ignore_paths=args.ignore_paths,
+            keep_paths=args.keep_paths,
+            text_files=args.text_files,
             gitignore=args.gitignore,
             gitignore_files=args.gitignore_files,
             gitignore_recursive=args.gitignore_recursive,
@@ -1550,7 +1554,7 @@ def _validation_summary(
     report_path: Path,
     payload: Optional[Path],
 ) -> dict:
-    """Build the privacy-safe scalar summary emitted by ``report validate``."""
+    """Build the diagnostic summary emitted by ``report validate``."""
     source = report["source"]
     output = report["output"]
     execution = report["execution"]
@@ -1701,7 +1705,7 @@ def _report_validate_command(argv: Sequence[str]) -> int:
     parser.add_argument(
         "--payload",
         type=Path,
-        help="exported payload directory whose holdout fingerprint should match",
+        help="exported payload directory whose recorded fingerprint and size should match",
     )
     output_group = parser.add_mutually_exclusive_group()
     output_group.add_argument(
@@ -2016,96 +2020,6 @@ def _resolve_paths(
     if _is_within(output, source):
         raise ValueError("output must not be inside the source repository")
     return source, output
-
-
-def _validate_keep_paths(source: Path, keep_paths: Sequence[str]) -> None:
-    """Reject explicit keep paths that cannot protect anything."""
-    for value in sorted(set(keep_paths)):
-        candidate = source.joinpath(*PurePosixPath(value).parts)
-        try:
-            status = candidate.lstat()
-        except FileNotFoundError as exc:
-            raise ValueError(
-                "keep path does not exist in the source repository: %s "
-                "(check --keep %s)" % (value, value)
-            ) from exc
-        except OSError as exc:
-            raise ValueError(
-                "keep path could not be inspected: %s (check --keep %s)"
-                % (value, value)
-            ) from exc
-        if not (stat.S_ISREG(status.st_mode) or stat.S_ISDIR(status.st_mode)):
-            raise ValueError(
-                "keep path must be a regular file or directory: %s "
-                "(check --keep %s)" % (value, value)
-            )
-
-
-def _validate_text_file_paths(
-    source: Path,
-    text_files: Sequence[str],
-    *,
-    ignore_names: Sequence[str] = (),
-    ignore_paths: Sequence[str] = (),
-    gitignore_matcher: Optional[GitignoreMatcher] = None,
-    keep_paths: Sequence[str] = (),
-) -> None:
-    """Reject explicit text targets that are absent from the effective tree."""
-    ignores = IgnoreSet(
-        DEFAULT_IGNORES,
-        sorted(set(ignore_paths)),
-        gitignore_matcher,
-        sorted(set(keep_paths)),
-    )
-    ignores.update(ignore_names)
-    for value in sorted(set(text_files)):
-        relative = Path(*PurePosixPath(value).parts)
-        candidate = source / relative
-        try:
-            status = candidate.lstat()
-        except FileNotFoundError as exc:
-            raise ValueError(
-                "text file does not exist in the source repository: %s "
-                "(check --text-file %s)" % (value, value)
-            ) from exc
-        except OSError as exc:
-            raise ValueError(
-                "text file could not be inspected: %s (check --text-file %s)"
-                % (value, value)
-            ) from exc
-
-        if ignores.matches(
-            relative,
-            is_directory=stat.S_ISDIR(status.st_mode),
-        ):
-            raise ValueError(
-                "text file is excluded by the effective ignore rules: %s "
-                "(check --text-file %s or the configured ignore rules)"
-                % (value, value)
-            )
-        if stat.S_ISLNK(status.st_mode):
-            raise ValueError(
-                "text file must not be a symbolic link: %s "
-                "(check --text-file %s)" % (value, value)
-            )
-        if not stat.S_ISREG(status.st_mode):
-            raise ValueError(
-                "text file must be a regular file: %s (check --text-file %s)"
-                % (value, value)
-            )
-        try:
-            with candidate.open("r", encoding="utf-8", newline="") as stream:
-                stream.read()
-        except UnicodeDecodeError as exc:
-            raise ValueError(
-                "text file is not UTF-8: %s (check --text-file %s)"
-                % (value, value)
-            ) from exc
-        except OSError as exc:
-            raise ValueError(
-                "text file could not be read: %s (check --text-file %s)"
-                % (value, value)
-            ) from exc
 
 
 def _reject_symbolic_link(path: Path, label: str) -> None:

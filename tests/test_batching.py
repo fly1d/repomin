@@ -1,4 +1,5 @@
 import hashlib
+import os
 import tempfile
 import unittest
 from dataclasses import dataclass
@@ -169,6 +170,68 @@ class BatchingTest(unittest.TestCase):
             self.assertFalse(remove_text_targets(root, (valid, stale)))
             self.assertEqual(first_original, first.read_text(encoding="utf-8"))
             self.assertEqual(second_original, second.read_text(encoding="utf-8"))
+
+    def test_text_batch_rejects_a_target_outside_the_mutation_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            root = parent / "root"
+            root.mkdir()
+            outside = parent / "outside.txt"
+            original = "alpha\nbeta\n"
+            _write_preserving_newlines(outside, original)
+            for escaped_path in (outside, Path("../outside.txt")):
+                with self.subTest(path=escaped_path):
+                    removal = _Removal(
+                        escaped_path,
+                        0,
+                        6,
+                        hashlib.sha256(b"alpha\n").hexdigest(),
+                    )
+
+                    self.assertFalse(remove_text_targets(root, (removal,)))
+                    self.assertEqual(original, outside.read_text(encoding="utf-8"))
+
+    @unittest.skipIf(os.name == "nt", "symlink creation is not generally available")
+    def test_text_batch_rejects_a_target_through_a_parent_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            root = parent / "root"
+            root.mkdir()
+            outside = parent / "outside"
+            outside.mkdir()
+            selected = outside / "selected.txt"
+            original = "alpha\nbeta\n"
+            _write_preserving_newlines(selected, original)
+            (root / "alias").symlink_to(outside, target_is_directory=True)
+            removal = _Removal(
+                Path("alias/selected.txt"),
+                0,
+                6,
+                hashlib.sha256(b"alpha\n").hexdigest(),
+            )
+
+            self.assertFalse(remove_text_targets(root, (removal,)))
+            self.assertEqual(original, selected.read_text(encoding="utf-8"))
+
+    @unittest.skipIf(os.name == "nt", "symlink creation is not generally available")
+    def test_text_batch_rejects_an_in_root_parent_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            real = root / "real"
+            real.mkdir()
+            selected = real / "selected.txt"
+            original = "alpha\nbeta\n"
+            _write_preserving_newlines(selected, original)
+            (root / "alias").symlink_to(real, target_is_directory=True)
+            removal = _Removal(
+                Path("alias/selected.txt"),
+                0,
+                6,
+                hashlib.sha256(b"alpha\n").hexdigest(),
+            )
+
+            self.assertFalse(remove_text_targets(root, (removal,)))
+            self.assertEqual(original, selected.read_text(encoding="utf-8"))
 
     def test_text_batch_rolls_back_first_file_when_second_write_fails(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

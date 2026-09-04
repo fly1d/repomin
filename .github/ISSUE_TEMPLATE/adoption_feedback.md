@@ -27,13 +27,15 @@ security sandbox.
 - Outcome (`useful`, `inconclusive`, or `could not run`), and where you stopped:
 - ReproMin version and install source:
 - Optional evidence: backend, adapter/reducer, sanitized oracle type, aggregate
-  before/after sizes, or privacy-safe `repomin doctor`, `report validate`, and
-  `report replay` results:
+  before/after sizes, or reviewed scalar fields from `repomin doctor`, `report
+  validate`, and `report replay` results:
 
-For a compact, privacy-safe result to paste here, append `--json` to
-`repomin report validate`; review the payload separately before sharing it.
-The JSON intentionally omits the command, match expression, logs, and
-environment values.
+For a path-free validation summary to paste here, pass `--format markdown` to
+`repomin report validate`. The JSON forms are useful for automation but include
+local report, payload, source, output, or metadata paths depending on the
+command; review and redact them before sharing. Validation output omits the
+reproduction command, match expression, logs, and environment values. Review
+the payload separately before sharing it.
 
 ## Value and friction
 

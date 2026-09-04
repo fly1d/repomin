@@ -319,6 +319,34 @@ class CliTest(unittest.TestCase):
                     self.assertIn("--adapter", stdout.getvalue())
                 self.assertEqual("", stderr.getvalue())
 
+    def test_doctor_completion_includes_keep_and_text_file_paths(self) -> None:
+        scripts = {}
+        for shell in ("bash", "zsh"):
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(0, main(["completion", shell]))
+            scripts[shell] = stdout.getvalue()
+
+        bash_start = scripts["bash"].index(
+            'if [[ "${COMP_WORDS[1]}" == "doctor" ]]; then'
+        )
+        bash_end = scripts["bash"].index("if (( COMP_CWORD == 1 ))", bash_start)
+        bash_doctor = scripts["bash"][bash_start:bash_end]
+
+        zsh_start = scripts["zsh"].index(
+            'if [[ "$words[2]" == "doctor" ]]; then'
+        )
+        zsh_end = scripts["zsh"].index("\n        return\n    fi", zsh_start)
+        zsh_doctor = scripts["zsh"][zsh_start:zsh_end]
+
+        for shell, doctor_block in (
+            ("bash", bash_doctor),
+            ("zsh", zsh_doctor),
+        ):
+            for option in ("--keep", "--text-file"):
+                with self.subTest(shell=shell, option=option):
+                    self.assertIn(option, doctor_block)
+
     def test_shell_completion_rejects_unknown_shell(self) -> None:
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
@@ -347,6 +375,22 @@ class CliTest(unittest.TestCase):
         self.assertIn("replay    run the recorded failure", help_text)
         self.assertIn("compare   compare privacy-safe evidence", help_text)
         self.assertIn("repomin report validate --help", help_text)
+
+    def test_reduction_help_explains_verbose_output_stream(self) -> None:
+        self.assertIn(
+            "print reduction progress to stderr",
+            build_parser().format_help(),
+        )
+
+    def test_report_validate_help_describes_full_payload_evidence(self) -> None:
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            with self.assertRaises(SystemExit) as raised:
+                main(["report", "validate", "--help"])
+        self.assertEqual(0, raised.exception.code)
+        help_text = stdout.getvalue()
+        self.assertIn("recorded fingerprint and size", " ".join(help_text.split()))
+        self.assertNotIn("holdout fingerprint", help_text)
 
     def test_report_compare_help_explains_order_and_display_labels(self) -> None:
         stdout = io.StringIO()

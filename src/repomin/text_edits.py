@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import Dict, Protocol, Sequence
+from typing import Dict, Optional, Protocol, Sequence
 
 
 class TextRemoval(Protocol):
@@ -10,6 +10,27 @@ class TextRemoval(Protocol):
     start: int
     end: int
     content_hash: str
+
+
+def _resolve_text_target(root: Path, relative: Path) -> Optional[Path]:
+    """Validate and return an existing regular file contained beneath ``root``."""
+    try:
+        resolved_root = root.resolve(strict=True)
+        if relative.is_absolute() or relative.drive:
+            return None
+        candidate = root / relative
+        canonical_candidate = resolved_root / relative
+        resolved = candidate.resolve(strict=True)
+        resolved.relative_to(resolved_root)
+    except (FileNotFoundError, OSError, RuntimeError, ValueError):
+        return None
+    if (
+        resolved != canonical_candidate
+        or not resolved.is_file()
+        or resolved.is_symlink()
+    ):
+        return None
+    return candidate
 
 
 def remove_text_targets(root: Path, targets: Sequence[TextRemoval]) -> bool:
@@ -23,8 +44,8 @@ def remove_text_targets(root: Path, targets: Sequence[TextRemoval]) -> bool:
     originals: Dict[Path, str] = {}
     transformed: Dict[Path, str] = {}
     for relative, edits in by_path.items():
-        path = root / relative
-        if path.is_symlink():
+        path = _resolve_text_target(root, relative)
+        if path is None:
             return False
         try:
             with path.open("r", encoding="utf-8", newline="") as stream:
@@ -51,6 +72,9 @@ def remove_text_targets(root: Path, targets: Sequence[TextRemoval]) -> bool:
     attempted = []
     try:
         for path, text in transformed.items():
+            relative = path.relative_to(root)
+            if _resolve_text_target(root, relative) != path:
+                raise OSError("text target changed before mutation: %s" % relative)
             attempted.append(path)
             with path.open("w", encoding="utf-8", newline="") as stream:
                 stream.write(text)
@@ -58,9 +82,13 @@ def remove_text_targets(root: Path, targets: Sequence[TextRemoval]) -> bool:
         rollback_failures = []
         for path in reversed(attempted):
             try:
+                relative = path.relative_to(root)
+                if _resolve_text_target(root, relative) != path:
+                    rollback_failures.append(path)
+                    continue
                 with path.open("w", encoding="utf-8", newline="") as stream:
                     stream.write(originals[path])
-            except OSError:
+            except (OSError, ValueError):
                 rollback_failures.append(path)
         if rollback_failures:
             raise OSError(
