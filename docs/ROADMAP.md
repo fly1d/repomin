@@ -20,8 +20,9 @@ dates. Concrete contribution tasks live in
   hash-pinned CI dependencies, with an independent oracle check.
 - A dependency-free contributor preflight that isolates lint and bytecode
   caches, plus release metadata and isolated wheel/source-install checks.
-- A reusable GitHub Action with explicit output, exit-code, process-signature,
-  holdout, and privacy-exclusion inputs, plus validated report summary outputs.
+- A reusable GitHub Action with explicit output, exit-code, Java/Python
+  exception-signature, process-signature, holdout, and privacy-exclusion
+  inputs, plus validated report summary outputs.
 - A read-only `repomin doctor` preflight for reducer/toolchain discovery, output
   collision checks, and optional fresh-copy baseline verification.
 - A privacy-conscious `repomin report replay` workflow with exact modern

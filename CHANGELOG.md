@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The GitHub Action now exposes `java-exception` and `python-exception`
+  booleans, validates their basic-oracle requirements and mutual exclusivity
+  with each other and `process-failure`, and forwards the selected normalized
+  exception signature mode to the CLI. Action smoke tests prove that Java and
+  Python stack-frame identity prevents broad-regex false positives while
+  preserving the existing exact-exit-code workflow coverage.
 - Doctor now accepts the reduction's repeatable `--keep` and `--text-file`
   inputs, validates explicit text targets before running a baseline, and uses
   protected paths consistently for source discovery and fresh baseline copies.
@@ -79,6 +85,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Source distributions now include the CI workflow consumed by the bundled
+  GitHub Action contract tests, so that test module can run from an extracted
+  source archive instead of failing on a missing file.
 - Explicit keep/text targets now reject Windows drive syntax and symbolic-link
   path components, while structured text mutations recheck root containment
   immediately before writing or rolling back a file.

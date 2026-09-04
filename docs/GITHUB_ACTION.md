@@ -39,11 +39,22 @@ rejected before export.
 ## Inputs
 
 `command` is required. Set at least one of `match`, `exit-code`, or
-`process-failure` to define the failure oracle. `match` is useful when the
-failure text is stable; `exit-code` is safer when test output changes between
-runs; `process-failure: true` learns and preserves the exact signal or process
-termination signature. `exit-code` and `process-failure` are mutually
+`process-failure` to define the basic failure oracle. `match` is useful when
+the failure text is stable; `exit-code` is safer when test output changes
+between runs; `process-failure: true` learns and preserves the exact signal or
+process termination signature. `exit-code` and `process-failure` are mutually
 exclusive, while `match` may be combined with either to narrow the oracle.
+
+`java-exception` and `python-exception` are boolean inputs, both `false` by
+default. Set the matching input to `true` to learn a normalized exception from
+the baseline and require accepted candidates to preserve its class, message,
+and relevant stack frames. Either `match` or `exit-code` is still required;
+these exception inputs refine the basic oracle rather than define one alone.
+`java-exception`, `python-exception`, and `process-failure` are mutually
+exclusive. An exception signature is especially useful with a broad regular
+expression: the text can remain in echoed source, a test summary, or a
+different failure, while the signature prevents that text alone from accepting
+a candidate whose exception identity or stack has changed.
 
 `source`, `output`, `adapter`, `source-reducer`, `backend`, `docker-image`,
 `docker-network`, `timeout`, `jobs`, `max-attempts`, and `max-duration` map
@@ -132,6 +143,21 @@ For a command with a stable exit code but unstable output:
     exit-code: "1"
     adapter: python
 ```
+
+For a Python failure where the match text may also appear in unrelated output:
+
+```yaml
+- name: Minimize Python exception
+  if: ${{ failure() }}
+  uses: fly1d/repomin@v0.1.0.dev9
+  with:
+    command: python -m pytest -q tests/test_checkout.py
+    match: "ValueError"
+    python-exception: true
+    adapter: python
+    source-reducer: python
+```
+
 The default backend is `host`; use Docker when the command should run inside an
 existing local image:
 

@@ -71,6 +71,14 @@ inputs:
     description: Optional exact process exit code required by the failure oracle
     required: false
     default: ""
+  java-exception:
+    description: Learn and preserve a normalized Java exception signature
+    required: false
+    default: "false"
+  python-exception:
+    description: Learn and preserve a normalized Python exception signature
+    required: false
+    default: "false"
   process-failure:
     description: Learn and preserve the exact process termination signature
     required: false
@@ -187,6 +195,8 @@ runs:
         REPOMIN_COMMAND: ${{ inputs.command }}
         REPOMIN_MATCH: ${{ inputs.match }}
         REPOMIN_EXIT_CODE: ${{ inputs.exit-code }}
+        REPOMIN_JAVA_EXCEPTION: ${{ inputs.java-exception }}
+        REPOMIN_PYTHON_EXCEPTION: ${{ inputs.python-exception }}
         REPOMIN_PROCESS_FAILURE: ${{ inputs.process-failure }}
         REPOMIN_HOLDOUT_RUNS: ${{ inputs.holdout-runs }}
         REPOMIN_MIN_HOLDOUT_RATE: ${{ inputs.min-holdout-rate }}
@@ -235,13 +245,21 @@ runs:
           echo "docker-image is required when backend is docker" >&2
           exit 2
         fi
-        case "$REPOMIN_PROCESS_FAILURE" in
-          true|false) ;;
-          *)
-            echo "process-failure must be true or false" >&2
-            exit 2
-            ;;
-        esac
+        for signature_mode in \
+          "java-exception:$REPOMIN_JAVA_EXCEPTION" \
+          "python-exception:$REPOMIN_PYTHON_EXCEPTION" \
+          "process-failure:$REPOMIN_PROCESS_FAILURE"
+        do
+          signature_name="${signature_mode%%:*}"
+          signature_value="${signature_mode#*:}"
+          case "$signature_value" in
+            true|false) ;;
+            *)
+              echo "$signature_name must be true or false" >&2
+              exit 2
+              ;;
+          esac
+        done
         case "$REPOMIN_GITIGNORE" in
           true|false) ;;
           *)
@@ -263,6 +281,20 @@ runs:
             exit 2
             ;;
         esac
+        signature_mode_count=0
+        for signature_value in \
+          "$REPOMIN_JAVA_EXCEPTION" \
+          "$REPOMIN_PYTHON_EXCEPTION" \
+          "$REPOMIN_PROCESS_FAILURE"
+        do
+          if [[ "$signature_value" == true ]]; then
+            signature_mode_count=$((signature_mode_count + 1))
+          fi
+        done
+        if (( signature_mode_count > 1 )); then
+          echo "only one of java-exception, python-exception, and process-failure may be true" >&2
+          exit 2
+        fi
         if [[ -z "$REPOMIN_MATCH" && -z "$REPOMIN_EXIT_CODE" && "$REPOMIN_PROCESS_FAILURE" != true ]]; then
           echo "set match, exit-code, or process-failure so the failure oracle is explicit" >&2
           exit 2
@@ -288,6 +320,12 @@ runs:
         fi
         if [[ -n "$REPOMIN_EXIT_CODE" ]]; then
           args+=(--exit-code "$REPOMIN_EXIT_CODE")
+        fi
+        if [[ "$REPOMIN_JAVA_EXCEPTION" == true ]]; then
+          args+=(--java-exception)
+        fi
+        if [[ "$REPOMIN_PYTHON_EXCEPTION" == true ]]; then
+          args+=(--python-exception)
         fi
         if [[ "$REPOMIN_PROCESS_FAILURE" == true ]]; then
           args+=(--process-failure)

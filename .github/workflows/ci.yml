@@ -211,6 +211,137 @@ jobs:
           assert execution["max_duration_seconds"] == 120.0
           PY
 
+      - name: Prepare Python exception oracle fixture
+        shell: bash
+        run: |
+          mkdir action-python-exception-fixture
+          cat > action-python-exception-fixture/reproduce.py <<'PY'
+          from pathlib import Path
+
+
+          def target_failure():
+              raise ValueError("payment failed")
+
+
+          def fallback_failure():
+              raise ValueError("payment failed")
+
+
+          if Path("required.txt").is_file():
+              target_failure()
+          else:
+              fallback_failure()
+          PY
+          printf 'keep\n' > action-python-exception-fixture/required.txt
+          printf 'remove\n' > action-python-exception-fixture/unused.txt
+      - name: Run local ReproMin action with a Python exception oracle
+        id: repomin_exception
+        uses: ./
+        with:
+          source: action-python-exception-fixture
+          command: python3 reproduce.py
+          match: ValueError
+          python-exception: "true"
+          adapter: none
+          source-reducer: none
+          step-summary: true
+          artifact-name: action-exception-smoke
+      - name: Check exception signature output and payload
+        shell: bash
+        env:
+          ACTUAL_ORACLE: ${{ steps.repomin_exception.outputs.oracle-mode }}
+          PAYLOAD_PATH: ${{ steps.repomin_exception.outputs.payload-path }}
+          REPORT_PATH: ${{ steps.repomin_exception.outputs.report-path }}
+          SUMMARY_PATH: ${{ steps.repomin_exception.outputs.step-summary-path }}
+        run: |
+          set -euo pipefail
+          [[ "$ACTUAL_ORACLE" == "python_exception" ]]
+          [[ -f "$PAYLOAD_PATH/reproduce.py" ]]
+          [[ -f "$PAYLOAD_PATH/required.txt" ]]
+          [[ ! -e "$PAYLOAD_PATH/unused.txt" ]]
+          repomin report validate "$REPORT_PATH" --payload "$PAYLOAD_PATH" --json
+          grep -F '| `oracle_mode` | `python_exception` |' "$SUMMARY_PATH"
+          ! grep -F 'ValueError' "$SUMMARY_PATH"
+          ! grep -F 'payment failed' "$SUMMARY_PATH"
+          python - "$REPORT_PATH" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              report = json.load(stream)
+          failure_spec = report["failure_spec"]
+          assert failure_spec["match"] == "ValueError"
+          assert failure_spec["java_exception"] is False
+          assert failure_spec["python_exception"] is True
+          assert failure_spec["process_failure"] is False
+          signature = report["python_exception_signature"]
+          assert signature["class"] == "ValueError"
+          assert signature["message"] == "payment failed"
+          assert signature["frames"][0].endswith(":target_failure")
+          assert all("fallback_failure" not in frame for frame in signature["frames"])
+          PY
+      - name: Prepare Java exception oracle fixture
+        shell: bash
+        run: |
+          mkdir action-java-exception-fixture
+          cat > action-java-exception-fixture/reproduce.py <<'PY'
+          from pathlib import Path
+          import sys
+
+
+          print(
+              "java.lang.NoSuchMethodError: demo.Target.missing()",
+              file=sys.stderr,
+          )
+          if Path("required.txt").is_file():
+              print("    at demo.Target.run(Target.java:42)", file=sys.stderr)
+          else:
+              print("    at demo.Fallback.run(Fallback.java:9)", file=sys.stderr)
+          raise SystemExit(1)
+          PY
+          printf 'keep\n' > action-java-exception-fixture/required.txt
+          printf 'remove\n' > action-java-exception-fixture/unused.txt
+      - name: Run local ReproMin action with a Java exception oracle
+        id: repomin_java_exception
+        uses: ./
+        with:
+          source: action-java-exception-fixture
+          command: python3 reproduce.py
+          match: NoSuchMethodError
+          java-exception: "true"
+          adapter: none
+          source-reducer: none
+          artifact-name: action-java-exception-smoke
+      - name: Check Java exception signature output and payload
+        shell: bash
+        env:
+          ACTUAL_ORACLE: ${{ steps.repomin_java_exception.outputs.oracle-mode }}
+          PAYLOAD_PATH: ${{ steps.repomin_java_exception.outputs.payload-path }}
+          REPORT_PATH: ${{ steps.repomin_java_exception.outputs.report-path }}
+        run: |
+          set -euo pipefail
+          [[ "$ACTUAL_ORACLE" == "java_exception" ]]
+          [[ -f "$PAYLOAD_PATH/reproduce.py" ]]
+          [[ -f "$PAYLOAD_PATH/required.txt" ]]
+          [[ ! -e "$PAYLOAD_PATH/unused.txt" ]]
+          repomin report validate "$REPORT_PATH" --payload "$PAYLOAD_PATH" --json
+          python - "$REPORT_PATH" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              report = json.load(stream)
+          failure_spec = report["failure_spec"]
+          assert failure_spec["match"] == "NoSuchMethodError"
+          assert failure_spec["java_exception"] is True
+          assert failure_spec["python_exception"] is False
+          assert failure_spec["process_failure"] is False
+          signature = report["java_exception_signature"]
+          assert signature["class"] == "java.lang.NoSuchMethodError"
+          assert signature["message"] == "demo.Target.missing()"
+          assert signature["frames"] == ["demo.Target.run"]
+          PY
+
   quality:
     name: Packaging and static checks
     runs-on: ubuntu-latest

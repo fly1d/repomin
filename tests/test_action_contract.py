@@ -46,12 +46,55 @@ class ActionContractTests(unittest.TestCase):
     def test_failure_oracle_inputs_are_optional_and_forwarded(self) -> None:
         self.assertIn("  match:\n", self.action)
         self.assertIn("    required: false\n    default: \"\"", self.action)
-        for name in ("exit-code", "process-failure"):
+        for name in (
+            "exit-code",
+            "java-exception",
+            "python-exception",
+            "process-failure",
+        ):
             self.assertIn("  %s:\n" % name, self.action)
             self.assertIn("REPOMIN_%s" % name.upper().replace("-", "_"), self.action)
         self.assertIn("args+=(--match \"$REPOMIN_MATCH\")", self.action)
         self.assertIn("args+=(--exit-code \"$REPOMIN_EXIT_CODE\")", self.action)
+        self.assertIn("args+=(--java-exception)", self.action)
+        self.assertIn("args+=(--python-exception)", self.action)
         self.assertIn("args+=(--process-failure)", self.action)
+
+    def test_exception_mode_inputs_are_strict_booleans_and_mutually_exclusive(
+        self,
+    ) -> None:
+        for name in ("java-exception", "python-exception", "process-failure"):
+            self.assertRegex(
+                self.action,
+                r"(?m)^  %s:\n"
+                r"    description: .+\n"
+                r"    required: false\n"
+                r'    default: "false"$' % re.escape(name),
+            )
+            self.assertIn(
+                '"%s:$REPOMIN_%s"'
+                % (name, name.upper().replace("-", "_")),
+                self.action,
+            )
+        self.assertIn('case "$signature_value" in', self.action)
+        self.assertIn('true|false) ;;', self.action)
+        self.assertIn('$signature_name must be true or false', self.action)
+        self.assertIn(
+            'signature_mode_count=$((signature_mode_count + 1))', self.action
+        )
+        self.assertIn(
+            "only one of java-exception, python-exception, and process-failure may be true",
+            self.action,
+        )
+        self.assertIn(
+            '[[ -z "$REPOMIN_MATCH" && -z "$REPOMIN_EXIT_CODE" '
+            '&& "$REPOMIN_PROCESS_FAILURE" != true ]]',
+            self.action,
+        )
+        self.assertIn(
+            '[[ -n "$REPOMIN_EXIT_CODE" && "$REPOMIN_PROCESS_FAILURE" == true ]]',
+            self.action,
+        )
 
     def test_report_outputs_are_declared_and_emitted(self) -> None:
         for name in (
@@ -159,8 +202,10 @@ class ActionContractTests(unittest.TestCase):
             self.action,
         )
 
-    def test_smoke_workflow_exercises_exit_code_and_outputs(self) -> None:
-        self.assertIn('exit-code: "7"', self.workflow)
+    def test_smoke_workflow_preserves_exit_code_and_output_coverage(self) -> None:
+        self.assertIn("  action-smoke:\n", self.workflow)
+        self.assertIn("    name: GitHub Action smoke test\n", self.workflow)
+        self.assertIn('          exit-code: "7"', self.workflow)
         self.assertNotIn("          match: INPUT_CONTROLS_FAILURE", self.workflow)
         self.assertIn("          ignore: |", self.workflow)
         self.assertIn("          ignore-path: nested/deep-noise.txt", self.workflow)
@@ -189,16 +234,61 @@ class ActionContractTests(unittest.TestCase):
         ):
             self.assertIn(name, self.workflow)
         self.assertIn('ACTUAL_HOLDOUT" == "not_requested"', self.workflow)
+        self.assertIn('ACTUAL_ORACLE" == "exit_code"', self.workflow)
         self.assertIn("step-summary: true", self.workflow)
         self.assertIn("# ReproMin validation summary", self.workflow)
         self.assertIn("summary_schema_version", self.workflow)
         self.assertIn("| `summary_schema_version` | `2` |", self.workflow)
+        self.assertIn("| `oracle_mode` | `exit_code` |", self.workflow)
         self.assertIn("PRIVATE_MATCH_SENTINEL", self.workflow)
         self.assertIn("step-summary-path", self.workflow)
         self.assertIn("SUMMARY_PATH", self.workflow)
 
+    def test_exception_smoke_rejects_broad_regex_false_positive(self) -> None:
+        action_job = self.workflow.split("  action-smoke:\n", 1)[1].split(
+            "\n  quality:", 1
+        )[0]
+        self.assertNotIn("  action-exception-smoke:\n", self.workflow)
+        self.assertIn("Prepare Python exception oracle fixture", action_job)
+        self.assertEqual(
+            2,
+            action_job.count('raise ValueError("payment failed")'),
+        )
+        self.assertEqual(3, action_job.count("        uses: ./\n"))
+        self.assertIn("          match: ValueError", action_job)
+        self.assertIn('          python-exception: "true"', action_job)
+        self.assertIn("          artifact-name: action-exception-smoke", action_job)
+        self.assertIn('ACTUAL_ORACLE" == "python_exception"', action_job)
+        self.assertIn("| `oracle_mode` | `python_exception` |", action_job)
+        self.assertIn("! grep -F 'ValueError'", action_job)
+        self.assertIn('[[ -f "$PAYLOAD_PATH/required.txt" ]]', action_job)
+        self.assertIn('failure_spec["python_exception"] is True', action_job)
+        self.assertIn('signature["class"] == "ValueError"', action_job)
+        self.assertIn('signature["message"] == "payment failed"', action_job)
+        self.assertIn('endswith(":target_failure")', action_job)
+        self.assertIn('"fallback_failure" not in frame', action_job)
+
+    def test_action_smoke_exercises_java_exception_input(self) -> None:
+        action_job = self.workflow.split("  action-smoke:\n", 1)[1].split(
+            "\n  quality:", 1
+        )[0]
+        self.assertIn("Prepare Java exception oracle fixture", action_job)
+        self.assertIn("          match: NoSuchMethodError", action_job)
+        self.assertIn('          java-exception: "true"', action_job)
+        self.assertIn("          artifact-name: action-java-exception-smoke", action_job)
+        self.assertIn('ACTUAL_ORACLE" == "java_exception"', action_job)
+        self.assertIn('[[ -f "$PAYLOAD_PATH/required.txt" ]]', action_job)
+        self.assertIn('failure_spec["java_exception"] is True', action_job)
+        self.assertIn(
+            'signature["class"] == "java.lang.NoSuchMethodError"', action_job
+        )
+        self.assertIn('signature["message"] == "demo.Target.missing()"', action_job)
+        self.assertIn('signature["frames"] == ["demo.Target.run"]', action_job)
+
     def test_docs_describe_unstable_output_mode(self) -> None:
         self.assertIn("exit-code", self.docs)
+        self.assertIn("java-exception", self.docs)
+        self.assertIn("python-exception", self.docs)
         self.assertIn("process-failure", self.docs)
         self.assertIn("unstable output", self.docs)
         self.assertIn("holdout-status", self.docs)
