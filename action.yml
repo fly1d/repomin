@@ -60,9 +60,14 @@ outputs:
     description: Runner path to the generated step summary when enabled
     value: ${{ steps.reduce.outputs.step-summary-path }}
 inputs:
+  config:
+    description: Repository-relative path to a versioned JSON reduction spec
+    required: false
+    default: ""
   command:
     description: Shell command that reproduces the failure
-    required: true
+    required: false
+    default: ""
   match:
     description: Optional regular expression that must remain in command output
     required: false
@@ -190,6 +195,7 @@ runs:
       id: reduce
       shell: bash
       env:
+        REPOMIN_CONFIG: ${{ inputs.config }}
         REPOMIN_SOURCE: ${{ inputs.source }}
         REPOMIN_OUTPUT: ${{ inputs.output }}
         REPOMIN_COMMAND: ${{ inputs.command }}
@@ -220,20 +226,74 @@ runs:
       run: |
         set -euo pipefail
 
-        case "$REPOMIN_SOURCE" in
-          /*|../*|*/../*|..)
-            echo "source must be repository-relative and must not escape the workspace" >&2
-            exit 2
-            ;;
-        esac
+        resolve_workspace_path() {
+          python - "$GITHUB_WORKSPACE" "$1" "$2" <<'PY'
+        from pathlib import Path, PurePosixPath, PureWindowsPath
+        import re
+        import sys
+
+        workspace = Path(sys.argv[1]).resolve()
+        raw = sys.argv[2]
+        label = sys.argv[3]
+        components = [] if raw == "." and label == "source" else raw.split("/")
+        unsafe_component = re.compile(r'[<>:"/\\|?*\[]|[\x00-\x1f]')
+        windows_reserved_names = {
+            "con",
+            "prn",
+            "aux",
+            "nul",
+            *(f"com{number}" for number in range(1, 10)),
+            *(f"lpt{number}" for number in range(1, 10)),
+        }
+        invalid = (
+            not raw
+            or "\\" in raw
+            or PurePosixPath(raw).is_absolute()
+            or bool(PureWindowsPath(raw).drive)
+            or any(part in {"", ".", ".."} for part in components)
+            or any(
+                unsafe_component.search(part)
+                or part.endswith((" ", "."))
+                or part.split(".", 1)[0].casefold() in windows_reserved_names
+                for part in components
+            )
+        )
+        if invalid:
+            raise SystemExit(
+                f"{label} must be a portable repository-relative path and must not escape the workspace"
+            )
+
+        candidate = workspace
+        for part in components:
+            candidate = candidate / part
+            if candidate.is_symlink():
+                raise SystemExit(f"{label} path must not contain symbolic links")
+        try:
+            resolved = candidate.resolve(strict=label in {"source", "config"})
+            resolved.relative_to(workspace)
+        except (OSError, RuntimeError, ValueError):
+            raise SystemExit(f"{label} must resolve inside GITHUB_WORKSPACE")
+        if label == "source" and not resolved.is_dir():
+            raise SystemExit("source must resolve to a directory inside GITHUB_WORKSPACE")
+        if label == "config":
+            if not resolved.is_file():
+                raise SystemExit(
+                    "config must resolve to a readable regular file inside GITHUB_WORKSPACE"
+                )
+            try:
+                with resolved.open("rb"):
+                    pass
+            except OSError:
+                raise SystemExit(
+                    "config must resolve to a readable regular file inside GITHUB_WORKSPACE"
+                )
+        print(resolved)
+        PY
+        }
+
+        source_path="$(resolve_workspace_path "$REPOMIN_SOURCE" source)" || exit 2
         if [[ -n "$REPOMIN_OUTPUT" ]]; then
-          case "$REPOMIN_OUTPUT" in
-            /*|../*|*/../*|..)
-              echo "output must be repository-relative and must not escape the workspace" >&2
-              exit 2
-              ;;
-          esac
-          output_path="$GITHUB_WORKSPACE/$REPOMIN_OUTPUT"
+          output_path="$(resolve_workspace_path "$REPOMIN_OUTPUT" output)" || exit 2
         else
           if [[ -z "${RUNNER_TEMP:-}" ]]; then
             echo "RUNNER_TEMP is required when output is omitted" >&2
@@ -241,39 +301,6 @@ runs:
           fi
           output_path="$RUNNER_TEMP/repomin-result-${GITHUB_RUN_ID:-0}-${GITHUB_RUN_ATTEMPT:-0}-$$"
         fi
-        if [[ "$REPOMIN_BACKEND" == docker && -z "$REPOMIN_DOCKER_IMAGE" ]]; then
-          echo "docker-image is required when backend is docker" >&2
-          exit 2
-        fi
-        for signature_mode in \
-          "java-exception:$REPOMIN_JAVA_EXCEPTION" \
-          "python-exception:$REPOMIN_PYTHON_EXCEPTION" \
-          "process-failure:$REPOMIN_PROCESS_FAILURE"
-        do
-          signature_name="${signature_mode%%:*}"
-          signature_value="${signature_mode#*:}"
-          case "$signature_value" in
-            true|false) ;;
-            *)
-              echo "$signature_name must be true or false" >&2
-              exit 2
-              ;;
-          esac
-        done
-        case "$REPOMIN_GITIGNORE" in
-          true|false) ;;
-          *)
-            echo "gitignore must be true or false" >&2
-            exit 2
-            ;;
-        esac
-        case "$REPOMIN_GITIGNORE_RECURSIVE" in
-          true|false) ;;
-          *)
-            echo "gitignore-recursive must be true or false" >&2
-            exit 2
-            ;;
-        esac
         case "$REPOMIN_STEP_SUMMARY" in
           true|false) ;;
           *)
@@ -281,92 +308,171 @@ runs:
             exit 2
             ;;
         esac
-        signature_mode_count=0
-        for signature_value in \
-          "$REPOMIN_JAVA_EXCEPTION" \
-          "$REPOMIN_PYTHON_EXCEPTION" \
-          "$REPOMIN_PROCESS_FAILURE"
-        do
-          if [[ "$signature_value" == true ]]; then
-            signature_mode_count=$((signature_mode_count + 1))
-          fi
-        done
-        if (( signature_mode_count > 1 )); then
-          echo "only one of java-exception, python-exception, and process-failure may be true" >&2
-          exit 2
-        fi
-        if [[ -z "$REPOMIN_MATCH" && -z "$REPOMIN_EXIT_CODE" && "$REPOMIN_PROCESS_FAILURE" != true ]]; then
-          echo "set match, exit-code, or process-failure so the failure oracle is explicit" >&2
-          exit 2
-        fi
-        if [[ -n "$REPOMIN_EXIT_CODE" && "$REPOMIN_PROCESS_FAILURE" == true ]]; then
-          echo "exit-code cannot be combined with process-failure" >&2
-          exit 2
-        fi
-
         args=(
-          "$GITHUB_WORKSPACE/$REPOMIN_SOURCE"
-          --command "$REPOMIN_COMMAND"
+          "$source_path"
           --output "$output_path"
-          --adapter "$REPOMIN_ADAPTER"
-          --source-reducer "$REPOMIN_SOURCE_REDUCER"
-          --backend "$REPOMIN_BACKEND"
-          --docker-network "$REPOMIN_DOCKER_NETWORK"
-          --timeout "$REPOMIN_TIMEOUT"
-          --jobs "$REPOMIN_JOBS"
         )
-        if [[ -n "$REPOMIN_MATCH" ]]; then
-          args+=(--match "$REPOMIN_MATCH")
-        fi
-        if [[ -n "$REPOMIN_EXIT_CODE" ]]; then
-          args+=(--exit-code "$REPOMIN_EXIT_CODE")
-        fi
-        if [[ "$REPOMIN_JAVA_EXCEPTION" == true ]]; then
-          args+=(--java-exception)
-        fi
-        if [[ "$REPOMIN_PYTHON_EXCEPTION" == true ]]; then
-          args+=(--python-exception)
-        fi
-        if [[ "$REPOMIN_PROCESS_FAILURE" == true ]]; then
-          args+=(--process-failure)
-        fi
-        if [[ -n "$REPOMIN_HOLDOUT_RUNS" ]]; then
-          args+=(--holdout-runs "$REPOMIN_HOLDOUT_RUNS")
-        fi
-        if [[ -n "$REPOMIN_MIN_HOLDOUT_RATE" ]]; then
-          args+=(--min-holdout-rate "$REPOMIN_MIN_HOLDOUT_RATE")
-        fi
-        if [[ -n "$REPOMIN_HOLDOUT_CONFIDENCE" ]]; then
-          args+=(--holdout-confidence "$REPOMIN_HOLDOUT_CONFIDENCE")
-        fi
-        append_repeated_option() {
-          local option="$1"
-          local values="$2"
-          local value
-          while IFS= read -r value; do
-            value="${value%$'\r'}"
-            [[ -z "$value" ]] && continue
-            args+=("$option" "$value")
-          done <<< "$values"
-        }
-        append_repeated_option --ignore "$REPOMIN_IGNORE"
-        append_repeated_option --ignore-path "$REPOMIN_IGNORE_PATH"
-        append_repeated_option --keep "$REPOMIN_KEEP"
-        append_repeated_option --text-file "$REPOMIN_TEXT_FILE"
-        if [[ -n "$REPOMIN_MAX_ATTEMPTS" ]]; then
-          args+=(--max-attempts "$REPOMIN_MAX_ATTEMPTS")
-        fi
-        if [[ -n "$REPOMIN_MAX_DURATION" ]]; then
-          args+=(--max-duration "$REPOMIN_MAX_DURATION")
-        fi
-        if [[ "$REPOMIN_GITIGNORE" == true ]]; then
-          args+=(--gitignore)
-        fi
-        if [[ "$REPOMIN_GITIGNORE_RECURSIVE" == true ]]; then
-          args+=(--gitignore-recursive)
-        fi
-        if [[ "$REPOMIN_BACKEND" == docker ]]; then
-          args+=(--docker-image "$REPOMIN_DOCKER_IMAGE")
+        if [[ -n "$REPOMIN_CONFIG" ]]; then
+          config_conflicts=()
+          record_config_conflict() {
+            if [[ "$2" != "$3" ]]; then
+              config_conflicts+=("$1")
+            fi
+          }
+          record_config_conflict command "$REPOMIN_COMMAND" ""
+          record_config_conflict match "$REPOMIN_MATCH" ""
+          record_config_conflict exit-code "$REPOMIN_EXIT_CODE" ""
+          record_config_conflict java-exception "$REPOMIN_JAVA_EXCEPTION" false
+          record_config_conflict python-exception "$REPOMIN_PYTHON_EXCEPTION" false
+          record_config_conflict process-failure "$REPOMIN_PROCESS_FAILURE" false
+          record_config_conflict holdout-runs "$REPOMIN_HOLDOUT_RUNS" ""
+          record_config_conflict min-holdout-rate "$REPOMIN_MIN_HOLDOUT_RATE" ""
+          record_config_conflict holdout-confidence "$REPOMIN_HOLDOUT_CONFIDENCE" ""
+          record_config_conflict ignore "$REPOMIN_IGNORE" ""
+          record_config_conflict ignore-path "$REPOMIN_IGNORE_PATH" ""
+          record_config_conflict keep "$REPOMIN_KEEP" ""
+          record_config_conflict text-file "$REPOMIN_TEXT_FILE" ""
+          record_config_conflict gitignore "$REPOMIN_GITIGNORE" false
+          record_config_conflict gitignore-recursive "$REPOMIN_GITIGNORE_RECURSIVE" false
+          record_config_conflict adapter "$REPOMIN_ADAPTER" auto
+          record_config_conflict source-reducer "$REPOMIN_SOURCE_REDUCER" auto
+          record_config_conflict backend "$REPOMIN_BACKEND" host
+          record_config_conflict docker-image "$REPOMIN_DOCKER_IMAGE" ""
+          record_config_conflict docker-network "$REPOMIN_DOCKER_NETWORK" none
+          record_config_conflict timeout "$REPOMIN_TIMEOUT" 120
+          record_config_conflict max-attempts "$REPOMIN_MAX_ATTEMPTS" ""
+          record_config_conflict max-duration "$REPOMIN_MAX_DURATION" ""
+          record_config_conflict jobs "$REPOMIN_JOBS" 1
+          if (( ${#config_conflicts[@]} > 0 )); then
+            printf 'config cannot be combined with non-default semantic inputs:' >&2
+            printf ' %s' "${config_conflicts[@]}" >&2
+            printf '\n' >&2
+            exit 2
+          fi
+          config_path="$(resolve_workspace_path "$REPOMIN_CONFIG" config)" || exit 2
+          args+=(--config "$config_path")
+        else
+          if [[ -z "${REPOMIN_COMMAND//[[:space:]]/}" ]]; then
+            echo "command is required when config is omitted" >&2
+            exit 2
+          fi
+          if [[ "$REPOMIN_BACKEND" == docker && -z "$REPOMIN_DOCKER_IMAGE" ]]; then
+            echo "docker-image is required when backend is docker" >&2
+            exit 2
+          fi
+          for signature_mode in \
+            "java-exception:$REPOMIN_JAVA_EXCEPTION" \
+            "python-exception:$REPOMIN_PYTHON_EXCEPTION" \
+            "process-failure:$REPOMIN_PROCESS_FAILURE"
+          do
+            signature_name="${signature_mode%%:*}"
+            signature_value="${signature_mode#*:}"
+            case "$signature_value" in
+              true|false) ;;
+              *)
+                echo "$signature_name must be true or false" >&2
+                exit 2
+                ;;
+            esac
+          done
+          case "$REPOMIN_GITIGNORE" in
+            true|false) ;;
+            *)
+              echo "gitignore must be true or false" >&2
+              exit 2
+              ;;
+          esac
+          case "$REPOMIN_GITIGNORE_RECURSIVE" in
+            true|false) ;;
+            *)
+              echo "gitignore-recursive must be true or false" >&2
+              exit 2
+              ;;
+          esac
+          signature_mode_count=0
+          for signature_value in \
+            "$REPOMIN_JAVA_EXCEPTION" \
+            "$REPOMIN_PYTHON_EXCEPTION" \
+            "$REPOMIN_PROCESS_FAILURE"
+          do
+            if [[ "$signature_value" == true ]]; then
+              signature_mode_count=$((signature_mode_count + 1))
+            fi
+          done
+          if (( signature_mode_count > 1 )); then
+            echo "only one of java-exception, python-exception, and process-failure may be true" >&2
+            exit 2
+          fi
+          if [[ -z "$REPOMIN_MATCH" && -z "$REPOMIN_EXIT_CODE" && "$REPOMIN_PROCESS_FAILURE" != true ]]; then
+            echo "set match, exit-code, or process-failure so the failure oracle is explicit" >&2
+            exit 2
+          fi
+          if [[ -n "$REPOMIN_EXIT_CODE" && "$REPOMIN_PROCESS_FAILURE" == true ]]; then
+            echo "exit-code cannot be combined with process-failure" >&2
+            exit 2
+          fi
+          args+=(
+            --command "$REPOMIN_COMMAND"
+            --adapter "$REPOMIN_ADAPTER"
+            --source-reducer "$REPOMIN_SOURCE_REDUCER"
+            --backend "$REPOMIN_BACKEND"
+            --docker-network "$REPOMIN_DOCKER_NETWORK"
+            --timeout "$REPOMIN_TIMEOUT"
+            --jobs "$REPOMIN_JOBS"
+          )
+          if [[ -n "$REPOMIN_MATCH" ]]; then
+            args+=(--match "$REPOMIN_MATCH")
+          fi
+          if [[ -n "$REPOMIN_EXIT_CODE" ]]; then
+            args+=(--exit-code "$REPOMIN_EXIT_CODE")
+          fi
+          if [[ "$REPOMIN_JAVA_EXCEPTION" == true ]]; then
+            args+=(--java-exception)
+          fi
+          if [[ "$REPOMIN_PYTHON_EXCEPTION" == true ]]; then
+            args+=(--python-exception)
+          fi
+          if [[ "$REPOMIN_PROCESS_FAILURE" == true ]]; then
+            args+=(--process-failure)
+          fi
+          if [[ -n "$REPOMIN_HOLDOUT_RUNS" ]]; then
+            args+=(--holdout-runs "$REPOMIN_HOLDOUT_RUNS")
+          fi
+          if [[ -n "$REPOMIN_MIN_HOLDOUT_RATE" ]]; then
+            args+=(--min-holdout-rate "$REPOMIN_MIN_HOLDOUT_RATE")
+          fi
+          if [[ -n "$REPOMIN_HOLDOUT_CONFIDENCE" ]]; then
+            args+=(--holdout-confidence "$REPOMIN_HOLDOUT_CONFIDENCE")
+          fi
+          append_repeated_option() {
+            local option="$1"
+            local values="$2"
+            local value
+            while IFS= read -r value; do
+              value="${value%$'\r'}"
+              [[ -z "$value" ]] && continue
+              args+=("$option" "$value")
+            done <<< "$values"
+          }
+          append_repeated_option --ignore "$REPOMIN_IGNORE"
+          append_repeated_option --ignore-path "$REPOMIN_IGNORE_PATH"
+          append_repeated_option --keep "$REPOMIN_KEEP"
+          append_repeated_option --text-file "$REPOMIN_TEXT_FILE"
+          if [[ -n "$REPOMIN_MAX_ATTEMPTS" ]]; then
+            args+=(--max-attempts "$REPOMIN_MAX_ATTEMPTS")
+          fi
+          if [[ -n "$REPOMIN_MAX_DURATION" ]]; then
+            args+=(--max-duration "$REPOMIN_MAX_DURATION")
+          fi
+          if [[ "$REPOMIN_GITIGNORE" == true ]]; then
+            args+=(--gitignore)
+          fi
+          if [[ "$REPOMIN_GITIGNORE_RECURSIVE" == true ]]; then
+            args+=(--gitignore-recursive)
+          fi
+          if [[ "$REPOMIN_BACKEND" == docker ]]; then
+            args+=(--docker-image "$REPOMIN_DOCKER_IMAGE")
+          fi
         fi
         repomin "${args[@]}"
         payload_path="$output_path"

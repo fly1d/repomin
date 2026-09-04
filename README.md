@@ -49,6 +49,30 @@ validates the exported payload fingerprint. The larger
 Windows users can run the same complete workflow with explicit virtual
 environment paths in the [PowerShell quick start](docs/QUICKSTART.windows.md).
 
+For a workflow that must stay identical across local runs, Doctor, and CI,
+store its semantic reduction settings in a strict, versioned JSON file:
+
+```json
+{
+  "schema_version": 1,
+  "failure": {
+    "command": "python -m pytest -q",
+    "match": "FAILED tests/test_regression.py"
+  },
+  "reduction": {
+    "adapter": "python",
+    "source_reducer": "python"
+  }
+}
+```
+
+Use it with `repomin . --config .repomin.json --output /tmp/project-repro` or
+the matching Doctor command. The file owns semantic options; ReproMin rejects
+ambiguous CLI overrides while still allowing runtime paths, checkpoints, and
+verbosity outside the file. See the
+[configuration specification](docs/CONFIGURATION.md) for every field, Action
+usage, validation rules, and migration boundaries.
+
 Before a long reduction, run the read-only [doctor preflight](docs/DOCTOR.md)
 to detect supported reducers and verify that an optional failure command passes
 its baseline checks in fresh copies:
@@ -1180,6 +1204,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for extension points and project rules,
 
 ## Documentation
 
+- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - strict versioned reduction
+  specs, field mappings, override rules, Action usage, and migration guidance.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - core invariants, reducer
   behavior, and report/checkpoint schema.
 - [docs/REPORT_SCHEMA.md](docs/REPORT_SCHEMA.md) - versioned `report.json`

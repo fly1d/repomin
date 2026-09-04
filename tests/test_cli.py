@@ -207,6 +207,33 @@ class _SemanticStubHandler(BaseHTTPRequestHandler):
 
 
 class CliTest(unittest.TestCase):
+    def test_reduction_rejects_empty_or_whitespace_command(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source"
+            source.mkdir()
+
+            for command in ("", " \t "):
+                with self.subTest(command=repr(command)):
+                    stderr = io.StringIO()
+                    with contextlib.redirect_stderr(stderr):
+                        with self.assertRaises(SystemExit) as raised:
+                            main(
+                                [
+                                    str(source),
+                                    "--command",
+                                    command,
+                                    "--match",
+                                    "failure",
+                                ]
+                            )
+
+                    self.assertEqual(2, raised.exception.code)
+                    self.assertIn(
+                        "command must not be empty or whitespace",
+                        stderr.getvalue(),
+                    )
+                    self.assertFalse(Path(str(source) + "-minimal").exists())
+
     def test_missing_keep_path_reports_an_actionable_diagnostic(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "source"
@@ -343,7 +370,19 @@ class CliTest(unittest.TestCase):
             ("bash", bash_doctor),
             ("zsh", zsh_doctor),
         ):
-            for option in ("--keep", "--text-file"):
+            for option in (
+                "--config",
+                "--keep",
+                "--text-file",
+                "--docker-cpus",
+                "--docker-memory",
+                "--docker-pids-limit",
+                "--docker-tmpfs-size",
+                "--docker-workspace-limit",
+                "--min-baseline-passes",
+                "--min-baseline-rate",
+                "--confidence",
+            ):
                 with self.subTest(shell=shell, option=option):
                     self.assertIn(option, doctor_block)
 
@@ -958,6 +997,23 @@ class CliTest(unittest.TestCase):
                 "12.5",
             ]
         )
+        self.assertEqual(12.5, args.semantic_timeout)
+
+    def test_semantic_environment_defaults_remain_available_without_config(self) -> None:
+        environment = {
+            "REPOMIN_SEMANTIC_REDUCER": "http",
+            "REPOMIN_SEMANTIC_ENDPOINT": "http://127.0.0.1:9/v1/chat/completions",
+            "REPOMIN_SEMANTIC_MODEL": "environment-model",
+            "REPOMIN_SEMANTIC_TIMEOUT": "12.5",
+        }
+        with patch.dict(os.environ, environment):
+            args = build_parser().parse_args(
+                ["--command", "false", "--match", "failure"]
+            )
+
+        self.assertEqual("http", args.semantic_reducer)
+        self.assertEqual(environment["REPOMIN_SEMANTIC_ENDPOINT"], args.semantic_endpoint)
+        self.assertEqual("environment-model", args.semantic_model)
         self.assertEqual(12.5, args.semantic_timeout)
 
     def test_run_confidence_requires_a_candidate_rate(self) -> None:

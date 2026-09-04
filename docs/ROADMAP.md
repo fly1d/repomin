@@ -23,6 +23,9 @@ dates. Concrete contribution tasks live in
 - A reusable GitHub Action with explicit output, exit-code, Java/Python
   exception-signature, process-signature, holdout, and privacy-exclusion
   inputs, plus validated report summary outputs.
+- A strict `schema_version: 1` JSON reduction specification shared by the CLI,
+  Doctor, and GitHub Action, with explicit field ownership, portable Action
+  paths, and fail-closed override and forward-compatibility rules.
 - A read-only `repomin doctor` preflight for reducer/toolchain discovery, output
   collision checks, and optional fresh-copy baseline verification.
 - A privacy-conscious `repomin report replay` workflow with exact modern

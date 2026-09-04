@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A strict `schema_version: 1` JSON reduction specification can now drive both
+  reductions and Doctor preflight through `--config`, and the GitHub Action can
+  load the same reviewed repository file. The contract maps portable core
+  fields to existing CLI semantics, rejects ambiguous overrides and unknown
+  fields, and documents Action path checks, security boundaries, and explicit
+  future-schema migration.
 - The GitHub Action now exposes `java-exception` and `python-exception`
   booleans, validates their basic-oracle requirements and mutual exclusivity
   with each other and `process-failure`, and forwards the selected normalized
