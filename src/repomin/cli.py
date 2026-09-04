@@ -16,6 +16,7 @@ from repomin.execution import CommandRunner, DockerRunner, Runner, RunnerError
 from repomin.cargo_manifest import CargoManifestReducer
 from repomin.composer_manifest import ComposerManifestReducer
 from repomin.completion import SUPPORTED_SHELLS, completion_script
+from repomin.config import ConfigError, config_option_present, expand_config_args
 from repomin.dotnet_manifest import DotnetManifestReducer
 from repomin.doctor import format_doctor, run_doctor
 from repomin.go_manifest import GoManifestReducer
@@ -56,6 +57,10 @@ from repomin.python_manifest import PythonManifestReducer
 from repomin.python_source import PythonSourceReducer
 from repomin.reducer import FileReducer
 from repomin.ruby_manifest import RubyManifestReducer
+from repomin.sampling import (
+    sample_threshold as _sample_threshold,
+    validate_rate_attainable as _validate_rate_attainable,
+)
 from repomin.report import (
     ReportValidationError,
     _payload_fingerprint_evidence,
@@ -146,6 +151,12 @@ def _parse_confidence(value: str) -> float:
     if not math.isfinite(confidence) or confidence <= 0.0 or confidence >= 1.0:
         raise argparse.ArgumentTypeError("confidence must be in (0, 1)")
     return confidence
+
+
+def _parse_command(value: str) -> str:
+    if not value.strip():
+        raise argparse.ArgumentTypeError("command must not be empty or whitespace")
+    return value
 
 
 def _parse_ignore_name(value: str) -> str:
@@ -247,7 +258,8 @@ def _environment_digest(environment: dict) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def build_parser() -> argparse.ArgumentParser:
+def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.ArgumentParser:
+    semantic_environment = os.environ if semantic_environment_defaults else {}
     parser = argparse.ArgumentParser(
         prog="repomin",
         description="Reduce a repository while preserving a command failure.",
@@ -264,8 +276,21 @@ def build_parser() -> argparse.ArgumentParser:
         action="version",
         version="repomin %s" % __version__,
     )
+    parser.add_argument(
+        "--config",
+        metavar="PATH",
+        help=(
+            "versioned JSON reduction spec; semantic CLI options cannot be "
+            "combined with this file"
+        ),
+    )
     parser.add_argument("source", nargs="?", default=".", help="repository to reduce")
-    parser.add_argument("--command", required=True, help="failure reproduction command")
+    parser.add_argument(
+        "--command",
+        required=True,
+        type=_parse_command,
+        help="failure reproduction command",
+    )
     parser.add_argument(
         "--match",
         help=(
@@ -563,7 +588,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--semantic-reducer",
         choices=("none", "http"),
-        default=os.environ.get("REPOMIN_SEMANTIC_REDUCER", "none"),
+        default=semantic_environment.get("REPOMIN_SEMANTIC_REDUCER", "none"),
         help=(
             "opt-in semantic reducer backend (default: none); http uses an "
             "OpenAI-compatible chat-completions endpoint"
@@ -571,7 +596,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--semantic-endpoint",
-        default=os.environ.get("REPOMIN_SEMANTIC_ENDPOINT"),
+        default=semantic_environment.get("REPOMIN_SEMANTIC_ENDPOINT"),
         metavar="URL",
         help=(
             "OpenAI-compatible /v1/chat/completions endpoint for "
@@ -580,7 +605,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--semantic-model",
-        default=os.environ.get("REPOMIN_SEMANTIC_MODEL"),
+        default=semantic_environment.get("REPOMIN_SEMANTIC_MODEL"),
         metavar="NAME",
         help=(
             "model name for --semantic-reducer http "
@@ -590,7 +615,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--semantic-timeout",
         type=float,
-        default=os.environ.get("REPOMIN_SEMANTIC_TIMEOUT", "60"),
+        default=semantic_environment.get("REPOMIN_SEMANTIC_TIMEOUT", "60"),
         metavar="SECONDS",
         help=(
             "HTTP timeout for --semantic-reducer http "
@@ -641,7 +666,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 file=sys.stderr,
             )
         return 2
-    args = build_parser().parse_args(raw_argv)
+    using_config = config_option_present(raw_argv)
+    try:
+        raw_argv = expand_config_args(raw_argv, command="reduce")
+    except ConfigError as exc:
+        print("repomin: %s" % exc, file=sys.stderr)
+        return 2
+    args = build_parser(semantic_environment_defaults=not using_config).parse_args(
+        raw_argv
+    )
     session_path: Optional[Path] = None
     session: Optional[ReductionSession] = None
     try:
@@ -1271,9 +1304,18 @@ def _doctor_command(argv: Sequence[str]) -> int:
         action="version",
         version="repomin %s" % __version__,
     )
+    parser.add_argument(
+        "--config",
+        metavar="PATH",
+        help=(
+            "versioned JSON reduction spec; only Doctor runtime options may "
+            "be combined with this file"
+        ),
+    )
     parser.add_argument("source", nargs="?", default=".", help="repository to inspect")
     parser.add_argument(
         "--command",
+        type=_parse_command,
         help="optional failure reproduction command to run in fresh copies",
     )
     parser.add_argument("--match", help="regular expression required in command output")
@@ -1336,12 +1378,63 @@ def _doctor_command(argv: Sequence[str]) -> int:
         default="none",
         help="Docker network policy (default: none)",
     )
+    parser.add_argument(
+        "--docker-cpus",
+        type=float,
+        help="Docker CPU quota in cores",
+    )
+    parser.add_argument(
+        "--docker-memory",
+        type=_parse_byte_size,
+        metavar="SIZE",
+        help="Docker memory and swap limit (for example: 2GiB)",
+    )
+    parser.add_argument(
+        "--docker-pids-limit",
+        type=int,
+        default=DEFAULT_DOCKER_PIDS_LIMIT,
+        help="maximum container processes (default: 512)",
+    )
+    parser.add_argument(
+        "--docker-tmpfs-size",
+        type=_parse_byte_size,
+        default=DEFAULT_DOCKER_TMPFS_BYTES,
+        metavar="SIZE",
+        help="size of the container /tmp filesystem (default: 1GiB)",
+    )
+    parser.add_argument(
+        "--docker-workspace-limit",
+        type=_parse_byte_size,
+        metavar="SIZE",
+        help="maximum total size of the writable baseline workspace",
+    )
     parser.add_argument("--timeout", type=float, default=120.0, help="seconds per baseline run")
     parser.add_argument(
         "--baseline-runs",
         type=int,
         default=2,
         help="fresh baseline copies when --command is supplied (default: 2)",
+    )
+    parser.add_argument(
+        "--min-baseline-passes",
+        type=int,
+        help="minimum passing baseline samples (default: all baseline runs)",
+    )
+    parser.add_argument(
+        "--min-baseline-rate",
+        type=_parse_rate,
+        metavar="RATE",
+        help=(
+            "minimum exact one-sided baseline failure rate in (0, 1); "
+            "when set without --min-baseline-passes, the count minimum is 1"
+        ),
+    )
+    parser.add_argument(
+        "--confidence",
+        type=_parse_confidence,
+        default=0.95,
+        metavar="LEVEL",
+        help="confidence level for the baseline rate gate (default: 0.95)",
     )
     parser.add_argument(
         "--output",
@@ -1422,7 +1515,7 @@ def _doctor_command(argv: Sequence[str]) -> int:
         help="print a machine-readable diagnostic result",
     )
     try:
-        args = parser.parse_args(list(argv))
+        args = parser.parse_args(expand_config_args(argv, command="doctor"))
         environment = _environment_mapping(args.environment_entries)
         source = Path(args.source).expanduser().resolve()
         ok, result = run_doctor(
@@ -1438,8 +1531,16 @@ def _doctor_command(argv: Sequence[str]) -> int:
             backend=args.backend,
             docker_image=args.docker_image,
             docker_network=args.docker_network,
+            docker_cpus=args.docker_cpus,
+            docker_memory=args.docker_memory,
+            docker_pids_limit=args.docker_pids_limit,
+            docker_tmpfs_size=args.docker_tmpfs_size,
+            docker_workspace_limit=args.docker_workspace_limit,
             timeout=args.timeout,
             baseline_runs=args.baseline_runs,
+            min_baseline_passes=args.min_baseline_passes,
+            min_baseline_rate=args.min_baseline_rate,
+            confidence=args.confidence,
             environment=environment,
             output=args.output,
             ignore_names=args.ignore_names,
@@ -2181,24 +2282,6 @@ def _session_identity(
     }
 
 
-def _sample_threshold(
-    runs: int,
-    minimum: Optional[int],
-    label: str,
-    minimum_rate: Optional[float] = None,
-) -> int:
-    if runs < 1:
-        raise ValueError("%s runs must be at least 1" % label)
-    # A rate criterion supplies the statistical requirement.  Requiring every
-    # sample as well would make a flaky-failure mode equivalent to strict mode.
-    required = (1 if minimum_rate is not None else runs) if minimum is None else minimum
-    if required < 1 or required > runs:
-        raise ValueError(
-            "minimum %s passes must be between 1 and %s runs" % (label, label)
-        )
-    return required
-
-
 def _holdout_configuration(args: argparse.Namespace) -> float:
     runs = args.holdout_runs
     minimum_rate = args.min_holdout_rate
@@ -2232,50 +2315,6 @@ def _validate_holdout_rate_attainable(
         "%.4g confidence (best possible exact lower bound: %.4g); increase "
         "--holdout-runs or lower the rate/confidence"
         % (minimum_rate, runs, confidence, best_possible)
-    )
-
-
-def _validate_rate_attainable(
-    runs: int,
-    minimum_rate: Optional[float],
-    confidence: float,
-    label: str,
-    signature_discovery: bool = False,
-) -> None:
-    if minimum_rate is None:
-        return
-    evidence_runs = runs - int(signature_discovery)
-    if exact_binomial_rate_gate(
-        evidence_runs,
-        evidence_runs,
-        minimum_rate,
-        confidence,
-    ):
-        return
-    best_possible = clopper_pearson_lower_bound(
-        evidence_runs,
-        evidence_runs,
-        confidence,
-    )
-    discovery_detail = (
-        ", leaving %d post-discovery rate-evidence runs" % evidence_runs
-        if signature_discovery
-        else ""
-    )
-    raise ValueError(
-        "minimum %s rate %.4g is unattainable with %d %s runs%s at %.4g "
-        "confidence (best possible exact lower bound: %.4g); increase "
-        "--%s-runs or lower the rate/confidence"
-        % (
-            label,
-            minimum_rate,
-            runs,
-            label,
-            discovery_detail,
-            confidence,
-            best_possible,
-            label,
-        )
     )
 
 

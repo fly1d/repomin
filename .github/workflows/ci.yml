@@ -234,16 +234,37 @@ jobs:
           PY
           printf 'keep\n' > action-python-exception-fixture/required.txt
           printf 'remove\n' > action-python-exception-fixture/unused.txt
+          cat > action-python-exception-fixture/.repomin.json <<'JSON'
+          {
+            "schema_version": 1,
+            "failure": {
+              "command": "python3 reproduce.py",
+              "match": "ValueError",
+              "signature": "python_exception"
+            },
+            "execution": {
+              "jobs": 1
+            },
+            "sampling": {
+              "baseline_runs": 2,
+              "candidate_runs": 1
+            },
+            "reduction": {
+              "adapter": "none",
+              "source_reducer": "none",
+              "max_attempts": 100
+            },
+            "inputs": {
+              "keep_paths": ["required.txt"]
+            }
+          }
+          JSON
       - name: Run local ReproMin action with a Python exception oracle
         id: repomin_exception
         uses: ./
         with:
           source: action-python-exception-fixture
-          command: python3 reproduce.py
-          match: ValueError
-          python-exception: "true"
-          adapter: none
-          source-reducer: none
+          config: action-python-exception-fixture/.repomin.json
           step-summary: true
           artifact-name: action-exception-smoke
       - name: Check exception signature output and payload

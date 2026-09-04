@@ -23,6 +23,7 @@ from repomin.input_paths import (
 )
 from repomin.model import FailureSpec
 from repomin.oracle import FailureOracle, OracleError
+from repomin.sampling import sample_threshold, validate_rate_attainable
 from repomin.session import (
     DEFAULT_IGNORES,
     IgnoreSet,
@@ -44,6 +45,23 @@ _ADAPTER_NAMES = (
     "go",
 )
 _JAVA_VERSION = re.compile(r"(?:openjdk|java|javac)[^0-9]*(\d+)(?:\.\d+)?")
+
+
+def _finite_number(value: object) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value)
+    except (OverflowError, TypeError, ValueError):
+        return False
+
+
+def _positive_integer(value: object, minimum: int = 1) -> bool:
+    return (
+        not isinstance(value, bool)
+        and isinstance(value, int)
+        and value >= minimum
+    )
 
 
 def _inside(path: Path, parent: Path) -> bool:
@@ -204,6 +222,11 @@ def _runner(
     backend: str,
     docker_image: Optional[str],
     docker_network: str,
+    docker_cpus: Optional[float],
+    docker_memory: Optional[int],
+    docker_pids_limit: int,
+    docker_tmpfs_size: int,
+    docker_workspace_limit: Optional[int],
     environment: Mapping[str, str],
     java_exception: bool,
 ) -> object:
@@ -223,6 +246,11 @@ def _runner(
         network=docker_network,
         environment=environment,
         collect_java_diagnostics=java_exception,
+        cpus=docker_cpus,
+        memory_bytes=docker_memory,
+        pids_limit=docker_pids_limit,
+        tmpfs_bytes=docker_tmpfs_size,
+        workspace_limit_bytes=docker_workspace_limit,
     )
     runner.validate()
     return runner
@@ -242,8 +270,16 @@ def run_doctor(
     backend: str = "host",
     docker_image: Optional[str] = None,
     docker_network: str = "none",
+    docker_cpus: Optional[float] = None,
+    docker_memory: Optional[int] = None,
+    docker_pids_limit: int = 512,
+    docker_tmpfs_size: int = 1024 * 1024 * 1024,
+    docker_workspace_limit: Optional[int] = None,
     timeout: float = 120.0,
     baseline_runs: int = 2,
+    min_baseline_passes: Optional[int] = None,
+    min_baseline_rate: Optional[float] = None,
+    confidence: float = 0.95,
     environment: Optional[Mapping[str, str]] = None,
     output: Optional[str] = None,
     ignore_names: Sequence[str] = (),
@@ -585,6 +621,11 @@ def run_doctor(
     oracle_valid = mode_count <= 1
     if mode_count > 1:
         _check(checks, "oracle", "fail", "only one learned failure mode may be enabled")
+    if oracle_requested and (
+        not isinstance(command, str) or not command.strip()
+    ):
+        _check(checks, "oracle", "fail", "command must not be empty or whitespace")
+        oracle_valid = False
     if match is not None:
         try:
             re.compile(match)
@@ -616,6 +657,16 @@ def run_doctor(
             incompatible.append("--docker-image")
         if docker_network != "none":
             incompatible.append("--docker-network")
+        if docker_cpus is not None:
+            incompatible.append("--docker-cpus")
+        if docker_memory is not None:
+            incompatible.append("--docker-memory")
+        if docker_pids_limit != 512:
+            incompatible.append("--docker-pids-limit")
+        if docker_tmpfs_size != 1024 * 1024 * 1024:
+            incompatible.append("--docker-tmpfs-size")
+        if docker_workspace_limit is not None:
+            incompatible.append("--docker-workspace-limit")
         if incompatible:
             _check(
                 checks,
@@ -643,21 +694,114 @@ def run_doctor(
                 "--backend docker requires --docker-image",
             )
             backend_valid = False
-        else:
-            _check(checks, "backend", "pass", "docker backend selected")
+
+    docker_limits = (
+        (
+            docker_cpus is None
+            or (_finite_number(docker_cpus) and docker_cpus > 0),
+            "Docker CPU limit must be a finite number greater than zero",
+        ),
+        (
+            docker_memory is None
+            or _positive_integer(docker_memory, 6 * 1024 * 1024),
+            "Docker memory limit must be an integer of at least 6 MiB",
+        ),
+        (
+            _positive_integer(docker_pids_limit),
+            "Docker PID limit must be a positive integer",
+        ),
+        (
+            _positive_integer(docker_tmpfs_size),
+            "Docker tmpfs size must be a positive integer",
+        ),
+        (
+            docker_workspace_limit is None
+            or _positive_integer(docker_workspace_limit),
+            "Docker workspace limit must be a positive integer",
+        ),
+    )
+    for valid, message in docker_limits:
+        if not valid:
+            _check(checks, "backend", "fail", message)
+            backend_valid = False
+    if backend == "docker" and backend_valid:
+        _check(checks, "backend", "pass", "docker backend selected")
 
     baseline_configuration_valid = True
+    baseline_minimum: Optional[int] = None
     if isinstance(baseline_runs, bool) or not isinstance(baseline_runs, int):
         _check(checks, "baseline", "fail", "baseline runs must be an integer")
         baseline_configuration_valid = False
     elif baseline_runs < 1:
         _check(checks, "baseline", "fail", "baseline runs must be at least 1")
         baseline_configuration_valid = False
+    if min_baseline_passes is not None and (
+        isinstance(min_baseline_passes, bool)
+        or not isinstance(min_baseline_passes, int)
+    ):
+        _check(
+            checks,
+            "baseline",
+            "fail",
+            "minimum baseline passes must be an integer",
+        )
+        baseline_configuration_valid = False
+    elif (
+        min_baseline_passes is not None
+        and isinstance(baseline_runs, int)
+        and not isinstance(baseline_runs, bool)
+        and (min_baseline_passes < 1 or min_baseline_passes > baseline_runs)
+    ):
+        _check(
+            checks,
+            "baseline",
+            "fail",
+            "minimum baseline passes must be between 1 and baseline runs",
+        )
+        baseline_configuration_valid = False
+    rate_valid = min_baseline_rate is None or (
+        _finite_number(min_baseline_rate) and 0.0 < min_baseline_rate < 1.0
+    )
+    if not rate_valid:
+        _check(
+            checks,
+            "baseline",
+            "fail",
+            "minimum baseline rate must be a finite number in (0, 1)",
+        )
+        baseline_configuration_valid = False
+    confidence_valid = _finite_number(confidence) and 0.0 < confidence < 1.0
+    if not confidence_valid:
+        _check(
+            checks,
+            "baseline",
+            "fail",
+            "confidence must be a finite number in (0, 1)",
+        )
+        baseline_configuration_valid = False
+    if baseline_configuration_valid:
+        try:
+            baseline_minimum = sample_threshold(
+                baseline_runs,
+                min_baseline_passes,
+                "baseline",
+                min_baseline_rate,
+            )
+            validate_rate_attainable(
+                baseline_runs,
+                min_baseline_rate,
+                confidence,
+                "baseline",
+                signature_discovery=bool(
+                    java_exception or python_exception or process_failure
+                ),
+            )
+        except ValueError as exc:
+            _check(checks, "baseline", "fail", str(exc))
+            baseline_configuration_valid = False
     if (
-        isinstance(timeout, bool)
-        or not isinstance(timeout, (int, float))
-        or not math.isfinite(float(timeout))
-        or float(timeout) <= 0.0
+        not _finite_number(timeout)
+        or timeout <= 0.0
     ):
         _check(
             checks,
@@ -682,6 +826,11 @@ def run_doctor(
                 backend,
                 docker_image,
                 docker_network,
+                docker_cpus,
+                docker_memory,
+                docker_pids_limit,
+                docker_tmpfs_size,
+                docker_workspace_limit,
                 environment or {},
                 java_exception,
             )
@@ -694,6 +843,8 @@ def run_doctor(
                     python_exception=python_exception,
                     process_failure=process_failure,
                 ),
+                min_baseline_rate=min_baseline_rate,
+                confidence=confidence,
             )
             temp_kwargs = {}
             if backend == "docker":
@@ -724,11 +875,21 @@ def run_doctor(
                     temporary_root,
                     baseline_runs,
                     prepare=prepare,
+                    minimum_passes=baseline_minimum,
+                    minimum_rate=min_baseline_rate,
                 )
             baseline = {
                 "status": "pass",
                 "runs": oracle.baseline_runs,
                 "passes": oracle.baseline_passes,
+                "minimum_passes": baseline_minimum,
+                "rate": oracle.baseline_rate,
+                "minimum_rate": min_baseline_rate,
+                "confidence": confidence,
+                "rate_evidence_runs": oracle.baseline_rate_evidence_runs,
+                "rate_evidence_passes": oracle.baseline_rate_evidence_passes,
+                "exact_lower_bound": oracle.baseline_exact_lower_bound,
+                "exact_rate_gate_passed": oracle.baseline_exact_rate_gate_passed,
                 "exit_code": representative.returncode,
                 "duration_seconds": round(representative.duration_seconds, 3),
             }

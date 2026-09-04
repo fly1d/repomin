@@ -1,7 +1,10 @@
 """Static checks for the public GitHub Action metadata contract."""
 
 from pathlib import Path
+import os
 import re
+import subprocess
+import tempfile
 import unittest
 
 
@@ -13,6 +16,55 @@ def _uses_references(metadata: str) -> list[str]:
         value.split("#", 1)[0].strip()
         for value in re.findall(r"(?m)^\s*(?:-\s*)?uses\s*:\s*(\S.*)$", metadata)
     ]
+
+
+def _reduce_script(metadata: str) -> str:
+    step = metadata.split("    - name: Reduce failing repository\n", 1)[1]
+    block = step.split("      run: |\n", 1)[1].split("\n    - name:", 1)[0]
+    return "\n".join(
+        line[8:] if line.startswith("        ") else line for line in block.splitlines()
+    )
+
+
+def _action_environment(workspace: Path, temporary: Path) -> dict[str, str]:
+    environment = dict(os.environ)
+    environment.update(
+        {
+            "GITHUB_WORKSPACE": str(workspace),
+            "RUNNER_TEMP": str(temporary),
+            "GITHUB_RUN_ID": "1",
+            "GITHUB_RUN_ATTEMPT": "1",
+            "REPOMIN_CONFIG": "",
+            "REPOMIN_SOURCE": ".",
+            "REPOMIN_OUTPUT": "",
+            "REPOMIN_COMMAND": "reproduce",
+            "REPOMIN_MATCH": "failure",
+            "REPOMIN_EXIT_CODE": "",
+            "REPOMIN_JAVA_EXCEPTION": "false",
+            "REPOMIN_PYTHON_EXCEPTION": "false",
+            "REPOMIN_PROCESS_FAILURE": "false",
+            "REPOMIN_HOLDOUT_RUNS": "",
+            "REPOMIN_MIN_HOLDOUT_RATE": "",
+            "REPOMIN_HOLDOUT_CONFIDENCE": "",
+            "REPOMIN_IGNORE": "",
+            "REPOMIN_IGNORE_PATH": "",
+            "REPOMIN_KEEP": "",
+            "REPOMIN_TEXT_FILE": "",
+            "REPOMIN_GITIGNORE": "false",
+            "REPOMIN_GITIGNORE_RECURSIVE": "false",
+            "REPOMIN_ADAPTER": "auto",
+            "REPOMIN_SOURCE_REDUCER": "auto",
+            "REPOMIN_BACKEND": "host",
+            "REPOMIN_DOCKER_IMAGE": "",
+            "REPOMIN_DOCKER_NETWORK": "none",
+            "REPOMIN_TIMEOUT": "120",
+            "REPOMIN_MAX_ATTEMPTS": "",
+            "REPOMIN_MAX_DURATION": "",
+            "REPOMIN_JOBS": "1",
+            "REPOMIN_STEP_SUMMARY": "false",
+        }
+    )
+    return environment
 
 
 class ActionContractTests(unittest.TestCase):
@@ -44,6 +96,13 @@ class ActionContractTests(unittest.TestCase):
         )
 
     def test_failure_oracle_inputs_are_optional_and_forwarded(self) -> None:
+        self.assertRegex(
+            self.action,
+            r'(?m)^  command:\n'
+            r'    description: .+\n'
+            r'    required: false\n'
+            r'    default: ""$',
+        )
         self.assertIn("  match:\n", self.action)
         self.assertIn("    required: false\n    default: \"\"", self.action)
         for name in (
@@ -59,6 +118,148 @@ class ActionContractTests(unittest.TestCase):
         self.assertIn("args+=(--java-exception)", self.action)
         self.assertIn("args+=(--python-exception)", self.action)
         self.assertIn("args+=(--process-failure)", self.action)
+        self.assertIn("command is required when config is omitted", self.action)
+
+    @unittest.skipIf(os.name == "nt", "Action composite script requires Bash")
+    def test_action_fails_closed_for_empty_command_and_escaping_paths(self) -> None:
+        script = _reduce_script(self.action)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workspace = root / "workspace"
+            outside = root / "outside"
+            temporary = root / "runner-temp"
+            workspace.mkdir()
+            outside.mkdir()
+            temporary.mkdir()
+
+            cases = []
+            empty_command = _action_environment(workspace, temporary)
+            empty_command.update(
+                {"REPOMIN_COMMAND": "  ", "REPOMIN_MATCH": "", "REPOMIN_EXIT_CODE": "0"}
+            )
+            cases.append(("empty-command", empty_command, "command is required"))
+
+            backslash_source = _action_environment(workspace, temporary)
+            backslash_source["REPOMIN_SOURCE"] = "..\\outside"
+            cases.append(("backslash-source", backslash_source, "portable"))
+
+            reserved_source = _action_environment(workspace, temporary)
+            reserved_source["REPOMIN_SOURCE"] = "NUL"
+            cases.append(("reserved-source", reserved_source, "portable"))
+
+            glob_output = _action_environment(workspace, temporary)
+            glob_output["REPOMIN_OUTPUT"] = "result[old]"
+            cases.append(("glob-output", glob_output, "portable"))
+
+            escape = workspace / "escape"
+            escape.symlink_to(outside, target_is_directory=True)
+            linked_source = _action_environment(workspace, temporary)
+            linked_source["REPOMIN_SOURCE"] = "escape"
+            cases.append(("linked-source", linked_source, "symbolic links"))
+
+            linked_output = _action_environment(workspace, temporary)
+            linked_output["REPOMIN_OUTPUT"] = "escape/result"
+            cases.append(("linked-output", linked_output, "symbolic links"))
+
+            for name, environment, expected in cases:
+                with self.subTest(name=name):
+                    completed = subprocess.run(
+                        ["bash", "-c", script],
+                        text=True,
+                        capture_output=True,
+                        env=environment,
+                        check=False,
+                    )
+                    self.assertEqual(2, completed.returncode, completed.stderr)
+                    self.assertIn(expected, completed.stderr)
+
+    @unittest.skipIf(os.name == "nt", "Action composite script requires Bash")
+    def test_action_rejects_nonportable_or_unsafe_config_paths(self) -> None:
+        script = _reduce_script(self.action)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workspace = root / "workspace"
+            temporary = root / "runner-temp"
+            workspace.mkdir()
+            temporary.mkdir()
+            (workspace / "directory.json").mkdir()
+            (workspace / "real.json").write_text("{}", encoding="utf-8")
+            (workspace / "linked.json").symlink_to(workspace / "real.json")
+
+            cases = (
+                ("drive", "C:/spec.json", "portable"),
+                ("dot-component", "./real.json", "portable"),
+                ("empty-component", "a//spec.json", "portable"),
+                ("control-character", "bad\x01.json", "portable"),
+                ("nested-colon", "config/spec:old.json", "portable"),
+                ("reserved-name", "NUL.json", "portable"),
+                ("trailing-period", "spec.json.", "portable"),
+                ("glob-star", "spec*.json", "portable"),
+                ("glob-question", "spec?.json", "portable"),
+                ("glob-bracket", "spec[old].json", "portable"),
+                ("symlink", "linked.json", "symbolic links"),
+                ("missing", "missing.json", "must resolve inside"),
+                ("directory", "directory.json", "readable regular file"),
+            )
+            for name, config, expected in cases:
+                with self.subTest(name=name):
+                    environment = _action_environment(workspace, temporary)
+                    environment.update(
+                        {
+                            "REPOMIN_CONFIG": config,
+                            "REPOMIN_COMMAND": "",
+                            "REPOMIN_MATCH": "",
+                        }
+                    )
+                    completed = subprocess.run(
+                        ["bash", "-c", script],
+                        text=True,
+                        capture_output=True,
+                        env=environment,
+                        check=False,
+                    )
+                    self.assertEqual(2, completed.returncode, completed.stderr)
+                    self.assertIn(expected, completed.stderr)
+
+    def test_versioned_config_is_isolated_from_semantic_action_inputs(self) -> None:
+        self.assertRegex(
+            self.action,
+            r'(?m)^  config:\n'
+            r'    description: .+\n'
+            r'    required: false\n'
+            r'    default: ""$',
+        )
+        self.assertIn("REPOMIN_CONFIG: ${{ inputs.config }}", self.action)
+        self.assertIn('if [[ -n "$REPOMIN_CONFIG" ]]; then', self.action)
+        self.assertIn(
+            'f"{label} must be a portable repository-relative path',
+            self.action,
+        )
+        self.assertIn('resolve_workspace_path "$REPOMIN_CONFIG" config', self.action)
+        self.assertIn("config must resolve to a readable regular file", self.action)
+        self.assertIn(
+            "config cannot be combined with non-default semantic inputs",
+            self.action,
+        )
+        for name in (
+            "command",
+            "match",
+            "exit-code",
+            "python-exception",
+            "adapter",
+            "backend",
+            "timeout",
+            "jobs",
+        ):
+            self.assertIn("record_config_conflict %s " % name, self.action)
+        self.assertIn('args+=(--config "$config_path")', self.action)
+
+    def test_action_confines_source_and_explicit_output_to_the_workspace(self) -> None:
+        self.assertIn("resolve_workspace_path()", self.action)
+        self.assertIn('source_path="$(resolve_workspace_path', self.action)
+        self.assertIn('output_path="$(resolve_workspace_path', self.action)
+        self.assertIn("path must not contain symbolic links", self.action)
+        self.assertIn("must resolve inside GITHUB_WORKSPACE", self.action)
 
     def test_exception_mode_inputs_are_strict_booleans_and_mutually_exclusive(
         self,
@@ -255,8 +456,19 @@ class ActionContractTests(unittest.TestCase):
             action_job.count('raise ValueError("payment failed")'),
         )
         self.assertEqual(3, action_job.count("        uses: ./\n"))
-        self.assertIn("          match: ValueError", action_job)
-        self.assertIn('          python-exception: "true"', action_job)
+        self.assertIn(
+            "          config: action-python-exception-fixture/.repomin.json",
+            action_job,
+        )
+        self.assertIn('"signature": "python_exception"', action_job)
+        self.assertIn('"keep_paths": ["required.txt"]', action_job)
+        python_action = action_job.split(
+            "      - name: Run local ReproMin action with a Python exception oracle\n",
+            1,
+        )[1].split("      - name: Check exception signature output and payload\n", 1)[0]
+        self.assertNotIn("          command:", python_action)
+        self.assertNotIn("          match:", python_action)
+        self.assertNotIn("          python-exception:", python_action)
         self.assertIn("          artifact-name: action-exception-smoke", action_job)
         self.assertIn('ACTUAL_ORACLE" == "python_exception"', action_job)
         self.assertIn("| `oracle_mode` | `python_exception` |", action_job)

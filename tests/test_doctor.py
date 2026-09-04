@@ -18,7 +18,8 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from repomin.cli import main
-from repomin.doctor import format_doctor, run_doctor
+from repomin.doctor import _runner, format_doctor, run_doctor
+from repomin.execution import RunResult
 from repomin.input_paths import (
     normalize_ignore_path,
     normalize_text_file_path,
@@ -87,7 +88,133 @@ class DoctorTest(unittest.TestCase):
         self.assertEqual("pass", result["baseline"]["status"])
         self.assertEqual(2, result["baseline"]["runs"])
         self.assertEqual(2, result["baseline"]["passes"])
+        self.assertEqual(2, result["baseline"]["minimum_passes"])
+        self.assertEqual(0.95, result["baseline"]["confidence"])
         self.assertFalse((source / "doctor").exists())
+
+    def test_doctor_rejects_empty_or_whitespace_command_without_running(self) -> None:
+        source = self._source()
+
+        for command in ("", " \t "):
+            with self.subTest(command=repr(command)):
+                with patch("repomin.doctor._runner") as runner:
+                    ok, result = run_doctor(
+                        source,
+                        command=command,
+                        match="ORIGINAL_FAILURE",
+                    )
+
+                self.assertFalse(ok)
+                self.assertEqual("not_run", result["baseline"]["status"])
+                self.assertTrue(
+                    any(
+                        check["name"] == "oracle"
+                        and check["status"] == "fail"
+                        and "command must not be empty or whitespace"
+                        in check["message"]
+                        for check in result["checks"]
+                    )
+                )
+                runner.assert_not_called()
+
+    def test_doctor_cli_rejects_empty_or_whitespace_command(self) -> None:
+        source = self._source()
+
+        for command in ("", " \t "):
+            with self.subTest(command=repr(command)):
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    with self.assertRaises(SystemExit) as raised:
+                        main(
+                            [
+                                "doctor",
+                                str(source),
+                                "--command",
+                                command,
+                                "--match",
+                                "ORIGINAL_FAILURE",
+                            ]
+                        )
+
+                self.assertEqual(2, raised.exception.code)
+                self.assertIn(
+                    "command must not be empty or whitespace",
+                    stderr.getvalue(),
+                )
+
+    def test_doctor_applies_flaky_baseline_count_and_rate_policy(self) -> None:
+        source = self._source()
+
+        class SequenceRunner:
+            def __init__(self) -> None:
+                self.outputs = iter(
+                    [
+                        "ORIGINAL_FAILURE",
+                        "ORIGINAL_FAILURE",
+                        "ORIGINAL_FAILURE",
+                        "ORIGINAL_FAILURE",
+                        "DIFFERENT_FAILURE",
+                    ]
+                )
+
+            def run(self, _cwd: Path) -> RunResult:
+                return RunResult(1, next(self.outputs), "", 0.01)
+
+        with patch("repomin.doctor._runner", return_value=SequenceRunner()):
+            ok, result = run_doctor(
+                source,
+                command="reproduce",
+                match="ORIGINAL_FAILURE",
+                baseline_runs=5,
+                min_baseline_passes=3,
+                min_baseline_rate=0.3,
+                confidence=0.95,
+            )
+
+        self.assertTrue(ok)
+        baseline = result["baseline"]
+        self.assertEqual("pass", baseline["status"])
+        self.assertEqual(4, baseline["passes"])
+        self.assertEqual(3, baseline["minimum_passes"])
+        self.assertEqual(0.3, baseline["minimum_rate"])
+        self.assertEqual(5, baseline["rate_evidence_runs"])
+        self.assertEqual(4, baseline["rate_evidence_passes"])
+        self.assertTrue(baseline["exact_rate_gate_passed"])
+
+    def test_doctor_forwards_all_docker_resource_limits(self) -> None:
+        with patch("repomin.doctor.DockerRunner") as docker_runner:
+            instance = docker_runner.return_value
+
+            actual = _runner(
+                "reproduce",
+                30,
+                "docker",
+                "example:test",
+                "none",
+                1.5,
+                32 * 1024 * 1024,
+                64,
+                16 * 1024 * 1024,
+                128 * 1024 * 1024,
+                {"MODE": "test"},
+                True,
+            )
+
+        self.assertIs(instance, actual)
+        docker_runner.assert_called_once_with(
+            "reproduce",
+            30,
+            image="example:test",
+            network="none",
+            environment={"MODE": "test"},
+            collect_java_diagnostics=True,
+            cpus=1.5,
+            memory_bytes=32 * 1024 * 1024,
+            pids_limit=64,
+            tmpfs_bytes=16 * 1024 * 1024,
+            workspace_limit_bytes=128 * 1024 * 1024,
+        )
+        instance.validate.assert_called_once_with()
 
     def test_doctor_uses_effective_ignores_for_size_and_detection(self) -> None:
         source = self._source()
@@ -586,6 +713,11 @@ raise SystemExit(7)
             timeout=math.inf,
             docker_image="example:local",
             docker_network="bridge",
+            docker_cpus=1.0,
+            docker_memory=32 * 1024 * 1024,
+            docker_pids_limit=64,
+            docker_tmpfs_size=16 * 1024 * 1024,
+            docker_workspace_limit=128 * 1024 * 1024,
         )
         self.assertFalse(ok)
         failures = [
@@ -596,6 +728,99 @@ raise SystemExit(7)
         self.assertTrue(any("baseline runs" in message for message in failures))
         self.assertTrue(any("finite number" in message for message in failures))
         self.assertTrue(any("requires --backend docker" in message for message in failures))
+
+    def test_doctor_rejects_invalid_docker_limits_without_running(self) -> None:
+        source = self._source()
+        invalid = (
+            ({"docker_cpus": True}, "CPU"),
+            ({"docker_cpus": math.inf}, "CPU"),
+            ({"docker_memory": 1024}, "memory"),
+            ({"docker_memory": 8.0 * 1024 * 1024}, "memory"),
+            ({"docker_pids_limit": False}, "PID"),
+            ({"docker_tmpfs_size": 0}, "tmpfs"),
+            ({"docker_workspace_limit": "1GiB"}, "workspace"),
+        )
+
+        for options, expected in invalid:
+            with self.subTest(options=options):
+                with patch("repomin.doctor._runner") as runner:
+                    ok, result = run_doctor(
+                        source,
+                        backend="docker",
+                        docker_image="example:local",
+                        **options,
+                    )
+
+                self.assertFalse(ok)
+                self.assertEqual("not_run", result["baseline"]["status"])
+                self.assertTrue(
+                    any(
+                        check["name"] == "backend"
+                        and check["status"] == "fail"
+                        and expected in check["message"]
+                        for check in result["checks"]
+                    )
+                )
+                self.assertFalse(
+                    any(
+                        check["name"] == "backend"
+                        and check["status"] == "pass"
+                        for check in result["checks"]
+                    )
+                )
+                runner.assert_not_called()
+
+    def test_doctor_rejects_oversized_numeric_values_without_raising(self) -> None:
+        source = self._source()
+        enormous = 10**10000
+
+        for options, expected in (
+            ({"min_baseline_rate": enormous}, "minimum baseline rate"),
+            ({"confidence": enormous}, "confidence"),
+            ({"timeout": enormous}, "timeout"),
+            (
+                {
+                    "backend": "docker",
+                    "docker_image": "example:local",
+                    "docker_cpus": enormous,
+                },
+                "CPU",
+            ),
+        ):
+            with self.subTest(options=options):
+                ok, result = run_doctor(source, **options)
+                self.assertFalse(ok)
+                self.assertTrue(
+                    any(
+                        check["status"] == "fail"
+                        and expected in check["message"]
+                        for check in result["checks"]
+                    )
+                )
+
+    def test_doctor_rejects_unattainable_baseline_rate_without_running(self) -> None:
+        source = self._source()
+
+        with patch("repomin.doctor._runner") as runner:
+            ok, result = run_doctor(
+                source,
+                command="reproduce",
+                match="ORIGINAL_FAILURE",
+                baseline_runs=1,
+                min_baseline_rate=0.5,
+                confidence=0.95,
+            )
+
+        self.assertFalse(ok)
+        self.assertEqual("not_run", result["baseline"]["status"])
+        self.assertTrue(
+            any(
+                check["name"] == "baseline"
+                and "unattainable" in check["message"]
+                for check in result["checks"]
+            )
+        )
+        runner.assert_not_called()
 
     def test_doctor_reports_bad_oracle_and_output_without_running(self) -> None:
         source = self._source()

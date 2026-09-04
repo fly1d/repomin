@@ -28,6 +28,11 @@ CI; the version above is the current pre-release. That release still delegates
 to `actions/setup-python@v6` and `actions/upload-artifact@v6`. Current `main`
 pins both dependencies to reviewed full commit SHAs for the next release.
 
+`source` and an explicit `output` must be portable repository-relative paths.
+The Action rejects symbolic-link components and any resolved location outside
+`GITHUB_WORKSPACE`; `source` must resolve to an existing directory. These checks
+apply in both direct-input and `config` modes.
+
 When `output` is omitted, the action writes the payload and its `.repomin`
 metadata directory under the runner's temporary directory. This is the safe
 default for `source: .`, because the reducer never writes an output inside the
@@ -38,12 +43,59 @@ rejected before export.
 
 ## Inputs
 
-`command` is required. Set at least one of `match`, `exit-code`, or
-`process-failure` to define the basic failure oracle. `match` is useful when
-the failure text is stable; `exit-code` is safer when test output changes
-between runs; `process-failure: true` learns and preserves the exact signal or
-process termination signature. `exit-code` and `process-failure` are mutually
-exclusive, while `match` may be combined with either to narrow the oracle.
+Choose either a versioned `config` file or the direct semantic inputs. The two
+modes are deliberately not merged.
+
+### Versioned configuration
+
+Set `config` to a repository-relative JSON reduction specification when local
+runs and CI should share the same reviewed failure, runner, sampling, reducer,
+and input-selection contract:
+
+```yaml
+- name: Minimize failure from a reviewed specification
+  if: ${{ failure() }}
+  uses: fly1d/repomin@<reviewed-release-or-full-commit>
+  with:
+    config: .github/repomin.json
+    source: .
+    artifact-name: minimized-reproduction
+    step-summary: true
+```
+
+The Action requires a portable path inside `GITHUB_WORKSPACE`, rejects any
+symbolic-link component, and requires the resolved target to be a readable
+regular file. Absolute paths, backslashes, and paths that escape the workspace
+are rejected before reduction.
+
+If the configuration file is below `source`, it is also an ordinary repository
+input and may remain in the uploaded payload. Put it outside a selected source
+subdirectory or include its source-relative path in `inputs.ignore_paths` when
+the artifact must exclude it.
+
+When `config` is set, the following direct semantic inputs must remain at their
+declared defaults: `command`, `match`, `exit-code`, all three signature inputs,
+all three holdout inputs, `ignore`, `ignore-path`, `keep`, `text-file`, both
+gitignore booleans, `adapter`, `source-reducer`, `backend`, `docker-image`,
+`docker-network`, `timeout`, `max-attempts`, `max-duration`, and `jobs`. A
+non-default value is an error; it never overrides or supplements the file.
+
+`source`, `output`, `python-version`, `artifact-name`, and `step-summary` remain
+Action-owned and may be set with `config`. The versioned schema also supports
+core settings without individual Action inputs, including repeated explicit
+gitignore files, baseline/candidate sampling, cache control, and Docker resource
+limits. See the [configuration specification](CONFIGURATION.md) for the exact
+schema, CLI ownership rules, security boundary, and migration behavior.
+
+### Direct semantic inputs
+
+Without `config`, `command` is required. Set at least one of `match`,
+`exit-code`, or `process-failure` to define the basic failure oracle. `match`
+is useful when the failure text is stable; `exit-code` is safer when test
+output changes between runs; `process-failure: true` learns and preserves the
+exact signal or process termination signature. `exit-code` and
+`process-failure` are mutually exclusive, while `match` may be combined with
+either to narrow the oracle.
 
 `java-exception` and `python-exception` are boolean inputs, both `false` by
 default. Set the matching input to `true` to learn a normalized exception from

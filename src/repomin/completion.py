@@ -78,8 +78,8 @@ _repomin() {
         fi
     fi
     if [[ "${COMP_WORDS[1]}" == "doctor" ]]; then
-        options="--version --help --command --match --exit-code --java-exception --python-exception --process-failure --adapter --source-reducer --backend --docker-image --docker-network --timeout --baseline-runs --output --ignore --ignore-path --keep --text-file --gitignore --gitignore-file --gitignore-recursive --env --json"
-        value_options="--command --match --exit-code --adapter --source-reducer --backend --docker-image --docker-network --timeout --baseline-runs --output --ignore --ignore-path --keep --text-file --gitignore-file --env"
+        options="--version --help --config --command --match --exit-code --java-exception --python-exception --process-failure --adapter --source-reducer --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --timeout --baseline-runs --min-baseline-passes --min-baseline-rate --confidence --output --ignore --ignore-path --keep --text-file --gitignore --gitignore-file --gitignore-recursive --env --json"
+        value_options="--config --command --match --exit-code --adapter --source-reducer --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --timeout --baseline-runs --min-baseline-passes --min-baseline-rate --confidence --output --ignore --ignore-path --keep --text-file --gitignore-file --env"
         case "$prev" in
             --backend) COMPREPLY=( $(compgen -W "host docker" -- "$cur") ); return 0 ;;
             --docker-network) COMPREPLY=( $(compgen -W "none bridge host" -- "$cur") ); return 0 ;;
@@ -99,8 +99,8 @@ _repomin() {
         COMPREPLY=( $(compgen -W "completion doctor report" -- "$cur") )
         return 0
     fi
-    options="--version --help --command --match --exit-code --output --session --resume --timeout --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --jobs --no-cache --max-attempts --max-duration --ignore --ignore-path --gitignore --gitignore-file --gitignore-recursive --keep --env --java-exception --python-exception --process-failure --baseline-runs --min-baseline-passes --candidate-runs --min-candidate-passes --min-baseline-rate --min-candidate-rate --confidence --run-confidence --holdout-runs --min-holdout-rate --holdout-confidence --adapter --source-reducer --text-file --semantic-reducer --semantic-endpoint --semantic-model --semantic-timeout --java-classpath --verbose"
-    value_options="--command --match --exit-code --output --session --timeout --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --jobs --max-attempts --max-duration --ignore --ignore-path --gitignore-file --keep --env --baseline-runs --min-baseline-passes --candidate-runs --min-candidate-passes --min-baseline-rate --min-candidate-rate --confidence --run-confidence --holdout-runs --min-holdout-rate --holdout-confidence --adapter --source-reducer --text-file --semantic-reducer --semantic-endpoint --semantic-model --semantic-timeout --java-classpath"
+    options="--version --help --config --command --match --exit-code --output --session --resume --timeout --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --jobs --no-cache --max-attempts --max-duration --ignore --ignore-path --gitignore --gitignore-file --gitignore-recursive --keep --env --java-exception --python-exception --process-failure --baseline-runs --min-baseline-passes --candidate-runs --min-candidate-passes --min-baseline-rate --min-candidate-rate --confidence --run-confidence --holdout-runs --min-holdout-rate --holdout-confidence --adapter --source-reducer --text-file --semantic-reducer --semantic-endpoint --semantic-model --semantic-timeout --java-classpath --verbose"
+    value_options="--config --command --match --exit-code --output --session --timeout --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --jobs --max-attempts --max-duration --ignore --ignore-path --gitignore-file --keep --env --baseline-runs --min-baseline-passes --candidate-runs --min-candidate-passes --min-baseline-rate --min-candidate-rate --confidence --run-confidence --holdout-runs --min-holdout-rate --holdout-confidence --adapter --source-reducer --text-file --semantic-reducer --semantic-endpoint --semantic-model --semantic-timeout --java-classpath"
     case "$prev" in
         --backend) COMPREPLY=( $(compgen -W "host docker" -- "$cur") ); return 0 ;;
         --docker-network) COMPREPLY=( $(compgen -W "none bridge host" -- "$cur") ); return 0 ;;
@@ -164,6 +164,7 @@ _repomin() {
             '1:repository:_files' \
             '--version[show the installed version]' \
             '--help[show Doctor help]' \
+            '--config[versioned JSON reduction spec]:file:_files' \
             '--command[optional failure reproduction command]:command:' \
             '--match[regular expression required in output]:pattern:' \
             '--exit-code[exact process exit code]:code:' \
@@ -175,8 +176,16 @@ _repomin() {
             '--backend[execution backend]:backend:(host docker)' \
             '--docker-image[Docker image]:image:' \
             '--docker-network[Docker network policy]:network:(none bridge host)' \
+            '--docker-cpus[Docker CPU quota]:cores:' \
+            '--docker-memory[Docker memory limit]:size:' \
+            '--docker-pids-limit[maximum container processes]:count:' \
+            '--docker-tmpfs-size[container /tmp size]:size:' \
+            '--docker-workspace-limit[writable workspace limit]:size:' \
             '--timeout[seconds per baseline run]:seconds:' \
             '--baseline-runs[fresh baseline copies]:count:' \
+            '--min-baseline-passes[minimum baseline passes]:count:' \
+            '--min-baseline-rate[minimum baseline rate]:rate:' \
+            '--confidence[confidence level]:level:' \
             '--output[output path to check]:path:_files' \
             '--ignore[ignored basename]:name:' \
             '--ignore-path[ignored repository path]:path:_files' \
@@ -196,6 +205,7 @@ _repomin() {
         'completion[print a shell completion script]'
         '--version[show the installed version]'
         '--help[show command help]'
+        '--config[versioned JSON reduction spec]:file:_files'
         '--command[failure reproduction command]:command:'
         '--match[regular expression that must remain present]:pattern:'
         '--exit-code[required exit code]:code:(0 1 2 7 9)'
@@ -284,6 +294,7 @@ for option in $boolean_options
 end
 
 complete -c repomin -f -l command -r -d 'failure reproduction command'
+complete -c repomin -f -l config -r -a '(__fish_complete_path)' -d 'versioned JSON reduction spec'
 complete -c repomin -f -l match -r -d 'failure output pattern'
 complete -c repomin -f -l exit-code -r -d 'required exit code'
 complete -c repomin -f -l output -r -a '(__fish_complete_directories)'
@@ -333,7 +344,7 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
 
     $options = @(
         'doctor', 'report', 'completion',
-        '--version', '--help', '--command', '--match', '--exit-code', '--output', '--json',
+        '--version', '--help', '--config', '--command', '--match', '--exit-code', '--output', '--json',
         '--session', '--resume', '--timeout', '--backend', '--docker-image',
         '--docker-network', '--docker-cpus', '--docker-memory',
         '--docker-pids-limit', '--docker-tmpfs-size', '--docker-workspace-limit',
@@ -357,7 +368,7 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
     $reportCompareOptions = @('--help', '--label', '--format')
     $reportPathOptions = @('--payload')
     $valueOptions = @(
-        '--command', '--match', '--exit-code', '--output', '--session', '--timeout',
+        '--config', '--command', '--match', '--exit-code', '--output', '--session', '--timeout',
         '--backend', '--docker-image', '--docker-network', '--docker-cpus',
         '--docker-memory', '--docker-pids-limit', '--docker-tmpfs-size',
         '--docker-workspace-limit', '--jobs', '--max-attempts', '--max-duration',
@@ -370,7 +381,7 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
         '--semantic-timeout', '--java-classpath'
     )
     $pathOptions = @(
-        '--output', '--session', '--ignore-path', '--gitignore-file', '--keep',
+        '--config', '--output', '--session', '--ignore-path', '--gitignore-file', '--keep',
         '--text-file', '--java-classpath'
     )
     $enumValues = @{

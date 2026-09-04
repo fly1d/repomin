@@ -52,6 +52,39 @@ optional frozen holdout certification -> new payload directory
     observe this sibling; such dependencies are part of the documented host
     backend boundary.
 
+## Versioned configuration boundary
+
+Reduction and Doctor invocations may pass a `schema_version: 1` JSON
+specification through `--config`. Before `argparse` processes the command, the
+configuration layer reads the file once, rejects duplicate or unknown keys and
+invalid typed values, validates cross-field dependencies, and expands each
+supported field into the equivalent explicit CLI token. The ordinary CLI then
+performs its existing repository, oracle, statistical, runner, and reducer
+validation. Downstream components receive one normal parsed namespace rather
+than a second configuration path.
+
+There is no option-precedence algorithm. The configuration owns every
+schema-supported semantic option, including fields it omits, and combining it
+with a semantic CLI option is rejected. Schema v1 also fixes the optional
+semantic reducer to `none`; provider defaults from `REPOMIN_SEMANTIC_*` do not
+alter a configuration-driven reduction. Source/output placement and checkpoint
+controls stay outside the portable specification. Doctor validates the complete
+document but expands only fields relevant to its read-only preflight; candidate
+and holdout sampling or reduction-budget values cannot hide invalid data merely
+because Doctor will not consume them. Baseline sampling and Docker resource
+limits are applied by both commands.
+
+The raw file path and JSON text are not report or session fields. Reports and
+persistent sessions continue to record or bind the effective command, oracle,
+runner, sampling, input-selection, and reduction values produced by expansion.
+Consequently, `--resume` rejects a semantic change exactly as it does for an
+equivalent flag-based invocation.
+
+Schema versioning is independent of report, validation-summary, comparison,
+and checkpoint versions. Version 1 uses exact key sets and rejects unknown
+versions rather than applying a best-effort migration. The full field and
+compatibility contract is documented in [CONFIGURATION.md](CONFIGURATION.md).
+
 ## Failure oracle
 
 The base oracle evaluates these signals:
