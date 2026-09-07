@@ -171,7 +171,7 @@ def _reject_mixed_options(argv: Sequence[str], *, command: str) -> None:
         flag_options.add("--json")
     else:
         value_options.add("--session")
-        flag_options.update({"--resume", "--verbose"})
+        flag_options.update({"--quiet", "--resume", "--verbose"})
 
     index = 0
     positional_only = False

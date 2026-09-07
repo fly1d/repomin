@@ -429,6 +429,14 @@ its own oracle run passes. The default is `1` because separate working
 directories do not isolate ports, databases, services, or other external state
 used by the command.
 
+Long reductions emit rate-limited, privacy-safe aggregate progress to stderr by
+default. These updates report phase, timing, budget, and aggregate attempt,
+oracle-sample, acceptance, and cache counts without including the configured
+command or match expression, command output, environment values, repository
+paths, or candidate descriptions. Use `--quiet` to suppress routine status
+output, or `--verbose` to include detailed component and accepted-candidate
+progress. Standard output remains reserved for the final payload path.
+
 Use `--max-attempts N` to bound a long reduction. ReproMin stops preparing new
 candidate attempts after `N` logical attempts, exports the latest accepted
 tree, and sets `budget_exhausted` in the report:

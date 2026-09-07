@@ -136,6 +136,29 @@ Progress = Callable[[str], None]
 
 
 @dataclass(frozen=True)
+class HeartbeatSnapshot:
+    """Privacy-safe aggregate progress from one running reduction process."""
+
+    phase: Optional[str]
+    reason: str
+    elapsed_seconds: float
+    attempts: int
+    completed_attempts: int
+    accepted: int
+    rejected: int
+    superseded: int
+    no_op: int
+    aborted: int
+    candidate_samples: int
+    candidate_passes: int
+    oracle_samples: int
+    cache_hits: int
+
+
+Heartbeat = Callable[[HeartbeatSnapshot], None]
+
+
+@dataclass(frozen=True)
 class MutationCandidate:
     description: str
     mutation: Mutation
@@ -205,6 +228,9 @@ class ReductionSession:
         holdout_runs: Optional[int] = None,
         holdout_minimum_rate: Optional[float] = None,
         holdout_confidence: float = 0.95,
+        heartbeat: Optional[Heartbeat] = None,
+        heartbeat_interval_seconds: Optional[float] = 30.0,
+        heartbeat_attempt_interval: Optional[int] = 25,
     ) -> None:
         if jobs < 1:
             raise ValueError("jobs must be at least 1")
@@ -282,6 +308,41 @@ class ReductionSession:
             else None
         )
         self.progress = progress or (lambda message: None)
+        if heartbeat is not None and not callable(heartbeat):
+            raise ValueError("heartbeat must be callable")
+        if heartbeat_interval_seconds is not None:
+            if isinstance(heartbeat_interval_seconds, bool):
+                raise ValueError(
+                    "heartbeat interval must be a positive number of seconds"
+                )
+            try:
+                heartbeat_interval_seconds = float(heartbeat_interval_seconds)
+            except (OverflowError, TypeError, ValueError) as exc:
+                raise ValueError(
+                    "heartbeat interval must be a positive number of seconds"
+                ) from exc
+            if (
+                not math.isfinite(heartbeat_interval_seconds)
+                or heartbeat_interval_seconds <= 0.0
+            ):
+                raise ValueError(
+                    "heartbeat interval must be a positive number of seconds"
+                )
+        if heartbeat_attempt_interval is not None and (
+            isinstance(heartbeat_attempt_interval, bool)
+            or not isinstance(heartbeat_attempt_interval, int)
+            or heartbeat_attempt_interval < 1
+        ):
+            raise ValueError(
+                "heartbeat attempt interval must be a positive integer"
+            )
+        self.heartbeat = heartbeat
+        self.heartbeat_interval_seconds = heartbeat_interval_seconds
+        self.heartbeat_attempt_interval = heartbeat_attempt_interval
+        self._heartbeat_started_at: Optional[float] = None
+        self._heartbeat_last_emitted_at: Optional[float] = None
+        self._heartbeat_last_completed_attempts = 0
+        self._heartbeat_reduction_started = False
         self.ignore_paths = tuple(sorted(set(ignore_paths or ())))
         self.keep_paths = tuple(sorted(set(keep_paths or ())))
         # Rule-file order is meaningful because later negations can override
@@ -411,6 +472,7 @@ class ReductionSession:
                 _cleanup_failed_persistent_initialization(self.persistent_path)
             self.close()
             raise
+        self._reset_heartbeat_clock()
 
     def keeps(self, relative: Path) -> bool:
         """Return whether the file reducer must preserve ``relative``."""
@@ -424,6 +486,9 @@ class ReductionSession:
 
     def begin_reduction(self) -> None:
         """Start the wall-clock reduction budget if it is not already running."""
+        if not self._heartbeat_reduction_started:
+            self._reset_heartbeat_clock()
+            self._heartbeat_reduction_started = True
         if self.max_duration_seconds is None:
             return
         if self.stats.reduction_started_at is None:
@@ -470,6 +535,82 @@ class ReductionSession:
         if self.persistent_path is None:
             return
         self._checkpoint(status="completed")
+
+    def notify_heartbeat(
+        self,
+        phase: Optional[str] = None,
+        *,
+        force: bool = False,
+    ) -> bool:
+        """Emit one aggregate heartbeat when a configured threshold is due."""
+        if self.heartbeat is None:
+            return False
+        if phase is not None and not isinstance(phase, str):
+            raise ValueError("heartbeat phase must be text")
+        now = time.monotonic()
+        completed_attempts = self._completed_candidate_attempts()
+        attempts_due = (
+            self.heartbeat_attempt_interval is not None
+            and completed_attempts - self._heartbeat_last_completed_attempts
+            >= self.heartbeat_attempt_interval
+        )
+        interval_due = (
+            self.heartbeat_interval_seconds is not None
+            and self._heartbeat_last_emitted_at is not None
+            and now - self._heartbeat_last_emitted_at
+            >= self.heartbeat_interval_seconds
+        )
+        if not force and not attempts_due and not interval_due:
+            return False
+
+        phase_stats = tuple(self.stats.phase_stats.values())
+        if force:
+            reason = "phase"
+        elif attempts_due:
+            reason = "attempts"
+        else:
+            reason = "interval"
+        started_at = self._heartbeat_started_at
+        snapshot = HeartbeatSnapshot(
+            phase=self.current_phase if phase is None else phase,
+            reason=reason,
+            elapsed_seconds=(
+                0.0 if started_at is None else max(0.0, now - started_at)
+            ),
+            attempts=self.stats.attempts,
+            completed_attempts=completed_attempts,
+            accepted=self.stats.accepted,
+            rejected=sum(item.rejected for item in phase_stats),
+            superseded=sum(item.superseded for item in phase_stats),
+            no_op=sum(item.no_op for item in phase_stats),
+            aborted=sum(item.aborted for item in phase_stats),
+            candidate_samples=self.stats.candidate_samples,
+            candidate_passes=self.stats.candidate_passes,
+            oracle_samples=sum(item.oracle_samples for item in phase_stats),
+            cache_hits=self.stats.cache_hits,
+        )
+        self._heartbeat_last_emitted_at = now
+        self._heartbeat_last_completed_attempts = completed_attempts
+        self.heartbeat(snapshot)
+        return True
+
+    def _reset_heartbeat_clock(self) -> None:
+        if self.heartbeat is None:
+            return
+        heartbeat_started_at = time.monotonic()
+        self._heartbeat_started_at = heartbeat_started_at
+        self._heartbeat_last_emitted_at = heartbeat_started_at
+        self._heartbeat_last_completed_attempts = self._completed_candidate_attempts()
+
+    def _completed_candidate_attempts(self) -> int:
+        return sum(
+            phase.accepted
+            + phase.rejected
+            + phase.superseded
+            + phase.no_op
+            + phase.aborted
+            for phase in self.stats.phase_stats.values()
+        )
 
     @contextmanager
     def measure_phase(self, phase: str) -> Iterator[None]:
@@ -588,6 +729,7 @@ class ReductionSession:
                 if selected is None:
                     phase_stats.rejected += len(prepared)
                     pending_classification.clear()
+                    self.notify_heartbeat(phase)
                     continue
                 assert selected_decision is not None
                 return_index = selected.candidate_index
@@ -710,6 +852,7 @@ class ReductionSession:
                 )
                 self.progress("accepted: %s" % selected.candidate.description)
                 self._checkpoint()
+                self.notify_heartbeat(phase)
                 if self.persistent_path is not None and previous.exists():
                     shutil.rmtree(previous)
                 return return_index

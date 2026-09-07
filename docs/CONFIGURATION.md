@@ -80,15 +80,15 @@ closed instead of silently changing a reviewed failure contract:
 repomin . --config .repomin.json --jobs 4
 ```
 
-Runtime placement and checkpoint controls remain CLI-owned. A reduction may
-combine the specification with the positional `source`, `--output`,
-`--session`, `--resume`, and `--verbose`. Doctor may combine it with the
-positional `source`, `--output`, and `--json`. Help and version requests do not
-read the configuration file.
+Runtime placement, checkpoint, and output controls remain CLI-owned. A
+reduction may combine the specification with the positional `source`, `--output`,
+`--session`, `--resume`, and one of `--quiet` or `--verbose`. Doctor may combine
+it with the positional `source`, `--output`, and `--json`. Help and version
+requests do not read the configuration file.
 
 The v1 schema deliberately excludes these CLI-only settings:
 
-- `source`, `output`, `session`, `resume`, and `verbose`;
+- `source`, `output`, `session`, `resume`, `quiet`, and `verbose`;
 - explicit environment entries from `--env`;
 - `semantic-reducer`, its endpoint, model, and timeout;
 - host-side Java attribution paths from `--java-classpath`.

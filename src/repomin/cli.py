@@ -85,6 +85,7 @@ from repomin.signature import format_process_failure_signature
 from repomin.text_reducer import TextReducer
 from repomin.session import (
     DEFAULT_IGNORES,
+    HeartbeatSnapshot,
     HoldoutCertificationError,
     ReductionSession,
     SessionError,
@@ -151,6 +152,56 @@ def _parse_confidence(value: str) -> float:
     if not math.isfinite(confidence) or confidence <= 0.0 or confidence >= 1.0:
         raise argparse.ArgumentTypeError("confidence must be in (0, 1)")
     return confidence
+
+
+def _format_seconds(value: float) -> str:
+    return "%gs" % value
+
+
+def _format_reduction_start(
+    *,
+    backend: str,
+    jobs: int,
+    timeout: float,
+    reducers: Sequence[str],
+    max_attempts: Optional[int],
+    max_duration: Optional[float],
+) -> str:
+    return (
+        "Starting reduction: backend=%s jobs=%d per-command-timeout=%s "
+        "reducers=%s max-attempts=%s max-duration=%s"
+        % (
+            backend,
+            jobs,
+            _format_seconds(timeout),
+            ",".join(reducers),
+            "unbounded" if max_attempts is None else str(max_attempts),
+            "unbounded" if max_duration is None else _format_seconds(max_duration),
+        )
+    )
+
+
+def _format_heartbeat(
+    snapshot: HeartbeatSnapshot,
+    *,
+    max_attempts: Optional[int],
+) -> str:
+    attempt_budget = (
+        "unbounded" if max_attempts is None else str(max_attempts)
+    )
+    return (
+        "Progress: phase=%s elapsed=%.1fs attempts=%d/%s "
+        "oracle-samples=%d accepted=%d cache-hits=%d"
+        % (
+            snapshot.phase or "reduction",
+            snapshot.elapsed_seconds,
+            snapshot.attempts,
+            attempt_budget,
+            snapshot.oracle_samples,
+            snapshot.accepted,
+            snapshot.cache_hits,
+        )
+    )
 
 
 def _parse_command(value: str) -> str:
@@ -632,10 +683,16 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "(does not change the reproduction command or Docker mounts)"
         ),
     )
-    parser.add_argument(
+    output_group = parser.add_mutually_exclusive_group()
+    output_group.add_argument(
+        "--quiet",
+        action="store_true",
+        help="suppress routine status output on stderr",
+    )
+    output_group.add_argument(
         "--verbose",
         action="store_true",
-        help="print reduction progress to stderr",
+        help="print detailed reduction progress to stderr",
     )
     return parser
 
@@ -675,6 +732,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = build_parser(semantic_environment_defaults=not using_config).parse_args(
         raw_argv
     )
+
+    def inform(message: str) -> None:
+        if not args.quiet:
+            print(message, file=sys.stderr)
+
     session_path: Optional[Path] = None
     session: Optional[ReductionSession] = None
     try:
@@ -883,12 +945,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             min_candidate_rate=args.min_candidate_rate,
             confidence=args.confidence,
         )
-        progress = (lambda message: print(message, file=sys.stderr)) if args.verbose else None
+        progress = (
+            (lambda message: print(message, file=sys.stderr))
+            if args.verbose
+            else None
+        )
+        heartbeat = (
+            None
+            if args.quiet
+            else lambda snapshot: print(
+                _format_heartbeat(snapshot, max_attempts=args.max_attempts),
+                file=sys.stderr,
+            )
+        )
         session = ReductionSession(
             source,
             oracle,
             stats,
             progress=progress,
+            heartbeat=heartbeat,
             ignores=args.ignore_names,
             ignore_paths=args.ignore_paths,
             gitignore_matcher=gitignore_matcher,
@@ -945,7 +1020,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             if not session.resumed:
                 stats.source_files, stats.source_bytes = measure_tree(session.current)
             if session.baseline is None:
-                print("Verifying baseline failure...", file=sys.stderr)
+                inform("Verifying baseline failure...")
                 baseline = session.verify_baseline(
                     args.baseline_runs,
                     minimum_passes=baseline_min_passes,
@@ -953,28 +1028,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 )
             else:
                 baseline = session.baseline
-                print("Resuming from saved baseline failure...", file=sys.stderr)
+                inform("Resuming from saved baseline failure...")
             if oracle.java_exception_signature is not None:
                 signature = oracle.java_exception_signature
-                print(
+                inform(
                     "Preserving Java exception: %s: %s"
-                    % (signature.class_name, signature.message),
-                    file=sys.stderr,
+                    % (signature.class_name, signature.message)
                 )
             if oracle.python_exception_signature is not None:
                 signature = oracle.python_exception_signature
-                print(
+                inform(
                     "Preserving Python exception: %s: %s"
-                    % (signature.class_name, signature.message),
-                    file=sys.stderr,
+                    % (signature.class_name, signature.message)
                 )
             if oracle.process_failure_signature is not None:
-                print(
+                inform(
                     "Preserving process failure: %s"
                     % format_process_failure_signature(
                         oracle.process_failure_signature
-                    ),
-                    file=sys.stderr,
+                    )
                 )
 
             if not session.phase_completed("reduction-fixed-point"):
@@ -1091,8 +1163,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     args.source_reducer == "auto" and python_source_applicable
                 )
 
-                print("Reducing to a global fixed point...", file=sys.stderr)
-                session.begin_reduction()
                 file_reducer = FileReducer(session)
                 semantic_reducer_obj: Optional[SemanticReducer] = None
                 if semantic_reducer == "http":
@@ -1160,7 +1230,35 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     )
                 components.append(("semantic", semantic_reducer_obj.reduce))
 
-                _run_fixed_point(components, stats, session.progress)
+                active_reducers = [
+                    name
+                    for name, _reduce_component in components
+                    if name != "semantic" or semantic_reducer == "http"
+                ]
+                inform(
+                    _format_reduction_start(
+                        backend=args.backend,
+                        jobs=args.jobs,
+                        timeout=args.timeout,
+                        reducers=active_reducers,
+                        max_attempts=args.max_attempts,
+                        max_duration=args.max_duration,
+                    )
+                )
+                session.begin_reduction()
+
+                active_reducer_names = set(active_reducers)
+
+                def report_phase(name: str) -> None:
+                    if name in active_reducer_names:
+                        session.notify_heartbeat(name, force=True)
+
+                _run_fixed_point(
+                    components,
+                    stats,
+                    session.progress,
+                    phase_progress=report_phase,
+                )
                 session.mark_phase_completed("reduction-fixed-point")
 
             if (
@@ -1168,10 +1266,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 and session.final_validation_run is not None
             ):
                 final_run = session.final_validation_run
-                print(
-                    "Resuming after saved final consistency validation...",
-                    file=sys.stderr,
-                )
+                inform("Resuming after saved final consistency validation...")
             else:
                 final_samples = session.run_current_repeated()
                 final_accepted, final_passes = oracle.accepts_repeated(
@@ -1198,14 +1293,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
             holdout = session.run_holdout_certification()
             if holdout.status == "certified":
-                print(
+                inform(
                     "Certified final holdout: %d/%d passes, exact lower bound %.4f."
                     % (
                         holdout.passes,
                         holdout.planned_runs,
                         holdout.exact_lower_bound,
-                    ),
-                    file=sys.stderr,
+                    )
                 )
 
             session.export(output)
@@ -1244,7 +1338,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         finally:
             session.close()
 
-        print(
+        inform(
             "Reduced %d files to %d files in %d attempts "
             "(%d accepted, %d cache hits)." % (
                 stats.source_files,
@@ -1252,16 +1346,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 stats.attempts,
                 stats.accepted,
                 stats.cache_hits,
-            ),
-            file=sys.stderr,
+            )
         )
-        print(
-            "Size: %d -> %d bytes." % (stats.source_bytes, stats.output_bytes),
-            file=sys.stderr,
+        inform(
+            "Size: %d -> %d bytes." % (stats.source_bytes, stats.output_bytes)
         )
         print(str(output))
-        print("Metadata: %s" % metadata_output, file=sys.stderr)
-        print("Report: %s" % (metadata_output / "report.json"), file=sys.stderr)
+        inform("Metadata: %s" % metadata_output)
+        inform("Report: %s" % (metadata_output / "report.json"))
         return 0
     except KeyboardInterrupt:
         if session_path is not None:
@@ -2025,6 +2117,7 @@ def _run_fixed_point(
     components: Sequence[Tuple[str, Callable[[], object]]],
     stats: ReductionStats,
     progress: Callable[[str], None],
+    phase_progress: Optional[Callable[[str], None]] = None,
 ) -> None:
     """Run locally stable reducers until no component is dirty."""
     pending = list(range(len(components)))
@@ -2034,6 +2127,8 @@ def _run_fixed_point(
         queued.remove(component_index)
         name, reduce_component = components[component_index]
         accepted_before = stats.accepted
+        if phase_progress is not None:
+            phase_progress(name)
         progress("fixed-point component: %s" % name)
         reduce_component()
         if stats.accepted == accepted_before:

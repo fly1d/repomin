@@ -99,7 +99,7 @@ _repomin() {
         COMPREPLY=( $(compgen -W "completion doctor report" -- "$cur") )
         return 0
     fi
-    options="--version --help --config --command --match --exit-code --output --session --resume --timeout --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --jobs --no-cache --max-attempts --max-duration --ignore --ignore-path --gitignore --gitignore-file --gitignore-recursive --keep --env --java-exception --python-exception --process-failure --baseline-runs --min-baseline-passes --candidate-runs --min-candidate-passes --min-baseline-rate --min-candidate-rate --confidence --run-confidence --holdout-runs --min-holdout-rate --holdout-confidence --adapter --source-reducer --text-file --semantic-reducer --semantic-endpoint --semantic-model --semantic-timeout --java-classpath --verbose"
+    options="--version --help --config --command --match --exit-code --output --session --resume --timeout --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --jobs --no-cache --max-attempts --max-duration --ignore --ignore-path --gitignore --gitignore-file --gitignore-recursive --keep --env --java-exception --python-exception --process-failure --baseline-runs --min-baseline-passes --candidate-runs --min-candidate-passes --min-baseline-rate --min-candidate-rate --confidence --run-confidence --holdout-runs --min-holdout-rate --holdout-confidence --adapter --source-reducer --text-file --semantic-reducer --semantic-endpoint --semantic-model --semantic-timeout --java-classpath --quiet --verbose"
     value_options="--config --command --match --exit-code --output --session --timeout --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --jobs --max-attempts --max-duration --ignore --ignore-path --gitignore-file --keep --env --baseline-runs --min-baseline-passes --candidate-runs --min-candidate-passes --min-baseline-rate --min-candidate-rate --confidence --run-confidence --holdout-runs --min-holdout-rate --holdout-confidence --adapter --source-reducer --text-file --semantic-reducer --semantic-endpoint --semantic-model --semantic-timeout --java-classpath"
     case "$prev" in
         --backend) COMPREPLY=( $(compgen -W "host docker" -- "$cur") ); return 0 ;;
@@ -254,7 +254,8 @@ _repomin() {
         '--semantic-model[semantic model name]:name:'
         '--semantic-timeout[semantic HTTP timeout]:seconds:'
         '--java-classpath[Java analysis classpath]:path:_files'
-        '--verbose[print reduction progress]'
+        '--quiet[suppress routine status output]'
+        '--verbose[print detailed reduction progress]'
     )
     _arguments -s $options '*:repository or command:_files'
 }
@@ -288,10 +289,13 @@ complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l gitignore -d '
 complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l gitignore-file -r -a '(__fish_complete_path)' -d 'apply a gitignore-style file'
 complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l gitignore-recursive -d 'apply nested .gitignore files'
 
-set -l boolean_options version help resume no-cache gitignore gitignore-recursive java-exception python-exception process-failure verbose
+set -l boolean_options version help resume no-cache gitignore gitignore-recursive java-exception python-exception process-failure
 for option in $boolean_options
     complete -c repomin -f -l $option
 end
+
+complete -c repomin -f -l quiet -d 'suppress routine status output'
+complete -c repomin -f -l verbose -d 'print detailed reduction progress'
 
 complete -c repomin -f -l command -r -d 'failure reproduction command'
 complete -c repomin -f -l config -r -a '(__fish_complete_path)' -d 'versioned JSON reduction spec'
@@ -357,8 +361,12 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
         '--holdout-runs', '--min-holdout-rate', '--holdout-confidence',
         '--adapter', '--source-reducer', '--text-file', '--semantic-reducer',
         '--semantic-endpoint', '--semantic-model', '--semantic-timeout',
-        '--java-classpath', '--verbose'
+        '--java-classpath', '--quiet', '--verbose'
     )
+    $optionTooltips = @{
+        '--quiet' = 'suppress routine status output'
+        '--verbose' = 'print detailed reduction progress'
+    }
     $reportOptions = @('validate', 'replay', 'compare', '--help')
     $reportValidateOptions = @('--help', '--payload', '--json', '--format')
     $reportReplayOptions = @(
@@ -520,8 +528,13 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
     $options |
         Where-Object { $_ -like "$wordToComplete*" } |
         ForEach-Object {
+            $tooltip = if ($optionTooltips.ContainsKey($_)) {
+                $optionTooltips[$_]
+            } else {
+                $_
+            }
             [System.Management.Automation.CompletionResult]::new(
-                $_, $_, 'ParameterName', $_
+                $_, $_, 'ParameterName', $tooltip
             )
         }
 }
