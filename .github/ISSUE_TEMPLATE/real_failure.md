@@ -40,6 +40,13 @@ Fill in what you can and write `N/A` for details that are unavailable.
 - `report validate` result:
 - Sanitized report or public artifact link (optional):
 
+## Authorship and automation
+
+- Who selected and prepared this workflow:
+- Who ran ReproMin and reviewed the result:
+- Material LLM or agent involvement (or `none`):
+- Semantic reducer (`none` or provider/type, without credentials):
+
 ## Privacy and redistribution
 
 - [ ] Secrets, credentials, tokens, and private URLs were removed.
@@ -48,5 +55,8 @@ Fill in what you can and write `N/A` for details that are unavailable.
       and regression analysis.
 - [ ] I understand that the host backend executes the supplied command directly
       and is not a security sandbox.
+- [ ] If this artifact will be shared with another project, I checked its
+      contribution and AI-assistance policies and will disclose material agent
+      involvement in the first message.
 
 ## Additional context

@@ -1,12 +1,16 @@
-# Public pilot: pydoctor Sphinx API-folder rename failure
+# Public pilot and outreach postmortem: pydoctor Sphinx API-folder rename failure
 
-This case study records a maintainer-led public pilot completed on 2026-09-02
-for [twisted/pydoctor#728](https://github.com/twisted/pydoctor/issues/728) and
-the missing reproduction requested on
+This case study records both the technical result of a maintainer-led public
+pilot and the subsequent failure to respect an upstream community boundary.
+The reduction was completed on 2026-09-02 for
+[twisted/pydoctor#728](https://github.com/twisted/pydoctor/issues/728) and the
+missing reproduction requested on
 [twisted/pydoctor#799](https://github.com/twisted/pydoctor/pull/799). The goal
 was to turn a persistent but underspecified documentation-build failure into a
 small executable fixture and CI check. It does not decide whether the missing
-Sphinx subtree should be supported or which upstream fix is correct.
+Sphinx subtree should be supported or which upstream fix is correct. The
+artifact was not adopted by upstream, and this pilot must not be presented as
+a community success.
 
 ## Why this issue qualified
 
@@ -89,12 +93,27 @@ instead of opening a duplicate issue or fix.
 
 Only the public fixture and scalar reduction evidence were shared. The private
 report contains a local interpreter path and was not uploaded; raw build logs,
-temporary paths, and local command output were also omitted. An upstream
-maintainer subsequently asked whether an LLM agent created the work and stated
-that the project reviews human-created contributions. The ReproMin maintainer
-disclosed the agent authorship and accepted that boundary. No further upstream
-change or review will be pursued unless that project invites it. This remains
-delivered reproduction evidence, not adoption or an accepted fix.
+temporary paths, and local command output were also omitted.
+
+The first upstream message did not disclose that an LLM agent had performed the
+reproduction and testing workflow. When an upstream maintainer asked, the
+ReproMin maintainer disclosed that involvement and initially said the project's
+human-authorship boundary would be accepted. Two days later, the ReproMin
+maintainer posted a
+[long, adversarial reply](https://github.com/twisted/pydoctor/pull/799#issuecomment-5535022159)
+disputing the surrounding policy discussion. An upstream moderator
+[described that reply as inappropriate and banned the account](https://github.com/twisted/pydoctor/pull/799#issuecomment-5536843152)
+from the organization. Another maintainer
+[identified the missing agent provenance](https://github.com/twisted/pydoctor/pull/799#issuecomment-5537743593)
+in the original delivery and generated output as a product-design failure.
+
+That follow-up was a community failure. Technical evidence does not authorize
+continued contact after a recipient sets an authorship boundary, and it does
+not justify arguing about a maintainer's competence or policy in their project.
+ReproMin will not contact that project again unless its maintainers explicitly
+invite it. The public fixture remains reproducibility evidence only; it is not
+upstream adoption, an accepted contribution, or proof that the outreach was
+helpful.
 
 ## Reusable lessons
 
@@ -111,5 +130,9 @@ delivered reproduction evidence, not adoption or an accepted fix.
 - Check a recipient project's authorship and AI-assistance policy before first
   contact, disclose material agent involvement immediately, and stop when the
   recipient does not accept that form of contribution.
+- Treat a request to stop or a stated authorship boundary as final. Do not
+  answer it with a technical defense, policy debate, or automated follow-up.
+- Distinguish deterministic ReproMin reduction, optional semantic proposals,
+  and any external LLM or agent work in the first message and shared artifact.
 - Keep the exported payload immutable during validation and replay; execute
   manual checks on fresh copies.

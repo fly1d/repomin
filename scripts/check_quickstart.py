@@ -41,7 +41,7 @@ def _run(*arguments: str) -> subprocess.CompletedProcess[str]:
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="repomin-quickstart-") as directory:
         root = Path(directory)
-        demo_workspace = root / "demo"
+        demo_workspace = root / "demo & (portable)"
         demo = _run("demo", str(demo_workspace))
         if not demo.stdout.startswith("ReproMin demo completed.\n"):
             raise RuntimeError("demo did not emit its completion receipt")
@@ -49,6 +49,20 @@ def main() -> int:
             encoding="utf-8"
         ) != "NEEDLE\n":
             raise RuntimeError("demo did not export the expected minimized input")
+        demo_report = demo_workspace / "reduced.repomin" / "report.json"
+        demo_replay = _run(
+            "report",
+            "replay",
+            str(demo_report),
+            "--payload",
+            str(demo_workspace / "reduced"),
+            "--runs",
+            "2",
+            "--yes",
+            "--json",
+        )
+        if '"passes": 2' not in demo_replay.stdout:
+            raise RuntimeError("demo replay did not preserve the failure twice")
 
         source = root / "case"
         output = root / "reduced"

@@ -155,9 +155,8 @@ proprietary source, customer data, raw logs, or environment values.
 - Run the read-only [doctor preflight](DOCTOR.md) before a larger reduction.
 - Choose a language or build-tool workflow from the [examples](EXAMPLES.md).
 - Add a minimized artifact to CI with the [GitHub Action guide](GITHUB_ACTION.md).
-- Read the two public upstream pilots for
-  [tsdown](CASE_STUDY_TSDOWN_979.md) and
-  [pydoctor](CASE_STUDY_PYDOCTOR_728.md).
+- Read the [tsdown technical pilot](CASE_STUDY_TSDOWN_979.md) and the
+  [pydoctor outreach postmortem](CASE_STUDY_PYDOCTOR_728.md).
 - Share a useful, inconclusive, or blocked trial with the
   [user workflow feedback template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md).
 

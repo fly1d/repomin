@@ -99,8 +99,12 @@ project. Before delivering evidence upstream, read that project's contribution
 and AI-assistance policies. Disclose material agent involvement in the first
 message. If the recipient accepts only human-created work or asks not to
 continue, stop the outreach and keep the result as local evidence unless they
-later invite it. Never describe a posted fixture as adopted, accepted, or
-useful to the recipient without an explicit response supporting that claim.
+later invite it. Treat that boundary as final: do not answer with a technical
+defense, policy debate, automated follow-up, or a comparison between agents and
+maintainers. Never describe a posted fixture as adopted, accepted, or useful to
+the recipient without an explicit response supporting that claim. The
+[pydoctor outreach postmortem](docs/CASE_STUDY_PYDOCTOR_728.md) records why this
+rule is mandatory.
 
 Changes to a reducer must include a test proving both sides of its contract:
 the intended failure remains, and a different failure is rejected. Reducers

@@ -44,13 +44,15 @@ fixture.
 | --- | --- |
 | Find the commit that introduced a regression | `git bisect` |
 | Capture an environment and its runtime dependencies | A container or ReproZip |
-| Minimize one compiler input or source file | C-Reduce, C-Vise, or Perses |
-| Shrink a multi-file project while rerunning its real build or test | ReproMin |
+| Minimize one source or compiler input | C-Reduce or Shrink Ray |
+| Reduce compiler test cases across files or directories | C-Vise or Perses |
+| Shrink a build or application repository and emit replayable evidence | ReproMin |
 | Remove one obvious file from an already tiny example | Manual editing |
 
-ReproMin works between source reducers and environment capture tools. It
-reduces the project structure while treating your build, test, or reproduction
-command as the final authority.
+ReproMin overlaps with multi-file program reducers but focuses on build and
+application repositories across several ecosystems, plus a report and replay
+workflow. It treats your build, test, or reproduction command as the final
+authority.
 
 ## What it can reduce
 

@@ -58,10 +58,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A public tsdown pilot case study now records a real `14 -> 8` file reduction,
   exact payload validation, `3/3` fresh-copy replay, upstream delivery, and the
   limits of the resulting evidence.
-- A public pydoctor pilot case study now records a current-version Sphinx
-  reproduction, strict intermediate-artifact oracle, `12 -> 9` file reduction,
-  exact payload validation, `3/3` fresh-copy replay, green public CI, and
-  delivery to the existing upstream pull request.
+- A public pydoctor pilot and outreach postmortem now records a current-version
+  Sphinx reproduction, strict intermediate-artifact oracle, `12 -> 9` file
+  reduction, exact payload validation, `3/3` fresh-copy replay, green public
+  CI, and the later community-boundary failure after upstream delivery.
 
 ### Changed
 
@@ -122,6 +122,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Generated `REPOMIN.md` files now identify themselves as tool output, record
+  whether an external semantic reducer proposed edits, and require separate
+  disclosure of material LLM or agent involvement before upstream sharing.
+- The pydoctor public-pilot record now includes the later failed outreach and
+  account ban instead of incorrectly ending at the initial authorship
+  disclosure. Contribution guidance and templates now treat a recipient's
+  authorship boundary or request to stop as final.
+- The README tool-selection table no longer describes C-Vise and Perses as
+  single-input-only reducers; both can operate across multiple files or
+  directories in their supported workflows.
 - Source distributions now include the CI workflow consumed by the bundled
   GitHub Action contract tests, so that test module can run from an extracted
   source archive instead of failing on a missing file.

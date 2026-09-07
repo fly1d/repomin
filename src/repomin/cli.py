@@ -139,6 +139,16 @@ if "NEEDLE" not in lines:
 print("REPOMIN_DEMO_FAILURE", file=sys.stderr)
 raise SystemExit(1)
 """
+_DEMO_WINDOWS_SCRIPT = r"""@echo off
+"%SystemRoot%\System32\findstr.exe" /l /x /c:"NEEDLE" "input.txt" >nul 2>&1
+if errorlevel 1 goto different_failure
+>&2 echo REPOMIN_DEMO_FAILURE
+exit /b 1
+
+:different_failure
+>&2 echo DIFFERENT_FAILURE
+exit /b 2
+"""
 _DEMO_INPUT = "remove-before\nNEEDLE\nremove-after\n"
 _DEMO_UNUSED = "unrelated fixture line\n" * 24
 
@@ -723,7 +733,9 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
     return parser
 
 
-def _demo_python_command() -> str:
+def _demo_reproducer() -> Tuple[str, str, str]:
+    if os.name == "nt":
+        return "reproduce.cmd", _DEMO_WINDOWS_SCRIPT, r".\reproduce.cmd"
     if not sys.executable:
         raise RuntimeError("the current Python executable is unavailable")
     try:
@@ -732,9 +744,8 @@ def _demo_python_command() -> str:
         raise RuntimeError("the current Python executable is unavailable") from exc
     if not executable.is_file():
         raise RuntimeError("the current Python executable is not a regular file")
-    if os.name == "nt":
-        return '"%s" -I -S reproduce.py' % executable
-    return shlex.join([str(executable), "-I", "-S", "reproduce.py"])
+    command = shlex.join([str(executable), "-I", "-S", "reproduce.py"])
+    return "reproduce.py", _DEMO_SCRIPT, command
 
 
 def _write_demo_file(path: Path, content: str) -> None:
@@ -742,13 +753,13 @@ def _write_demo_file(path: Path, content: str) -> None:
         handle.write(content)
 
 
-def _validate_demo_result(payload: Path, summary: dict) -> None:
+def _validate_demo_result(payload: Path, summary: dict, reproducer_name: str) -> None:
     files = sorted(
         path.relative_to(payload).as_posix()
         for path in payload.rglob("*")
         if path.is_file()
     )
-    if files != ["input.txt", "reproduce.py"]:
+    if files != ["input.txt", reproducer_name]:
         raise RuntimeError("unexpected minimized payload: %s" % ", ".join(files))
     if (payload / "input.txt").read_text(encoding="utf-8") != "NEEDLE\n":
         raise RuntimeError("the demo text reducer did not reach its expected result")
@@ -793,37 +804,39 @@ def _demo_command(argv: Sequence[str]) -> int:
         payload = workspace / "reduced"
         metadata = workspace / "reduced.repomin"
         source.mkdir()
-        _write_demo_file(source / "reproduce.py", _DEMO_SCRIPT)
+        reproducer_name, reproducer_content, demo_command = _demo_reproducer()
+        _write_demo_file(source / reproducer_name, reproducer_content)
         _write_demo_file(source / "input.txt", _DEMO_INPUT)
         _write_demo_file(source / "unused.txt", _DEMO_UNUSED)
+        reduction_argv = [
+            str(source),
+            "--command",
+            demo_command,
+            "--match",
+            _DEMO_FAILURE_MARKER,
+            "--exit-code",
+            "1",
+            "--adapter",
+            "none",
+            "--source-reducer",
+            "none",
+            "--text-file",
+            "input.txt",
+            "--timeout",
+            "10",
+            "--max-attempts",
+            "100",
+            "--max-duration",
+            "60",
+            "--output",
+            str(payload),
+            "--quiet",
+        ]
 
         captured_stdout = io.StringIO()
         with contextlib.redirect_stdout(captured_stdout):
             reduction_exit = main(
-                [
-                    str(source),
-                    "--command",
-                    _demo_python_command(),
-                    "--match",
-                    _DEMO_FAILURE_MARKER,
-                    "--exit-code",
-                    "1",
-                    "--adapter",
-                    "none",
-                    "--source-reducer",
-                    "none",
-                    "--text-file",
-                    "input.txt",
-                    "--timeout",
-                    "10",
-                    "--max-attempts",
-                    "100",
-                    "--max-duration",
-                    "60",
-                    "--output",
-                    str(payload),
-                    "--quiet",
-                ],
+                reduction_argv,
                 semantic_environment_defaults=False,
             )
         if reduction_exit != 0:
@@ -837,7 +850,7 @@ def _demo_command(argv: Sequence[str]) -> int:
         report_path = metadata / "report.json"
         report = validate_report_file(report_path, payload)
         summary = _validation_summary(report, report_path, payload)
-        _validate_demo_result(payload, summary)
+        _validate_demo_result(payload, summary, reproducer_name)
 
         print("ReproMin demo completed.")
         print(
@@ -851,7 +864,7 @@ def _demo_command(argv: Sequence[str]) -> int:
             )
         )
         print("Removed: unused.txt and two unrelated input lines.")
-        print("Kept: reproduce.py and input.txt (only NEEDLE remains).")
+        print("Kept: %s and input.txt (only NEEDLE remains)." % reproducer_name)
         print("Validated: exact payload fingerprint.")
         print("Workspace: %s" % workspace)
         print("Payload: %s" % payload)
