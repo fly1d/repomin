@@ -168,6 +168,7 @@ def _reject_mixed_options(argv: Sequence[str], *, command: str) -> None:
     value_options = {"--output"}
     flag_options = {"-h", "--help", "--version"}
     if command == "doctor":
+        value_options.add("--format")
         flag_options.add("--json")
     else:
         value_options.add("--session")

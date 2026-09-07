@@ -13,6 +13,7 @@ import tempfile
 from pathlib import Path
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
+from repomin import __version__
 from repomin.execution import CommandRunner, DockerRunner, RunnerError
 from repomin.gitignore import load_gitignore
 from repomin.input_paths import (
@@ -45,6 +46,32 @@ _ADAPTER_NAMES = (
     "go",
 )
 _JAVA_VERSION = re.compile(r"(?:openjdk|java|javac)[^0-9]*(\d+)(?:\.\d+)?")
+_SUMMARY_VERSION = re.compile(r"^[0-9]+(?:\.[0-9]+){2}[A-Za-z0-9._+-]*$")
+_DOCTOR_SOURCE_REDUCERS = ("java", "python")
+_DOCTOR_CHECK_NAMES = (
+    "source",
+    "gitignore",
+    "keep-paths",
+    "text-targets",
+    "adapter",
+    "source-reducer",
+    "output",
+    "oracle",
+    "backend",
+    "baseline",
+)
+_DOCTOR_CHECK_STATUSES = ("not_run", "skip", "pass", "warn", "fail")
+_DOCTOR_ORACLE_MODES = (
+    "not_requested",
+    "match",
+    "exit_code",
+    "match_and_exit_code",
+    "java_exception",
+    "python_exception",
+    "process_failure",
+    "invalid",
+)
+_MAX_DOCTOR_INTEGER_BITS = 128
 
 
 def _finite_number(value: object) -> bool:
@@ -316,6 +343,7 @@ def run_doctor(
         "adapters": {},
         "source_reducers": {},
         "baseline": {"status": "not_run"},
+        "gitignore_checked": False,
         "gitignore_files": [],
         "gitignore_sha256": None,
         "gitignore_recursive": bool(gitignore_recursive),
@@ -366,6 +394,7 @@ def run_doctor(
     result["gitignore_files"] = list(loaded_gitignore_files)
     result["gitignore_sha256"] = gitignore_sha256
     result["gitignore_recursive"] = loaded_gitignore_recursive
+    result["gitignore_checked"] = True
     ignores = IgnoreSet(
         DEFAULT_IGNORES,
         sorted(set(ignore_paths)),
@@ -819,6 +848,7 @@ def run_doctor(
         and baseline_configuration_valid
         and selection_valid
     ):
+        oracle: Optional[FailureOracle] = None
         try:
             runner = _runner(
                 command or "",
@@ -902,7 +932,25 @@ def run_doctor(
                 % (oracle.baseline_passes, oracle.baseline_runs),
             )
         except (OracleError, RunnerError, OSError, ValueError) as exc:
-            result["baseline"] = {"status": "fail", "message": str(exc)}
+            failed_baseline = {"status": "fail", "message": str(exc)}
+            if oracle is not None and oracle.baseline_rate is not None:
+                failed_baseline.update(
+                    {
+                        "runs": oracle.baseline_runs,
+                        "passes": oracle.baseline_passes,
+                        "minimum_passes": baseline_minimum,
+                        "rate": oracle.baseline_rate,
+                        "minimum_rate": min_baseline_rate,
+                        "confidence": confidence,
+                        "rate_evidence_runs": oracle.baseline_rate_evidence_runs,
+                        "rate_evidence_passes": oracle.baseline_rate_evidence_passes,
+                        "exact_lower_bound": oracle.baseline_exact_lower_bound,
+                        "exact_rate_gate_passed": (
+                            oracle.baseline_exact_rate_gate_passed
+                        ),
+                    }
+                )
+            result["baseline"] = failed_baseline
             _check(checks, "baseline", "fail", str(exc))
 
     ok = not any(check["status"] == "fail" for check in checks)
@@ -934,4 +982,252 @@ def format_doctor(result: Mapping[str, object]) -> str:
             "Baseline: %(passes)s/%(runs)s passes, exit code %(exit_code)s"
             % baseline
         )
+    return "\n".join(lines) + "\n"
+
+
+def doctor_oracle_mode(
+    *,
+    command: Optional[str],
+    match: Optional[str],
+    exit_code: Optional[int],
+    java_exception: bool,
+    python_exception: bool,
+    process_failure: bool,
+) -> str:
+    """Classify a Doctor oracle without retaining its private values."""
+    modes = sum((java_exception, python_exception, process_failure))
+    if modes > 1:
+        return "invalid"
+    if command is None:
+        if match is not None or exit_code is not None or modes:
+            return "invalid"
+        return "not_requested"
+    if process_failure and exit_code is not None:
+        return "invalid"
+    if java_exception:
+        return "java_exception"
+    if python_exception:
+        return "python_exception"
+    if process_failure:
+        return "process_failure"
+    if match is not None and exit_code is not None:
+        return "match_and_exit_code"
+    if exit_code is not None:
+        return "exit_code"
+    if match is not None:
+        return "match"
+    return "invalid"
+
+
+def _safe_doctor_enum(value: object, choices: Sequence[str]) -> str:
+    if type(value) is str:
+        for choice in choices:
+            if value == choice:
+                return choice
+    return "unknown"
+
+
+def _safe_doctor_count(value: object) -> object:
+    if type(value) in {list, tuple}:
+        return len(value)
+    return None
+
+
+def _safe_doctor_integer(value: object) -> object:
+    if (
+        type(value) is not int
+        or value < 0
+        or value.bit_length() > _MAX_DOCTOR_INTEGER_BITS
+    ):
+        return None
+    return value
+
+
+def _safe_doctor_probability(value: object) -> object:
+    if type(value) not in {int, float} or not _finite_number(value):
+        return None
+    numeric = float(value)
+    if not 0.0 <= numeric <= 1.0:
+        return None
+    return format(numeric, ".12g")
+
+
+def _safe_doctor_boolean(value: object) -> object:
+    if type(value) is bool:
+        return value
+    return None
+
+
+def _doctor_markdown_cell(value: object) -> str:
+    """Render a scalar that has already passed a strict whitelist."""
+    if value is None:
+        text = "n/a"
+    elif isinstance(value, bool):
+        text = "true" if value else "false"
+    else:
+        text = str(value)
+    return "`%s`" % text
+
+
+def _safe_doctor_names(value: object, choices: Sequence[str]) -> str:
+    if type(value) not in {list, tuple}:
+        return "unknown"
+    selected = {item for item in value if type(item) is str and item in choices}
+    return ", ".join(name for name in choices if name in selected) or "none"
+
+
+def _available_source_reducers(result: Mapping[str, object]) -> str:
+    reducers = result.get("source_reducers")
+    if not isinstance(reducers, Mapping) or not reducers:
+        return "unknown"
+    available = []
+    for name in _DOCTOR_SOURCE_REDUCERS:
+        reducer = reducers.get(name)
+        if isinstance(reducer, Mapping) and reducer.get("available") is True:
+            available.append(name)
+    return ", ".join(available) or "none"
+
+
+def _doctor_check_statuses(
+    result: Mapping[str, object], gitignore_requested: object
+) -> Dict[str, str]:
+    statuses = {name: "not_run" for name in _DOCTOR_CHECK_NAMES}
+    checks = result.get("checks")
+    if not isinstance(checks, (list, tuple)):
+        return statuses
+    priority = {status: index for index, status in enumerate(_DOCTOR_CHECK_STATUSES)}
+    for check in checks:
+        if not isinstance(check, Mapping):
+            continue
+        name = check.get("name")
+        status = check.get("status")
+        if type(name) is not str or type(status) is not str:
+            continue
+        if name not in statuses or status not in priority:
+            continue
+        if priority[status] > priority[statuses[name]]:
+            statuses[name] = status
+    if statuses["gitignore"] == "not_run":
+        if (
+            gitignore_requested is True
+            and result.get("gitignore_checked") is True
+        ):
+            statuses["gitignore"] = "pass"
+        elif gitignore_requested is False:
+            statuses["gitignore"] = "skip"
+    return statuses
+
+
+def format_doctor_markdown(
+    result: Mapping[str, object],
+    *,
+    requested_adapter: object = None,
+    requested_source_reducer: object = None,
+    backend: object = None,
+    oracle_mode: object = None,
+    gitignore_requested: object = None,
+) -> str:
+    """Render deterministic preflight evidence from a strict safe whitelist."""
+    baseline = result.get("baseline")
+    if not isinstance(baseline, Mapping):
+        baseline = {}
+    version = (
+        __version__
+        if len(__version__) <= 128 and _SUMMARY_VERSION.fullmatch(__version__)
+        else None
+    )
+    fields = (
+        ("status", "ready" if result.get("ok") is True else "needs_attention"),
+        ("repomin_version", version),
+        ("backend", _safe_doctor_enum(backend, ("host", "docker"))),
+        ("oracle_mode", _safe_doctor_enum(oracle_mode, _DOCTOR_ORACLE_MODES)),
+        ("source_files", _safe_doctor_integer(result.get("source_files"))),
+        ("source_bytes", _safe_doctor_integer(result.get("source_bytes"))),
+        (
+            "requested_adapter",
+            _safe_doctor_enum(requested_adapter, ("auto", "none") + _ADAPTER_NAMES),
+        ),
+        (
+            "detected_adapters",
+            _safe_doctor_names(result.get("detected_adapters"), _ADAPTER_NAMES),
+        ),
+        (
+            "requested_source_reducer",
+            _safe_doctor_enum(
+                requested_source_reducer,
+                ("auto", "none") + _DOCTOR_SOURCE_REDUCERS,
+            ),
+        ),
+        ("available_source_reducers", _available_source_reducers(result)),
+        ("effective_ignore_names", _safe_doctor_count(result.get("ignored_names"))),
+        ("effective_ignore_paths", _safe_doctor_count(result.get("ignored_paths"))),
+        ("protected_paths", _safe_doctor_count(result.get("keep_paths"))),
+        ("text_targets", _safe_doctor_count(result.get("text_files"))),
+        ("gitignore_files", _safe_doctor_count(result.get("gitignore_files"))),
+        (
+            "gitignore_recursive",
+            _safe_doctor_boolean(result.get("gitignore_recursive")),
+        ),
+        (
+            "baseline_status",
+            _safe_doctor_enum(baseline.get("status"), ("not_run", "pass", "fail")),
+        ),
+        ("baseline_runs", _safe_doctor_integer(baseline.get("runs"))),
+        ("baseline_passes", _safe_doctor_integer(baseline.get("passes"))),
+        (
+            "baseline_minimum_passes",
+            _safe_doctor_integer(baseline.get("minimum_passes")),
+        ),
+        ("baseline_rate", _safe_doctor_probability(baseline.get("rate"))),
+        (
+            "baseline_minimum_rate",
+            _safe_doctor_probability(baseline.get("minimum_rate")),
+        ),
+        (
+            "baseline_confidence",
+            _safe_doctor_probability(baseline.get("confidence")),
+        ),
+        (
+            "baseline_rate_evidence_runs",
+            _safe_doctor_integer(baseline.get("rate_evidence_runs")),
+        ),
+        (
+            "baseline_rate_evidence_passes",
+            _safe_doctor_integer(baseline.get("rate_evidence_passes")),
+        ),
+        (
+            "baseline_exact_lower_bound",
+            _safe_doctor_probability(baseline.get("exact_lower_bound")),
+        ),
+        (
+            "baseline_exact_rate_gate_passed",
+            _safe_doctor_boolean(baseline.get("exact_rate_gate_passed")),
+        ),
+    )
+    lines = [
+        "# ReproMin Doctor summary",
+        "",
+        (
+            "This is privacy-safe evidence for one preflight in the current "
+            "environment. It does not establish code correctness, production "
+            "reliability, or sandbox security."
+        ),
+        "",
+        "| Field | Value |",
+        "| --- | --- |",
+    ]
+    lines.extend(
+        "| `%s` | %s |" % (name, _doctor_markdown_cell(value)) for name, value in fields
+    )
+    lines.extend(
+        (
+            "",
+            "## Checks",
+            "",
+            "| Check | Status |",
+            "| --- | --- |",
+        )
+    )
+    for name, status in _doctor_check_statuses(result, gitignore_requested).items():
+        lines.append("| `%s` | %s |" % (name, _doctor_markdown_cell(status)))
     return "\n".join(lines) + "\n"

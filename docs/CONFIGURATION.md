@@ -49,7 +49,7 @@ Run the read-only preflight and the reduction with the same specification:
 repomin doctor . \
   --config .repomin.json \
   --output /tmp/checkout-repro \
-  --json
+  --format markdown
 
 repomin . \
   --config .repomin.json \
@@ -83,8 +83,12 @@ repomin . --config .repomin.json --jobs 4
 Runtime placement, checkpoint, and output controls remain CLI-owned. A
 reduction may combine the specification with the positional `source`, `--output`,
 `--session`, `--resume`, and one of `--quiet` or `--verbose`. Doctor may combine
-it with the positional `source`, `--output`, and `--json`. Help and version
-requests do not read the configuration file.
+it with the positional `source`, `--output`, and either `--json` or
+`--format {text,json,markdown}`. `--json` is a compatibility alias for
+`--format json` and is mutually exclusive with `--format`. Output selection is
+owned by the Doctor command, not by the configuration schema. The reduction
+command does not accept `--format`; it remains invalid beside reduction
+`--config`. Help and version requests do not read the configuration file.
 
 The v1 schema deliberately excludes these CLI-only settings:
 
@@ -311,6 +315,13 @@ v1 intentionally has no environment-value field. The generated report retains
 the effective command and optional match expression under the existing report
 contract, so review both the report and payload before sharing or uploading an
 artifact.
+
+Doctor's JSON and default text diagnostics can contain resolved paths or other
+private operational context. For a deterministic public summary, use
+`repomin doctor . --config FILE --format markdown`. Its strict whitelist
+excludes the configured command and match expression, all paths and detected
+filenames, environment metadata, and raw diagnostic messages. The summary does
+not make the configuration file itself safe to publish.
 
 A configuration file below `source` is also an ordinary repository input. It
 may remain in the exported payload; never rely on reduction to remove it. When

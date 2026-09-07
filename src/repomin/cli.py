@@ -18,7 +18,12 @@ from repomin.composer_manifest import ComposerManifestReducer
 from repomin.completion import SUPPORTED_SHELLS, completion_script
 from repomin.config import ConfigError, config_option_present, expand_config_args
 from repomin.dotnet_manifest import DotnetManifestReducer
-from repomin.doctor import format_doctor, run_doctor
+from repomin.doctor import (
+    doctor_oracle_mode,
+    format_doctor,
+    format_doctor_markdown,
+    run_doctor,
+)
 from repomin.go_manifest import GoManifestReducer
 from repomin.gradle import GradleReducer
 from repomin.gitignore import GitignoreMatcher, load_gitignore
@@ -1601,10 +1606,17 @@ def _doctor_command(argv: Sequence[str]) -> int:
         metavar="NAME=VALUE",
         help="explicit baseline environment override; repeatable",
     )
-    parser.add_argument(
+    output_group = parser.add_mutually_exclusive_group()
+    output_group.add_argument(
         "--json",
         action="store_true",
         help="print a machine-readable diagnostic result",
+    )
+    output_group.add_argument(
+        "--format",
+        choices=("text", "json", "markdown"),
+        default="text",
+        help="output format (default: text; markdown is privacy-safe)",
     )
     try:
         args = parser.parse_args(expand_config_args(argv, command="doctor"))
@@ -1646,8 +1658,32 @@ def _doctor_command(argv: Sequence[str]) -> int:
     except (OSError, RunnerError, ValueError) as exc:
         print("repomin doctor: %s" % exc, file=sys.stderr)
         return 2
-    if args.json:
+    output_format = "json" if args.json else args.format
+    if output_format == "json":
         print(json.dumps(result, sort_keys=True))
+    elif output_format == "markdown":
+        print(
+            format_doctor_markdown(
+                result,
+                requested_adapter=args.adapter,
+                requested_source_reducer=args.source_reducer,
+                backend=args.backend,
+                gitignore_requested=bool(
+                    args.gitignore
+                    or args.gitignore_recursive
+                    or args.gitignore_files
+                ),
+                oracle_mode=doctor_oracle_mode(
+                    command=args.command,
+                    match=args.match,
+                    exit_code=args.exit_code,
+                    java_exception=args.java_exception,
+                    python_exception=args.python_exception,
+                    process_failure=args.process_failure,
+                ),
+            ),
+            end="",
+        )
     else:
         print(format_doctor(result), end="")
     return 0 if ok else 1

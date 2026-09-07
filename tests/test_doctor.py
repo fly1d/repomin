@@ -18,7 +18,13 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from repomin.cli import main
-from repomin.doctor import _runner, format_doctor, run_doctor
+from repomin.doctor import (
+    _runner,
+    doctor_oracle_mode,
+    format_doctor,
+    format_doctor_markdown,
+    run_doctor,
+)
 from repomin.execution import RunResult
 from repomin.input_paths import (
     normalize_ignore_path,
@@ -250,6 +256,15 @@ class DoctorTest(unittest.TestCase):
         self.assertRegex(result["gitignore_sha256"], r"^[0-9a-f]{64}$")
         self.assertFalse(result["gitignore_recursive"])
         self.assertEqual(4, result["source_files"])
+
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = main(
+                ["doctor", str(source), "--gitignore", "--format", "markdown"]
+            )
+        self.assertEqual(0, exit_code)
+        self.assertIn("| `gitignore_files` | `1` |", stdout.getvalue())
+        self.assertIn("| `gitignore` | `pass` |", stdout.getvalue())
 
     def test_doctor_keeps_same_named_file_for_directory_only_rule(self) -> None:
         source = self._source()
@@ -853,6 +868,316 @@ raise SystemExit(7)
         self.assertTrue(result["ok"])
         self.assertEqual(str(source.resolve()), result["source"])
 
+    def test_doctor_output_formats_preserve_text_and_json_behavior(self) -> None:
+        source = self._source()
+
+        default_output = io.StringIO()
+        with contextlib.redirect_stdout(default_output):
+            default_code = main(["doctor", str(source)])
+        explicit_text = io.StringIO()
+        with contextlib.redirect_stdout(explicit_text):
+            text_code = main(["doctor", str(source), "--format", "text"])
+        json_alias = io.StringIO()
+        with contextlib.redirect_stdout(json_alias):
+            alias_code = main(["doctor", str(source), "--json"])
+        explicit_json = io.StringIO()
+        with contextlib.redirect_stdout(explicit_json):
+            json_code = main(["doctor", str(source), "--format=json"])
+
+        self.assertEqual(0, default_code)
+        self.assertEqual(0, text_code)
+        self.assertEqual(default_output.getvalue(), explicit_text.getvalue())
+        self.assertEqual(0, alias_code)
+        self.assertEqual(0, json_code)
+        self.assertEqual(json_alias.getvalue(), explicit_json.getvalue())
+
+    def test_doctor_rejects_multiple_output_selectors(self) -> None:
+        source = self._source()
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as raised:
+                main(
+                    [
+                        "doctor",
+                        str(source),
+                        "--json",
+                        "--format",
+                        "markdown",
+                    ]
+                )
+        self.assertEqual(2, raised.exception.code)
+        self.assertIn("not allowed with argument --json", stderr.getvalue())
+
+    def test_doctor_markdown_is_deterministic_and_reports_aggregate_evidence(
+        self,
+    ) -> None:
+        source = self._source()
+
+        class PassingRunner:
+            def run(self, _cwd: Path) -> RunResult:
+                return RunResult(7, "ORIGINAL_FAILURE", "", 0.01)
+
+        with patch("repomin.doctor._runner", return_value=PassingRunner()):
+            ok, result = run_doctor(
+                source,
+                command="PRIVATE_COMMAND",
+                match="ORIGINAL_FAILURE",
+                exit_code=7,
+                adapter="python",
+                source_reducer="python",
+                baseline_runs=2,
+                min_baseline_passes=2,
+            )
+        self.assertTrue(ok)
+        options = {
+            "requested_adapter": "python",
+            "requested_source_reducer": "python",
+            "backend": "host",
+            "oracle_mode": doctor_oracle_mode(
+                command="PRIVATE_COMMAND",
+                match="ORIGINAL_FAILURE",
+                exit_code=7,
+                java_exception=False,
+                python_exception=False,
+                process_failure=False,
+            ),
+        }
+        first = format_doctor_markdown(result, **options)
+        second = format_doctor_markdown(result, **options)
+
+        self.assertEqual(first, second)
+        self.assertTrue(first.startswith("# ReproMin Doctor summary\n"))
+        self.assertTrue(first.endswith("\n"))
+        self.assertIn("| `status` | `ready` |", first)
+        self.assertIn("| `oracle_mode` | `match_and_exit_code` |", first)
+        self.assertIn("| `source_files` | `3` |", first)
+        self.assertIn("| `baseline_runs` | `2` |", first)
+        self.assertIn("| `baseline_passes` | `2` |", first)
+        self.assertIn("| `baseline` | `pass` |", first)
+        self.assertNotIn("PRIVATE_COMMAND", first)
+        self.assertNotIn(str(source), first)
+
+    def test_doctor_oracle_mode_covers_each_private_contract_shape(self) -> None:
+        defaults = {
+            "command": "private command",
+            "match": None,
+            "exit_code": None,
+            "java_exception": False,
+            "python_exception": False,
+            "process_failure": False,
+        }
+        cases = (
+            ({"command": None}, "not_requested"),
+            ({"match": "private match"}, "match"),
+            ({"exit_code": 7}, "exit_code"),
+            ({"match": "private match", "exit_code": 7}, "match_and_exit_code"),
+            ({"match": "private match", "java_exception": True}, "java_exception"),
+            (
+                {"match": "private match", "python_exception": True},
+                "python_exception",
+            ),
+            ({"process_failure": True}, "process_failure"),
+            ({}, "invalid"),
+            ({"process_failure": True, "exit_code": 7}, "invalid"),
+        )
+        for updates, expected in cases:
+            with self.subTest(expected=expected, updates=updates):
+                options = dict(defaults)
+                options.update(updates)
+                self.assertEqual(expected, doctor_oracle_mode(**options))
+
+    def test_doctor_markdown_exposes_signature_rate_evidence_denominator(
+        self,
+    ) -> None:
+        source = self._source()
+
+        class FailingProcessRunner:
+            def run(self, _cwd: Path) -> RunResult:
+                return RunResult(7, "PRIVATE_PROCESS_OUTPUT", "", 0.01)
+
+        with patch("repomin.doctor._runner", return_value=FailingProcessRunner()):
+            ok, result = run_doctor(
+                source,
+                command="PRIVATE_COMMAND",
+                process_failure=True,
+                baseline_runs=3,
+                min_baseline_rate=0.01,
+            )
+        rendered = format_doctor_markdown(
+            result,
+            requested_adapter="auto",
+            requested_source_reducer="auto",
+            backend="host",
+            oracle_mode="process_failure",
+            gitignore_requested=False,
+        )
+
+        self.assertTrue(ok)
+        self.assertEqual(3, result["baseline"]["runs"])
+        self.assertEqual(2, result["baseline"]["rate_evidence_runs"])
+        self.assertEqual(2, result["baseline"]["rate_evidence_passes"])
+        self.assertIn("| `baseline_runs` | `3` |", rendered)
+        self.assertIn("| `baseline_rate_evidence_runs` | `2` |", rendered)
+        self.assertIn("| `baseline_rate_evidence_passes` | `2` |", rendered)
+        self.assertIn("| `baseline_exact_rate_gate_passed` | `true` |", rendered)
+        self.assertNotIn("PRIVATE", rendered)
+
+    def test_doctor_markdown_ignores_private_and_malicious_result_fields(self) -> None:
+        private = "PRIVATE|`VALUE\nNEXT_ROW"
+        result = {
+            "ok": False,
+            "source": "/private/%s" % private,
+            "output": "/private/output/%s" % private,
+            "metadata": "/private/metadata/%s" % private,
+            "source_files": 4,
+            "source_bytes": 40,
+            "checks": [
+                {"name": "source", "status": "fail", "message": private},
+                {"name": private, "status": "pass", "message": private},
+                {"name": "oracle", "status": private, "message": private},
+            ],
+            "adapters": {
+                "python": {"detected": True, "files": [private]},
+            },
+            "detected_adapters": ["python", private],
+            "source_reducers": {
+                "python": {"available": True, "files": [private]},
+                "java": {"available": False, "files": [private]},
+            },
+            "ignored_names": [private],
+            "ignored_paths": [private],
+            "keep_paths": [private],
+            "text_files": [private],
+            "gitignore_files": [private],
+            "gitignore_sha256": private,
+            "gitignore_recursive": True,
+            "baseline": {"status": "fail", "message": private},
+            "command": private,
+            "match": private,
+            "environment": {private: private},
+        }
+
+        rendered = format_doctor_markdown(
+            result,
+            requested_adapter=private,
+            requested_source_reducer=private,
+            backend=private,
+            oracle_mode=private,
+        )
+
+        self.assertNotIn("PRIVATE", rendered)
+        self.assertNotIn("NEXT_ROW", rendered)
+        self.assertNotIn("/private", rendered)
+        self.assertNotIn("message", rendered)
+        self.assertIn("| `status` | `needs_attention` |", rendered)
+        self.assertIn("| `detected_adapters` | `python` |", rendered)
+        self.assertIn("| `available_source_reducers` | `python` |", rendered)
+        self.assertIn("| `effective_ignore_names` | `1` |", rendered)
+        self.assertIn("| `source` | `fail` |", rendered)
+        self.assertIn("| `oracle` | `not_run` |", rendered)
+
+    def test_doctor_markdown_rejects_unbounded_or_invalid_aggregate_values(
+        self,
+    ) -> None:
+        rendered = format_doctor_markdown(
+            {
+                "ok": "yes",
+                "source_files": True,
+                "source_bytes": 1 << 500,
+                "checks": [
+                    {"name": ["source"], "status": "pass"},
+                    {"name": "source", "status": ["pass"]},
+                ],
+                "baseline": {
+                    "status": "PRIVATE_STATUS",
+                    "runs": -1,
+                    "passes": True,
+                    "rate": math.nan,
+                    "minimum_rate": math.inf,
+                    "confidence": 2.0,
+                },
+            },
+            requested_adapter="PRIVATE_ADAPTER",
+            requested_source_reducer="PRIVATE_REDUCER",
+            backend="PRIVATE_BACKEND",
+            oracle_mode="PRIVATE_ORACLE",
+        )
+
+        self.assertNotIn("PRIVATE", rendered)
+        self.assertIn("| `status` | `needs_attention` |", rendered)
+        self.assertIn("| `source_files` | `n/a` |", rendered)
+        self.assertIn("| `source_bytes` | `n/a` |", rendered)
+        self.assertIn("| `baseline_status` | `unknown` |", rendered)
+        self.assertIn("| `baseline_rate` | `n/a` |", rendered)
+        self.assertIn("| `source` | `not_run` |", rendered)
+
+    def test_failing_doctor_markdown_does_not_render_private_source_path(
+        self,
+    ) -> None:
+        private_source = self._source().parent / "PRIVATE_SOURCE_DO_NOT_SHARE"
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = main(
+                [
+                    "doctor",
+                    str(private_source),
+                    "--gitignore",
+                    "--format",
+                    "markdown",
+                ]
+            )
+
+        self.assertEqual(1, exit_code)
+        self.assertNotIn("PRIVATE_SOURCE_DO_NOT_SHARE", stdout.getvalue())
+        self.assertIn("| `status` | `needs_attention` |", stdout.getvalue())
+        self.assertIn(
+            "| `available_source_reducers` | `unknown` |", stdout.getvalue()
+        )
+        self.assertIn("| `source` | `fail` |", stdout.getvalue())
+        self.assertIn("| `gitignore` | `not_run` |", stdout.getvalue())
+
+    def test_cli_accepts_doctor_config_with_markdown_format(self) -> None:
+        source = self._source()
+        config = source.parent / "doctor.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "failure": {"command": "false", "exit_code": 1},
+                }
+            ),
+            encoding="utf-8",
+        )
+        stdout = io.StringIO()
+        with patch(
+            "repomin.cli.run_doctor",
+            return_value=(
+                True,
+                {
+                    "ok": True,
+                    "checks": [],
+                    "baseline": {"status": "not_run"},
+                    "gitignore_files": [],
+                    "gitignore_recursive": False,
+                    "keep_paths": [],
+                    "text_files": [],
+                },
+            ),
+        ):
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "doctor",
+                        str(source),
+                        "--config",
+                        str(config),
+                        "--format",
+                        "markdown",
+                    ]
+                )
+        self.assertEqual(0, exit_code)
+        self.assertTrue(stdout.getvalue().startswith("# ReproMin Doctor summary\n"))
+
     def test_cli_returns_one_when_baseline_does_not_reproduce(self) -> None:
         source = self._source()
         stdout = io.StringIO()
@@ -873,6 +1198,28 @@ raise SystemExit(7)
         result = json.loads(stdout.getvalue())
         self.assertFalse(result["ok"])
         self.assertEqual("fail", result["baseline"]["status"])
+        self.assertEqual(2, result["baseline"]["runs"])
+        self.assertEqual(0, result["baseline"]["passes"])
+        self.assertEqual(0.0, result["baseline"]["rate"])
+
+        markdown = io.StringIO()
+        with contextlib.redirect_stdout(markdown):
+            markdown_code = main(
+                [
+                    "doctor",
+                    str(source),
+                    "--command",
+                    command,
+                    "--match",
+                    "NO_SUCH_FAILURE",
+                    "--format",
+                    "markdown",
+                ]
+            )
+        self.assertEqual(1, markdown_code)
+        self.assertIn("| `baseline_status` | `fail` |", markdown.getvalue())
+        self.assertIn("| `baseline_runs` | `2` |", markdown.getvalue())
+        self.assertIn("| `baseline_passes` | `0` |", markdown.getvalue())
 
 
 if __name__ == "__main__":

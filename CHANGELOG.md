@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Doctor now accepts `--format {text,json,markdown}`. Markdown emits a
+  deterministic, privacy-safe preflight summary from a strict whitelist of
+  aggregate evidence and fixed check statuses, excluding paths, filenames,
+  commands, match expressions, environment metadata, input-selection values,
+  and raw diagnostics. Detailed text remains the default, `--json` remains a
+  compatibility alias for JSON, the selectors are mutually exclusive, and
+  Doctor configuration mode accepts the new output selector.
 - A strict `schema_version: 1` JSON reduction specification can now drive both
   reductions and Doctor preflight through `--config`, and the GitHub Action can
   load the same reviewed repository file. The contract maps portable core
@@ -50,6 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Doctor now retains aggregate run/pass/rate evidence when a completed baseline
+  misses its acceptance threshold, and its JSON result records whether
+  gitignore loading completed. Shareable failure summaries can therefore show
+  useful evidence without inferring success from a requested but unrun check.
 - Long reductions now emit rate-limited, privacy-safe aggregate status on
   stderr by default. `--quiet` suppresses routine status output, while
   `--verbose` adds detailed component and accepted-candidate progress; stdout

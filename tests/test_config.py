@@ -298,10 +298,22 @@ class ConfigExpansionTests(_ConfigTestCase):
                         )
 
             expanded = expand_config_args(
-                ["repo", "--config=%s" % path, "--output=out", "--json"],
+                [
+                    "repo",
+                    "--config=%s" % path,
+                    "--output=out",
+                    "--format",
+                    "markdown",
+                ],
                 command="doctor",
             )
-            self.assertEqual(["--output=out", "--json"], expanded[-2:])
+            self.assertEqual(["--output=out", "--format", "markdown"], expanded[-3:])
+
+    def test_format_remains_invalid_for_reduction_config(self):
+        with self.assertRaisesRegex(
+            ConfigError, "--format cannot be combined with --config"
+        ):
+            self._expand(_minimal_spec(), extra=("--format", "markdown"))
 
 
 class ConfigSchemaTests(_ConfigTestCase):
