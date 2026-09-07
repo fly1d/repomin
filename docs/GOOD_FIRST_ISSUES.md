@@ -16,15 +16,12 @@ Completed tasks are removed from this section so contributors do not start
 work against a closed issue. New scoped tasks are added after their user
 workflow and acceptance criteria are ready.
 
-## In review
-
-- [Add a runnable Composer manifest walkthrough](https://github.com/fly1d/repomin/issues/22)
-  is assigned and has an open [pull request](https://github.com/fly1d/repomin/pull/24).
-  Please do not start a parallel implementation while that contribution is
-  under review.
-
 ## Recently completed
 
+- [Add a runnable Composer manifest walkthrough](https://github.com/fly1d/repomin/issues/22)
+  now documents network-free `composer.json` reduction, exact payload
+  validation, an independent Python oracle rerun, and the
+  no-PHP/no-Composer/no-install boundary in the main examples.
 - [Add a runnable Node package manifest walkthrough](https://github.com/fly1d/repomin/issues/20)
   now documents the network-free `package.json` reduction, retained payload
   validation, an independent oracle rerun, and the no-install trust boundary
