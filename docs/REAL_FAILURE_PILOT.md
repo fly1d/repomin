@@ -7,6 +7,8 @@ in practice; a complete private repository is not required.
 For completed public workflows, see the
 [tsdown CSS module pilot](CASE_STUDY_TSDOWN_979.md), which records an oracle
 weakness found during its first reduction, and the
+[Gradle composite-build pilot](CASE_STUDY_GRADLE_38843.md), which records a
+large staged reduction and a path-sensitive cache boundary, and the
 [pydoctor Sphinx pilot and outreach postmortem](CASE_STUDY_PYDOCTOR_728.md),
 which combines a strict late-failure oracle with an important example of
 community boundaries that were not respected.
