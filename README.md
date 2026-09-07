@@ -84,6 +84,21 @@ repomin doctor . \
   --output /tmp/project-repro
 ```
 
+Doctor keeps its detailed text output as the default. To share a successful or
+blocked preflight without publishing local paths or failure details, select its
+deterministic, strict-whitelist Markdown summary:
+
+```sh
+repomin doctor . --format markdown
+```
+
+The shareable summary contains only aggregate readiness evidence and fixed
+check statuses. It omits commands, match expressions, environment metadata,
+paths, filenames, input-selection values, and raw diagnostics. `--format json`
+provides the full machine-readable diagnostic result; `--json` remains its
+compatibility alias, and the two output selectors cannot be combined. See the
+[Doctor guide](docs/DOCTOR.md) for the complete privacy and exit-code contract.
+
 After a reduction, use the [replay command](docs/REPLAY.md) to check the
 recorded failure contract against fresh copies of the exported payload:
 
@@ -110,8 +125,9 @@ is useful feedback. Use the [pilot issue](https://github.com/fly1d/repomin/issue
 for a sanitized CI/dependency failure, or the [user workflow feedback
 template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md)
 when you want to report value, friction, or compatibility without publishing a
-failure. Review the payload and report first; do not upload credentials,
-private URLs, proprietary source, raw logs, commands, or environment values.
+failure. Attach the Doctor Markdown summary when a preflight is relevant.
+Review the payload and report first; do not upload credentials, private URLs,
+proprietary source, raw logs, commands, or environment values.
 
 中文用户可以先阅读[中文快速开始](docs/QUICKSTART.zh-CN.md)，其中包含一个
 可直接运行的最小缩减示例、安全边界和报告说明。

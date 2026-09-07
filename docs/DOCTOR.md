@@ -89,17 +89,53 @@ exact process termination signature. `--baseline-runs N` changes the number
 of fresh checks; it defaults to two. Doctor never treats a command's output as
 an issue report and does not include stdout/stderr in its result.
 
-For CI scripts, add `--json`. The result contains `ok`, detected adapter and
-source-reducer details, the effective source size after all exclusion rules,
-resolved output and metadata paths, normalized `keep_paths` and `text_files`,
-per-check status, and (when requested) baseline pass counts. When gitignore
-rules are enabled, `gitignore_files`, `gitignore_sha256`, and
-`gitignore_recursive` record the ordered rule-file labels, a digest of their
-contents, and whether nested discovery was enabled; rule contents are never
-copied into the result. Exit code `0` means all requested checks passed, `1`
-means a check or baseline failed, and `2` means the Doctor invocation itself
-was invalid. A passing baseline only says that the configured failure was
-observed in the recorded environment; it is not a correctness claim.
+## Output formats
+
+Doctor writes its existing detailed text result by default. The equivalent
+explicit selection is `--format text`.
+
+For CI scripts, use `--format json`. The existing `--json` flag remains a
+compatibility alias for that selection; do not combine `--json` with
+`--format`, even when the requested format is also JSON. The result contains
+`ok`, detected adapter and source-reducer details, the effective source size
+after all exclusion rules, resolved output and metadata paths, normalized
+`keep_paths` and `text_files`, per-check status, and (when requested) baseline
+pass counts. When gitignore rules are enabled, `gitignore_files`,
+`gitignore_sha256`, `gitignore_recursive`, and `gitignore_checked` record the
+ordered rule-file labels, a digest of their contents, whether nested discovery
+was enabled, and whether loading completed; rule contents are never copied into
+the result. JSON is intended for local automation and can contain private paths
+and path-bearing diagnostics, so review and redact it before posting it
+publicly.
+
+For a deterministic summary intended for an issue, discussion, or other public
+feedback, use Markdown:
+
+```sh
+repomin doctor . --format markdown
+```
+
+The Markdown renderer uses a strict whitelist rather than redacting the full
+diagnostic result. It can report ReproMin version and readiness, sanitized
+backend and oracle modes, aggregate source size and input-selection counts,
+requested and detected reducers, aggregate baseline evidence, and fixed check
+names and statuses. Rate-gated baselines include the separate evidence
+run/pass counts used for their exact bound, which can differ from total counts
+when the first sample discovers a signature. The renderer never includes
+source or output paths, commands, match expressions, environment names or
+values, detected filenames, selected ignore, keep, text, or gitignore paths,
+or raw diagnostic messages. This makes the summary suitable for sharing
+whether Doctor passes or explains a blocked trial; it does not make the source
+tree, configuration, or full JSON result safe to publish. This guarantee
+applies to a successfully emitted Markdown document. Argument/configuration
+errors and other invocation failures are reported separately on stderr and can
+include the offending private input.
+
+Exit code `0` means all requested checks passed, `1` means a check or baseline
+failed, and `2` means the Doctor invocation itself was invalid. Output format
+does not change those semantics. A passing baseline only says that the
+configured failure was observed in the recorded environment; it is not a
+correctness claim.
 
 The baseline runs in disposable copies and inherits the normal host or Docker
 trust boundary. Do not run an untrusted command on the host backend, and review

@@ -78,9 +78,10 @@ _repomin() {
         fi
     fi
     if [[ "${COMP_WORDS[1]}" == "doctor" ]]; then
-        options="--version --help --config --command --match --exit-code --java-exception --python-exception --process-failure --adapter --source-reducer --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --timeout --baseline-runs --min-baseline-passes --min-baseline-rate --confidence --output --ignore --ignore-path --keep --text-file --gitignore --gitignore-file --gitignore-recursive --env --json"
-        value_options="--config --command --match --exit-code --adapter --source-reducer --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --timeout --baseline-runs --min-baseline-passes --min-baseline-rate --confidence --output --ignore --ignore-path --keep --text-file --gitignore-file --env"
+        options="--version --help --config --command --match --exit-code --java-exception --python-exception --process-failure --adapter --source-reducer --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --timeout --baseline-runs --min-baseline-passes --min-baseline-rate --confidence --output --ignore --ignore-path --keep --text-file --gitignore --gitignore-file --gitignore-recursive --env --json --format"
+        value_options="--config --command --match --exit-code --adapter --source-reducer --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --timeout --baseline-runs --min-baseline-passes --min-baseline-rate --confidence --output --ignore --ignore-path --keep --text-file --gitignore-file --env --format"
         case "$prev" in
+            --format) COMPREPLY=( $(compgen -W "text json markdown" -- "$cur") ); return 0 ;;
             --backend) COMPREPLY=( $(compgen -W "host docker" -- "$cur") ); return 0 ;;
             --docker-network) COMPREPLY=( $(compgen -W "none bridge host" -- "$cur") ); return 0 ;;
             --adapter) COMPREPLY=( $(compgen -W "auto none maven gradle python pipenv node composer dotnet ruby cargo go" -- "$cur") ); return 0 ;;
@@ -195,7 +196,8 @@ _repomin() {
             '--gitignore-file[apply a gitignore-style file]:file:_files' \
             '--gitignore-recursive[apply nested .gitignore files]' \
             '--env[baseline environment variable]:NAME=VALUE:' \
-            '--json[print a machine-readable result]'
+            '--json[print a machine-readable result]' \
+            '--format[output format]:format:(text json markdown)'
         return
     fi
     options=(
@@ -285,6 +287,7 @@ complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_s
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l yes -d 'acknowledge report command execution'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l json -d 'print machine-readable replay evidence'
 complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l json -d 'print a machine-readable result'
+complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l format -r -a 'text json markdown' -d 'output format'
 complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l gitignore -d 'apply repository .gitignore'
 complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l gitignore-file -r -a '(__fish_complete_path)' -d 'apply a gitignore-style file'
 complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l gitignore-recursive -d 'apply nested .gitignore files'
@@ -367,6 +370,30 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
         '--quiet' = 'suppress routine status output'
         '--verbose' = 'print detailed reduction progress'
     }
+    $doctorOptions = @(
+        '--version', '--help', '--config', '--command', '--match', '--exit-code',
+        '--java-exception', '--python-exception', '--process-failure', '--adapter',
+        '--source-reducer', '--backend', '--docker-image', '--docker-network',
+        '--docker-cpus', '--docker-memory', '--docker-pids-limit',
+        '--docker-tmpfs-size', '--docker-workspace-limit', '--timeout',
+        '--baseline-runs', '--min-baseline-passes', '--min-baseline-rate',
+        '--confidence', '--output', '--ignore', '--ignore-path', '--keep',
+        '--text-file', '--gitignore', '--gitignore-file', '--gitignore-recursive',
+        '--env', '--json', '--format'
+    )
+    $doctorValueOptions = @(
+        '--config', '--command', '--match', '--exit-code', '--adapter',
+        '--source-reducer', '--backend', '--docker-image', '--docker-network',
+        '--docker-cpus', '--docker-memory', '--docker-pids-limit',
+        '--docker-tmpfs-size', '--docker-workspace-limit', '--timeout',
+        '--baseline-runs', '--min-baseline-passes', '--min-baseline-rate',
+        '--confidence', '--output', '--ignore', '--ignore-path', '--keep',
+        '--text-file', '--gitignore-file', '--env', '--format'
+    )
+    $doctorPathOptions = @(
+        '--config', '--output', '--ignore-path', '--keep', '--text-file',
+        '--gitignore-file'
+    )
     $reportOptions = @('validate', 'replay', 'compare', '--help')
     $reportValidateOptions = @('--help', '--payload', '--json', '--format')
     $reportReplayOptions = @(
@@ -406,7 +433,13 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
     } else {
         ''
     }
-    $reportMode = $elements | Where-Object { $_.Extent.Text -eq 'report' }
+    $subcommand = if ($elements.Count -gt 1) {
+        $elements[1].Extent.Text
+    } else {
+        ''
+    }
+    $doctorMode = $subcommand -eq 'doctor'
+    $reportMode = $subcommand -eq 'report'
     if ($reportMode) {
         $validateMode = $elements | Where-Object { $_.Extent.Text -eq 'validate' }
         $replayMode = $elements | Where-Object { $_.Extent.Text -eq 'replay' }
@@ -487,6 +520,56 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
             $reportValidateOptions
         }
         $activeReportOptions |
+            Where-Object { $_ -like "$wordToComplete*" } |
+            ForEach-Object {
+                [System.Management.Automation.CompletionResult]::new(
+                    $_, $_, 'ParameterName', $_
+                )
+            }
+        return
+    }
+    if ($doctorMode) {
+        if ($previous -eq '--format') {
+            @('text', 'json', 'markdown') |
+                Where-Object { $_ -like "$wordToComplete*" } |
+                ForEach-Object {
+                    [System.Management.Automation.CompletionResult]::new(
+                        $_, $_, 'ParameterValue', $_
+                    )
+                }
+            return
+        }
+        if ($enumValues.ContainsKey($previous)) {
+            $enumValues[$previous] |
+                Where-Object { $_ -like "$wordToComplete*" } |
+                ForEach-Object {
+                    [System.Management.Automation.CompletionResult]::new(
+                        $_, $_, 'ParameterValue', $_
+                    )
+                }
+            return
+        }
+        if ($doctorValueOptions -contains $previous) {
+            if ($doctorPathOptions -contains $previous) {
+                $pathPattern = if ([string]::IsNullOrEmpty($wordToComplete)) {
+                    '*'
+                } else {
+                    "$wordToComplete*"
+                }
+                Get-ChildItem -Path $pathPattern -Force -ErrorAction SilentlyContinue |
+                    ForEach-Object {
+                        $completionText = $_.FullName
+                        if ($_.PSIsContainer) {
+                            $completionText += [System.IO.Path]::DirectorySeparatorChar
+                        }
+                        [System.Management.Automation.CompletionResult]::new(
+                            $completionText, $_.Name, 'ProviderItem', $_.FullName
+                        )
+                    }
+            }
+            return
+        }
+        $doctorOptions |
             Where-Object { $_ -like "$wordToComplete*" } |
             ForEach-Object {
                 [System.Management.Automation.CompletionResult]::new(
