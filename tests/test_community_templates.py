@@ -44,8 +44,11 @@ class CommunityTemplateTest(unittest.TestCase):
             "## failure contract",
             "## repromin run",
             "## artifact evidence",
+            "## authorship and automation",
             "## privacy and redistribution",
             "report validate",
+            "material llm or agent involvement",
+            "ai-assistance policies",
             "credentials",
             "proprietary source",
         ):

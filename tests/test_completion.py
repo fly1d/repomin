@@ -6,6 +6,43 @@ from repomin.completion import SUPPORTED_SHELLS, completion_script
 
 
 class CompletionScriptTests(unittest.TestCase):
+    def test_demo_completion_is_available_for_every_shell(self) -> None:
+        for shell in SUPPORTED_SHELLS:
+            with self.subTest(shell=shell):
+                script = completion_script(shell)
+                self.assertIn("demo", script)
+                self.assertIn("workspace", script)
+
+        bash = completion_script("bash")
+        bash_start = bash.index('if [[ "${COMP_WORDS[1]}" == "demo" ]]; then')
+        bash_end = bash.index("if (( COMP_CWORD == 1 ))", bash_start)
+        bash_demo = bash[bash_start:bash_end]
+        self.assertIn("compgen -d", bash_demo)
+        self.assertNotIn("compgen -f", bash_demo)
+        self.assertIn('COMPREPLY+=("${candidate%/}/")', bash_demo)
+
+        zsh = completion_script("zsh")
+        zsh_start = zsh.index('if [[ "$words[2]" == "demo" ]]; then')
+        zsh_end = zsh.index("\n        return\n    fi", zsh_start)
+        self.assertIn("_directories", zsh[zsh_start:zsh_end])
+
+        fish = completion_script("fish")
+        self.assertIn('test "$tokens[2]" = demo', fish)
+        self.assertIn("__repomin_demo_needs_workspace", fish)
+        self.assertIn("(__fish_complete_directories)", fish)
+        self.assertNotIn("__fish_seen_subcommand_from demo", fish)
+        self.assertGreater(fish.count("not __repomin_demo_mode"), 30)
+
+        powershell = completion_script("powershell")
+        demo_start = powershell.index("if ($demoMode) {")
+        demo_end = powershell.index("\n    if ($reportMode) {", demo_start)
+        demo = powershell[demo_start:demo_end]
+        self.assertIn("$acceptsWorkspace", demo)
+        self.assertIn("Get-ChildItem -LiteralPath $parentPath -Directory", demo)
+        self.assertIn("$_.Name.StartsWith", demo)
+        self.assertIn("$completionText.Replace", demo)
+        self.assertNotIn("Get-ChildItem -Path", demo)
+
     def test_reduction_completion_includes_quiet_with_description(self) -> None:
         for shell in SUPPORTED_SHELLS:
             with self.subTest(shell=shell):

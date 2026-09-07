@@ -318,7 +318,8 @@ class ActionContractTests(unittest.TestCase):
             self.assertIn("  %s:\n" % name, self.action)
         self.assertIn('print(f"{name}={value}")', self.action)
         self.assertIn(
-            'repomin report validate "$report_path" --payload "$payload_path" --json',
+            'python -m repomin report validate "$report_path" '
+            '--payload "$payload_path" --json',
             self.action,
         )
         self.assertIn("generated report is missing an action output field", self.action)
@@ -341,7 +342,8 @@ class ActionContractTests(unittest.TestCase):
         self.assertIn('case "$REPOMIN_STEP_SUMMARY" in', self.action)
         self.assertIn("step-summary must be true or false", self.action)
         self.assertIn(
-            'repomin report validate "$report_path" --payload "$payload_path" --format markdown',
+            'python -m repomin report validate "$report_path" '
+            '--payload "$payload_path" --format markdown',
             self.action,
         )
         self.assertIn('>> "$summary_path"', self.action)
@@ -515,11 +517,30 @@ class ActionContractTests(unittest.TestCase):
         self.assertIn("GITHUB_STEP_SUMMARY", self.docs)
 
     def test_docs_describe_python_runtime_path_behavior(self) -> None:
-        self.assertIn("python-version", self.action)
-        self.assertIn("prepends that interpreter to `PATH`", self.docs)
-        self.assertIn("does not reconstruct the PATH", self.docs)
-        self.assertIn("version used", self.docs)
+        self.assertRegex(
+            self.action,
+            r'(?m)^  python-version:\n'
+            r'    description: .+\n'
+            r'    required: false\n'
+            r'    default: ""$',
+        )
+        self.assertIn("if: ${{ inputs.python-version != '' }}", self.action)
+        self.assertIn("already first on the job's `PATH`", self.docs)
+        self.assertIn("not automatically preserved", self.docs)
+        self.assertIn("prepended to `PATH`", self.docs)
         self.assertIn("failing job", self.docs)
+        reduce_script = _reduce_script(self.action)
+        self.assertEqual(3, reduce_script.count("python -m repomin"))
+        self.assertIn('python -m repomin "${args[@]}"', reduce_script)
+        self.assertNotRegex(reduce_script, r"(?m)^\s*repomin(?:\s|$)")
+        self.assertIn('python-version: "3.11"', self.workflow)
+        self.assertIn('python-version: "3.13"', self.workflow)
+        self.assertIn(
+            "assert sys.version_info[:2] == (3, 11), sys.version", self.workflow
+        )
+        self.assertIn(
+            "assert sys.version_info[:2] == (3, 13), sys.version", self.workflow
+        )
 
     def test_ci_runs_branch_changes_once_and_keeps_release_tag_coverage(self) -> None:
         trigger = (

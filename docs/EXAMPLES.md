@@ -1,5 +1,23 @@
 # Examples
 
+Choose the smallest workflow that matches what you want to evaluate. The
+first example proves basic repository reduction; the requirements example is
+the shortest network-free demonstration of structured manifest reduction.
+
+| Workflow | What it demonstrates | Extra requirement |
+| --- | --- | --- |
+| [Python files](#shrink-a-python-failure-to-its-required-files) | Generic file reduction | Python only |
+| [Requirements chain](#shrink-a-requirements-include-chain) | Python dependency/include reduction | None |
+| [Pipenv manifest](#shrink-a-pipenv-pipfile) | Package and development dependency reduction | None |
+| [Node manifest](#shrink-a-node-package-manifest-without-node) | Script and dependency reduction | None; Node is not invoked |
+| [Cargo workspace](#shrink-a-cargo-workspace-without-network-access) | Workspace-member reduction | None; Cargo is not invoked |
+| [Go module](#shrink-a-go-module-without-network-access) | Module requirement reduction | None; Go is not invoked |
+| [Selected text](#shrink-a-data-files-contents-with---text-file) | Explicit line-level reduction | Python only |
+| [Docker](#run-the-reproduction-in-docker) | Isolated command backend | Docker and a local image |
+| [FastAPI](#reduce-a-fastapi-dependency-regression) | Python manifest reduction in Docker | Docker; initial image build uses network |
+| [Semantic stub](#exercise-the-semantic-reducer-with-a-local-stub) | HTTP edit proposals behind the deterministic oracle | Python only |
+| [Gradle](#shrink-a-gradle-multi-module-build-without-network-access) | Multi-module Gradle reduction | Docker; initial image/cache preparation |
+
 > **Required before you start:** `--output` must be outside the source
 > repository (the directory passed as `SOURCE`). ReproMin rejects an output
 > path inside that tree. Use a sibling directory or an absolute temporary

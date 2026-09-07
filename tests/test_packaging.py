@@ -115,6 +115,7 @@ class PackagingContractTests(unittest.TestCase):
             ".github/workflows/release-candidate.yml",
             "scripts/check_contribution.py",
             "scripts/check_docs.py",
+            "scripts/check_quickstart.py",
             "scripts/check_release_artifacts.py",
             "scripts/check_windows_quickstart.ps1",
             "benchmarks/python-requirements/README.md",
@@ -134,6 +135,17 @@ class PackagingContractTests(unittest.TestCase):
         attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
         for pattern in ("*.md", "*.ps1", "*.py", "*.yml", "*.txt"):
             self.assertIn(pattern + " text eol=lf", attributes)
+
+    def test_portable_quickstart_runs_in_ci_and_release_candidates(self) -> None:
+        ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(
+            encoding="utf-8"
+        )
+        candidate = (
+            ROOT / ".github" / "workflows" / "release-candidate.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("python scripts/check_quickstart.py", ci)
+        self.assertEqual(2, candidate.count("scripts/check_quickstart.py"))
 
     def test_release_document_references_match_runtime_version(self) -> None:
         """Keep install and Action examples aligned when a release is cut."""

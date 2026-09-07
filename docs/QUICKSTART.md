@@ -17,16 +17,21 @@ python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 
-REPOMIN_VERSION=0.1.0.dev9
+REPOMIN_VERSION=0.1.0.dev10
 python -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 
 repomin --version
 ```
 
-The final command should print `repomin 0.1.0.dev9`. The
-[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev9)
+The final command should print `repomin 0.1.0.dev10`. The
+[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev10)
 publishes SHA-256 digests for users who need to verify the downloaded wheel.
+
+For the shortest tour, run `repomin demo ./repomin-demo`. It creates a new
+workspace, performs and validates a real network-free `3 -> 2` reduction, and
+refuses to overwrite an existing path. Continue below to build the same kind
+of workflow step by step and inspect its replay evidence.
 
 ## 2. Create a small failing project
 
@@ -150,9 +155,8 @@ proprietary source, customer data, raw logs, or environment values.
 - Run the read-only [doctor preflight](DOCTOR.md) before a larger reduction.
 - Choose a language or build-tool workflow from the [examples](EXAMPLES.md).
 - Add a minimized artifact to CI with the [GitHub Action guide](GITHUB_ACTION.md).
-- Read the two public upstream pilots for
-  [tsdown](CASE_STUDY_TSDOWN_979.md) and
-  [pydoctor](CASE_STUDY_PYDOCTOR_728.md).
+- Read the [tsdown technical pilot](CASE_STUDY_TSDOWN_979.md) and the
+  [pydoctor outreach postmortem](CASE_STUDY_PYDOCTOR_728.md).
 - Share a useful, inconclusive, or blocked trial with the
   [user workflow feedback template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md).
 

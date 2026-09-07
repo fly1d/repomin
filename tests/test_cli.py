@@ -17,6 +17,8 @@ from unittest.mock import patch
 
 from repomin.cli import (
     _build_runner,
+    _demo_command,
+    _demo_reproducer,
     _format_heartbeat,
     _format_reduction_start,
     _parse_byte_size,
@@ -37,7 +39,7 @@ from repomin.oracle import (
     clopper_pearson_lower_bound,
     exact_binomial_upper_tail,
 )
-from repomin.report import validate_report_document
+from repomin.report import validate_report_document, validate_report_file
 from repomin.session import HeartbeatSnapshot, _tree_digest
 
 
@@ -405,6 +407,121 @@ class CliTest(unittest.TestCase):
             "usage: repomin completion {bash,zsh,fish,powershell}",
             stdout.getvalue(),
         )
+
+    def test_demo_runs_real_reducer_and_validates_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory) / "first-demo"
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            semantic_environment = {
+                "REPOMIN_SEMANTIC_REDUCER": "http",
+                "REPOMIN_SEMANTIC_ENDPOINT": (
+                    "http://127.0.0.1:9/v1/chat/completions"
+                ),
+                "REPOMIN_SEMANTIC_MODEL": "ambient-model",
+                "REPOMIN_SEMANTIC_TIMEOUT": "not-a-number",
+                "REPOMIN_SEMANTIC_TOKEN": "ambient-token",
+            }
+            with (
+                patch.dict(os.environ, semantic_environment),
+                patch(
+                    "repomin.cli.HttpSemanticBackend",
+                    side_effect=AssertionError("demo attempted semantic HTTP"),
+                ),
+                contextlib.redirect_stdout(stdout),
+                contextlib.redirect_stderr(stderr),
+            ):
+                exit_code = main(["demo", str(workspace)])
+
+            self.assertEqual(0, exit_code, stderr.getvalue())
+            self.assertEqual("", stderr.getvalue())
+            reproducer_name = "reproduce.ps1" if os.name == "nt" else "reproduce.py"
+            self.assertEqual(
+                ["input.txt", reproducer_name],
+                sorted(
+                    path.relative_to(workspace / "reduced").as_posix()
+                    for path in (workspace / "reduced").rglob("*")
+                    if path.is_file()
+                ),
+            )
+            self.assertEqual(
+                "NEEDLE\n",
+                (workspace / "reduced" / "input.txt").read_text(encoding="utf-8"),
+            )
+            report_path = workspace / "reduced.repomin" / "report.json"
+            report = validate_report_file(report_path, workspace / "reduced")
+            self.assertEqual(3, report["source"]["files"])
+            self.assertEqual(2, report["output"]["files"])
+            self.assertEqual("none", report["execution"]["semantic_reducer"])
+            self.assertIsNone(report["execution"]["semantic_endpoint"])
+            self.assertIsNone(report["execution"]["semantic_model"])
+            self.assertEqual([], report["execution"]["environment_names"])
+            self.assertIn("ReproMin demo completed.", stdout.getvalue())
+            self.assertIn("Reduced: 3 files /", stdout.getvalue())
+            self.assertIn("Removed: unused.txt", stdout.getvalue())
+            self.assertIn("Validated: exact payload fingerprint.", stdout.getvalue())
+            self.assertIn("only NEEDLE remains", stdout.getvalue())
+
+    def test_demo_refuses_to_overwrite_an_existing_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory) / "existing"
+            workspace.mkdir()
+            sentinel = workspace / "sentinel.txt"
+            sentinel.write_text("unchanged\n", encoding="utf-8")
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                exit_code = main(["demo", str(workspace)])
+
+            self.assertEqual(2, exit_code)
+            self.assertEqual("unchanged\n", sentinel.read_text(encoding="utf-8"))
+            self.assertEqual([sentinel], list(workspace.iterdir()))
+            self.assertIn("refusing to overwrite", stderr.getvalue())
+
+    def test_demo_help_describes_new_persistent_workspace(self) -> None:
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            with self.assertRaises(SystemExit) as raised:
+                main(["demo", "--help"])
+
+        self.assertEqual(0, raised.exception.code)
+        help_text = " ".join(stdout.getvalue().split())
+        self.assertIn("usage: repomin demo", help_text)
+        self.assertIn("trusted, network-free fixture", help_text)
+        self.assertIn("existing paths are never overwritten", help_text)
+        self.assertIn("repomin demo WORKSPACE", build_parser().format_help())
+        root_help = build_parser().format_help()
+        self.assertLess(
+            root_help.index("New here?"),
+            root_help.index("positional arguments:"),
+        )
+
+    def test_demo_windows_reproducer_does_not_embed_a_python_path(self) -> None:
+        with patch("repomin.cli.os.name", "nt"):
+            name, content, command = _demo_reproducer()
+
+        self.assertEqual("reproduce.ps1", name)
+        self.assertIn(
+            r"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe",
+            command,
+        )
+        self.assertIn(r"-File .\reproduce.ps1", command)
+        self.assertIn("$PSScriptRoot", content)
+        self.assertIn("REPOMIN_DEMO_FAILURE", content)
+        self.assertNotIn("python.exe", (content + command).lower())
+
+    def test_demo_reports_an_interrupted_reduction_distinctly(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory) / "interrupted"
+            stderr = io.StringIO()
+            with patch("repomin.cli.main", return_value=130):
+                with contextlib.redirect_stderr(stderr):
+                    exit_code = _demo_command([str(workspace)])
+
+            self.assertEqual(130, exit_code)
+            reproducer_name = "reproduce.ps1" if os.name == "nt" else "reproduce.py"
+            self.assertTrue((workspace / "source" / reproducer_name).is_file())
+            self.assertIn("interrupted; workspace retained", stderr.getvalue())
+            self.assertNotIn("reduction failed", stderr.getvalue())
 
     def test_report_parent_help_lists_subcommands_and_detailed_help(self) -> None:
         stdout = io.StringIO()
@@ -1444,6 +1561,10 @@ class CliTest(unittest.TestCase):
             reproduction = (_metadata_output(output) / "REPOMIN.md").read_text(
                 encoding="utf-8"
             )
+            self.assertIn("## Provenance", reproduction)
+            self.assertIn("metadata file was generated by ReproMin", reproduction)
+            self.assertIn("separately disclose any material LLM", reproduction)
+            self.assertIn("external semantic reducer was disabled", reproduction)
             self.assertIn("Backend: `host`", reproduction)
             self.assertIn("## Payload", reproduction)
             self.assertIn("Reduced payload: `2` files", reproduction)
@@ -1924,6 +2045,10 @@ class CliTest(unittest.TestCase):
             self.assertEqual(endpoint, report["execution"]["semantic_endpoint"])
             self.assertEqual(1, report["execution"]["semantic_calls"])
             self.assertEqual(1, report["execution"]["semantic_accepted"])
+            reproduction = (_metadata_output(output) / "REPOMIN.md").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("external HTTP semantic reducer proposed edits", reproduction)
 
     def test_semantic_reducer_none_is_recorded_without_semantic_phase(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1961,6 +2086,10 @@ class CliTest(unittest.TestCase):
             self.assertIsNone(report["execution"]["semantic_endpoint"])
             self.assertEqual(0, report["execution"]["semantic_calls"])
             self.assertEqual(0, report["execution"]["semantic_accepted"])
+            reproduction = (_metadata_output(output) / "REPOMIN.md").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("external semantic reducer was disabled", reproduction)
             phases = {
                 phase["phase"] for phase in report["phase_statistics"]["phases"]
             }

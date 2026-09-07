@@ -131,6 +131,8 @@ jobs:
             exit 1
           fi
           "$wheel_venv/bin/python" -m pip check
+          "$wheel_venv/bin/python" \
+            "$GITHUB_WORKSPACE/scripts/check_quickstart.py"
           "$wheel_venv/bin/python" -I -m unittest discover \
             -s "$GITHUB_WORKSPACE/tests" -v
 
@@ -150,6 +152,8 @@ jobs:
             exit 1
           fi
           "$sdist_venv/bin/python" -m pip check
+          "$sdist_venv/bin/python" \
+            "$GITHUB_WORKSPACE/scripts/check_quickstart.py"
           "$sdist_venv/bin/python" -I -m unittest discover \
             -s "$GITHUB_WORKSPACE/tests" -v
 

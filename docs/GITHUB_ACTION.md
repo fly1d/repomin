@@ -12,7 +12,7 @@ job's failure-handling step:
 ```yaml
 - name: Minimize failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev9
+  uses: fly1d/repomin@v0.1.0.dev10
   with:
     command: python -m pytest -q
     match: "FAILED tests/test_regression.py"
@@ -25,8 +25,9 @@ The checkout must happen before this step. The action installs ReproMin from
 the selected ref and uses `GITHUB_WORKSPACE` as the repository boundary. Keep
 the action ref pinned to a reviewed release or full commit SHA for production
 CI; the version above is the current pre-release. That release still delegates
-to `actions/setup-python@v6` and `actions/upload-artifact@v6`. Current `main`
-pins both dependencies to reviewed full commit SHAs for the next release.
+to `actions/setup-python@v6` when `python-version` is set and always delegates
+artifact storage to `actions/upload-artifact@v6`. Both dependencies are pinned
+to reviewed full commit SHAs.
 
 `source` and an explicit `output` must be portable repository-relative paths.
 The Action rejects symbolic-link components and any resolved location outside
@@ -116,12 +117,17 @@ that reaches a budget still validates and exports its best accepted payload;
 the report and step summary mark `budget_exhausted` instead of presenting it as
 a fixed point.
 
-`python-version` selects the interpreter used to install and run ReproMin.
-`actions/setup-python` also prepends that interpreter to `PATH` for the action
-steps, so a reproduction command that resolves `python` or `python3` can run
-under this version. It does not reconstruct the PATH or runtime from an earlier
-failed step; set `python-version` to the version used by the failing job (or
-invoke an explicit interpreter) when that distinction matters.
+`python-version` is empty by default, so the Action installs ReproMin with the
+`python` already first on the job's `PATH`. This preserves the interpreter
+selected by an earlier setup step and avoids silently changing the runtime
+between the failing command and reduction. Shell-local activation from an
+earlier step is not automatically preserved; write the environment's binary
+directory to `GITHUB_PATH` or invoke an explicit interpreter when that matters.
+
+Set `python-version` only when the Action should call `actions/setup-python`
+itself. The selected interpreter is then prepended to `PATH` for both ReproMin
+and reproduction commands that resolve `python` or `python3`. Use the same
+version used by the failing job.
 `artifact-name` controls the uploaded artifact name.
 
 Set `step-summary: true` when the job should append a compact, privacy-safe
@@ -175,7 +181,7 @@ result through `holdout-status`:
 ```yaml
 - name: Certify minimized failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev9
+  uses: fly1d/repomin@v0.1.0.dev10
   with:
     command: python -m pytest -q
     match: "FAILED tests/test_regression.py"
@@ -189,7 +195,7 @@ For a command with a stable exit code but unstable output:
 ```yaml
 - name: Minimize failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev9
+  uses: fly1d/repomin@v0.1.0.dev10
   with:
     command: python -m pytest -q
     exit-code: "1"
@@ -201,7 +207,7 @@ For a Python failure where the match text may also appear in unrelated output:
 ```yaml
 - name: Minimize Python exception
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev9
+  uses: fly1d/repomin@v0.1.0.dev10
   with:
     command: python -m pytest -q tests/test_checkout.py
     match: "ValueError"
@@ -216,7 +222,7 @@ existing local image:
 ```yaml
 - name: Minimize Docker failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev9
+  uses: fly1d/repomin@v0.1.0.dev10
   with:
     command: python3 reproduce.py
     match: "ORIGINAL_FAILURE"
@@ -243,7 +249,7 @@ environment names or values.
 - name: Minimize failure
   if: ${{ failure() }}
   id: minimize
-  uses: fly1d/repomin@v0.1.0.dev9
+  uses: fly1d/repomin@v0.1.0.dev10
   with:
     command: python -m pytest -q
     match: "FAILED tests/test_regression.py"

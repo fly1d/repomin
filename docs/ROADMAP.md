@@ -36,28 +36,39 @@ dates. Concrete contribution tasks live in
 - A structured real-failure issue template and a short claim-to-PR workflow for
   contributors who can share sanitized CI or dependency failures.
 
-## Current: contributor feedback
+## Current: independent workflow validation
 
-- Keep a small, accurate set of good-first issues with explicit acceptance
-  criteria and maintainers' scope notes.
-- Collect reproducible reductions from real repositories and turn failures into
-  minimized public fixtures when licensing permits.
-- Use the [tsdown](CASE_STUDY_TSDOWN_979.md) and
-  [pydoctor](CASE_STUDY_PYDOCTOR_728.md) public upstream pilots to improve
-  oracle design guidance. Treat delivered evidence separately from adoption,
-  honor recipient authorship policies, and wait for technical feedback before
-  generalizing either workflow into new product behavior.
-- Use the comparison workflow with real pilot artifacts and publish trend
-  summaries without making unsupported performance claims.
-- Keep the dependency-free `benchmarks/compare.py` summary comparison useful
-  for fixture regressions and environment-to-environment diagnostics.
-- Improve runnable Java, Python, Docker, and semantic workflow examples.
-- Make the [real failure pilot guide](REAL_FAILURE_PILOT.md) easy to discover
-  so sanitized user workflows can be turned into fixtures and compatibility
-  notes.
-- Collect successful, inconclusive, and blocked trial feedback through the
-  user-workflow template, then turn repeated friction into focused examples,
-  compatibility notes, or starter issues.
+The current north star is five non-maintainer, real failure workflows. Demo
+runs, synthetic benchmarks, stars, asset downloads, CI clones, and contributor
+pull requests do not count. The initial adoption focus is repeatable
+Maven/Gradle and Python test failures where a maintainer has asked for a small
+reproduction.
+
+- Freeze new reducers and adapters for at least two weeks after the development
+  release. Fix only blockers observed in a real trial.
+- Help users run Doctor, establish a strict oracle, complete a bounded
+  reduction, and decide whether the artifact was actually useful in an issue or
+  regression test.
+- Record the funnel from invited participant through demo, Doctor, baseline,
+  reduction, artifact use, and repeat use. Successful, inconclusive, and blocked
+  trials all count as feedback, but not as successful adoption.
+- Seek at least three user-confirmed useful results, two artifacts used by a
+  recipient or test suite, and one repeat user or public downstream integration.
+- Implement product work only after the same blocker appears in at least two
+  independent trials. If most trials fail at oracle design, prioritize an
+  `init` or capture workflow instead of another reducer.
+- Use the [tsdown](CASE_STUDY_TSDOWN_979.md) technical pilot to improve oracle
+  design and the
+  [pydoctor outreach postmortem](CASE_STUDY_PYDOCTOR_728.md) to enforce
+  authorship disclosure and recipient boundaries. The pydoctor artifact was
+  not adopted and is not evidence of community value.
+- Do not use automated cold outreach. Contact another project only after a
+  human has checked its policies and the recipient has opted into the pilot;
+  disclose material agent involvement in the first message.
+
+After five independent trials, continue the current direction only if at least
+three users report concrete value. If none do, narrow or change the product
+before investing in more reduction capabilities.
 
 ## Next: release readiness
 

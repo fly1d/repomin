@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0.dev10] - 2026-09-07
+
 ### Added
 
+- `repomin demo WORKSPACE` now creates a trusted, network-free fixture in a
+  new directory, runs the real file and text reducers, validates the exact
+  payload fingerprint, and leaves the result available for inspection.
 - Doctor now accepts `--format {text,json,markdown}`. Markdown emits a
   deterministic, privacy-safe preflight summary from a strict whitelist of
   aggregate evidence and fixed check statuses, excluding paths, filenames,
@@ -37,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A complete Windows PowerShell quick start now covers isolated installation,
   Doctor preflight, reduction, exact payload validation, and fresh-copy replay;
   the Windows CI job executes the same `3 -> 2` workflow as a smoke test.
+- A portable quick-start smoke now runs Doctor, reduction, Markdown validation,
+  two fresh-copy replays, and the self-contained demo on Linux, macOS, Windows,
+  and both installed release distributions.
 - A tag-bound release-candidate workflow now rejects tag/source/archive
   version mismatches, reuses the release artifact checker, and stores only a
   short-lived Actions artifact without publishing to PyPI or GitHub Releases.
@@ -50,13 +58,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A public tsdown pilot case study now records a real `14 -> 8` file reduction,
   exact payload validation, `3/3` fresh-copy replay, upstream delivery, and the
   limits of the resulting evidence.
-- A public pydoctor pilot case study now records a current-version Sphinx
-  reproduction, strict intermediate-artifact oracle, `12 -> 9` file reduction,
-  exact payload validation, `3/3` fresh-copy replay, green public CI, and
-  delivery to the existing upstream pull request.
+- A public pydoctor pilot and outreach postmortem now records a current-version
+  Sphinx reproduction, strict intermediate-artifact oracle, `12 -> 9` file
+  reduction, exact payload validation, `3/3` fresh-copy replay, green public
+  CI, and the later community-boundary failure after upstream delivery.
 
 ### Changed
 
+- The README now leads with a concrete before/after result, an explicit tool
+  selection guide, an accurate capability matrix, and a budgeted first run so
+  visitors can judge fit before reading the detailed reference. Package
+  metadata now uses the same outcome-oriented description.
+- The GitHub Action now preserves the job's current Python by default instead
+  of silently prepending Python 3.13 to `PATH`. Setting `python-version`
+  explicitly retains the managed `actions/setup-python` behavior.
 - Doctor now retains aggregate run/pass/rate evidence when a completed baseline
   misses its acceptance threshold, and its JSON result records whether
   gitignore loading completed. Shareable failure summaries can therefore show
@@ -102,10 +117,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A successful reduction now reports source/output byte sizes and the exact
   `report.json` path on stderr while keeping stdout limited to the payload path.
 - The user-workflow feedback template now focuses on outcome, value, and one
-  main friction point while keeping detailed run evidence optional.
+  main friction point while keeping detailed run evidence optional, and it can
+  capture discovery source and demo success without telemetry.
 
 ### Fixed
 
+- Generated `REPOMIN.md` files now identify themselves as tool output, record
+  whether an external semantic reducer proposed edits, and require separate
+  disclosure of material LLM or agent involvement before upstream sharing.
+- The pydoctor public-pilot record now includes the later failed outreach and
+  account ban instead of incorrectly ending at the initial authorship
+  disclosure. Contribution guidance and templates now treat a recipient's
+  authorship boundary or request to stop as final.
+- The README tool-selection table no longer describes C-Vise and Perses as
+  single-input-only reducers; both can operate across multiple files or
+  directories in their supported workflows.
 - Source distributions now include the CI workflow consumed by the bundled
   GitHub Action contract tests, so that test module can run from an extracted
   source archive instead of failing on a missing file.

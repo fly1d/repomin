@@ -11,21 +11,25 @@ PyPI。建议先使用虚拟环境，避免修改系统 Python：
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-REPOMIN_VERSION=0.1.0.dev9
+REPOMIN_VERSION=0.1.0.dev10
 python -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 python -m repomin --version
 ```
 
-当前版本应显示 `repomin 0.1.0.dev9`。发布页同时提供 wheel 和源码归档，以及对应的
+当前版本应显示 `repomin 0.1.0.dev10`。发布页同时提供 wheel 和源码归档，以及对应的
 SHA-256 校验值；需要供应链校验时，请先核对
-[发布页](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev9)再安装。wheel 不需要
+[发布页](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev10)再安装。wheel 不需要
 本地构建，首次使用更快。
 
 本页后面的 `report replay`、传输 fingerprint 和 Markdown 摘要功能已包含在
-`v0.1.0.dev9` 发布包中。
+`v0.1.0.dev10` 发布包中。
 参与 pilot 前仍请阅读[真实失败 pilot 指南](REAL_FAILURE_PILOT.md)，并按其中的隐私和
 安全边界检查报告与 payload。
+
+如果只想最快看到一次真实缩减，运行 `repomin demo ./repomin-demo`。它会新建
+一个工作目录，离线完成并验证 `3 -> 2` 文件的缩减，且不会覆盖
+已存在的路径。继续阅读下文可以逐步构建同样的流程并检查 replay 证据。
 
 如果你在真实工作流中试用了 ReproMin，即使结果是成功、无法判断或无法运行，也欢迎反馈：
 有可脱敏的 CI/依赖失败时使用 [pilot Issue #11](https://github.com/fly1d/repomin/issues/11)，
@@ -172,6 +176,7 @@ repomin report replay "$demo_dir/reduced.repomin/report.json" \
 ## 下一步
 
 - 查看 [英文 README](../README.md) 了解所有 CLI 参数和高级 reducer；
-- 查看 [示例目录](EXAMPLES.md) 了解 Maven、Python、Node、MSBuild 等项目；
+- 查看 [示例目录](EXAMPLES.md) 了解 Python、Pipenv、Node、Cargo、Go、
+  FastAPI/Docker 和 Gradle 等已文档化流程；
 - 查看 [架构说明](ARCHITECTURE.md) 了解 oracle、checkpoint 和 reducer 的边界；
 - 贡献代码前阅读 [贡献指南](../CONTRIBUTING.md)。

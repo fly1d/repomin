@@ -7,19 +7,20 @@ in practice; a complete private repository is not required.
 For completed public workflows, see the
 [tsdown CSS module pilot](CASE_STUDY_TSDOWN_979.md), which records an oracle
 weakness found during its first reduction, and the
-[pydoctor Sphinx pilot](CASE_STUDY_PYDOCTOR_728.md), which verifies successful
-intermediate artifacts before accepting a late build failure.
+[pydoctor Sphinx pilot and outreach postmortem](CASE_STUDY_PYDOCTOR_728.md),
+which combines a strict late-failure oracle with an important example of
+community boundaries that were not respected.
 
 ## Install the pilot build
 
 The replay and transport-fingerprint workflow described below is included in
-the `v0.1.0.dev9` pre-release. Install that wheel in an isolated environment
+the `v0.1.0.dev10` pre-release. Install that wheel in an isolated environment
 when you want a reproducible versioned pilot run:
 
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-REPOMIN_VERSION=0.1.0.dev9
+REPOMIN_VERSION=0.1.0.dev10
 python -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 python -m repomin --version
@@ -31,6 +32,14 @@ can use the same release installation described in the [README](../README.md).
 
 ## Before sharing
 
+- Identify who selected the task, prepared the fixture, configured the oracle,
+  ran the tool, reviewed the result, and wrote the surrounding analysis.
+- Disclose any material LLM or agent involvement in the first message. A
+  generated `REPOMIN.md` records ReproMin's own role but cannot infer who
+  performed the surrounding work.
+- Read and follow the recipient project's contribution and AI-assistance
+  policies. If the project declines the contribution or asks you to stop, do
+  not continue, debate the policy, or send an automated follow-up.
 - Remove credentials, tokens, private URLs, customer data, and proprietary
   source from the example.
 - Replace package names, paths, and service names when they are confidential.

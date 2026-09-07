@@ -39,3 +39,8 @@ unavailable, explain that here and include the checks that did run.
 
 - [ ] No secrets, credentials, or private source are included.
 - [ ] Changes preserve the documented report/artifact and security boundaries.
+
+## Authorship and automation
+
+- Material LLM or agent involvement (or `none`):
+- [ ] Any material automation or agent involvement is disclosed accurately.

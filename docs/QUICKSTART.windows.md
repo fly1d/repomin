@@ -27,14 +27,19 @@ $env:PATH = (Split-Path -Parent $Python) + `
   [System.IO.Path]::PathSeparator + $env:PATH
 
 & $Python -m pip install --upgrade pip
-$env:REPOMIN_VERSION = "0.1.0.dev9"
+$env:REPOMIN_VERSION = "0.1.0.dev10"
 & $Python -m pip install "https://github.com/fly1d/repomin/releases/download/v${env:REPOMIN_VERSION}/repomin-${env:REPOMIN_VERSION}-py3-none-any.whl"
 & $Python -m repomin --version
 ```
 
-The final command should print `repomin 0.1.0.dev9`. The
-[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev9)
+The final command should print `repomin 0.1.0.dev10`. The
+[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev10)
 publishes SHA-256 digests for users who need to verify the downloaded wheel.
+
+For the shortest tour, run `repomin demo .\repomin-demo`. It creates a new
+workspace, performs and validates a real network-free `3 -> 2` reduction, and
+refuses to overwrite an existing path. Continue below to build the same kind
+of workflow step by step and inspect its replay evidence.
 
 ## 2. Create a small failing project
 
