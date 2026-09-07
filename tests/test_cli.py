@@ -500,7 +500,7 @@ class CliTest(unittest.TestCase):
             name, content, command = _demo_reproducer()
 
         self.assertEqual("reproduce.cmd", name)
-        self.assertEqual(r".\reproduce.cmd", command)
+        self.assertEqual(r'call ".\reproduce.cmd"', command)
         self.assertIn(r"%SystemRoot%\System32\findstr.exe", content)
         self.assertIn("REPOMIN_DEMO_FAILURE", content)
         self.assertNotIn("python", (content + command).lower())

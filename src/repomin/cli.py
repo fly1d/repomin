@@ -735,7 +735,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
 
 def _demo_reproducer() -> Tuple[str, str, str]:
     if os.name == "nt":
-        return "reproduce.cmd", _DEMO_WINDOWS_SCRIPT, r".\reproduce.cmd"
+        return "reproduce.cmd", _DEMO_WINDOWS_SCRIPT, r'call ".\reproduce.cmd"'
     if not sys.executable:
         raise RuntimeError("the current Python executable is unavailable")
     try:
