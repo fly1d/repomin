@@ -21,10 +21,12 @@ security sandbox.
 - What were you trying to reduce or make easier?
 - Language, build/test system, and runner OS:
 - Repository shape (optional):
+- How did you find ReproMin (optional)?
 
 ## Run
 
 - Outcome (`useful`, `inconclusive`, or `could not run`), and where you stopped:
+- Did `repomin demo WORKSPACE` complete successfully (optional)?
 - ReproMin version and install source:
 - Optional evidence: backend, adapter/reducer, sanitized oracle type, aggregate
   before/after sizes, or reviewed scalar fields from `repomin doctor`, `report

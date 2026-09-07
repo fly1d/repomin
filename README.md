@@ -5,132 +5,152 @@
 ![License Apache-2.0](https://img.shields.io/github/license/fly1d/repomin)
 [![Discussions](https://img.shields.io/github/discussions/fly1d/repomin)](https://github.com/fly1d/repomin/discussions)
 
-ReproMin reduces a failing repository while continuously checking that the
-original failure still occurs. Its output is intended to be a small,
-standalone reproduction that can be attached to an issue or turned into a
-regression test.
+ReproMin turns a large failing repository into a smaller, verified bug
+reproduction. Give it a repository, a command, and the signal that identifies
+the failure. It removes files, manifest entries, and supported source symbols,
+but accepts a change only when the configured failure still occurs.
 
-> Status: pre-alpha feasibility build. The default host backend executes the
-> supplied shell command directly and is not a sandbox. The optional Docker
-> backend reduces access but is not a complete security boundary.
-
-## Why
-
-Source reducers such as C-Reduce and Perses minimize programs or individual
-inputs. Environment tools such as ReproZip and containers capture what is
-needed to rerun a command. ReproMin targets the layer between them: project
-files, modules, build manifests, dependencies, and source symbols.
-
-## Who benefits
-
-- **CI and application teams** get a small failure artifact instead of a full
-  checkout when a regression needs to be reported or reviewed.
-- **Library and build-tool maintainers** can isolate the exact dependency,
-  manifest entry, source symbol, or module that keeps a failure reproducible.
-- **Test and benchmark authors** can turn a reduced tree into a deterministic
-  regression fixture with an auditable `report.json`.
-- **AI-assisted debugging workflows** can use the optional semantic reducer to
-  propose edits while the ordinary oracle remains the acceptance gate.
-
-The result is evidence for one configured reproduction in one recorded
-environment. It is not a proof of code correctness, production reliability, or
-a security sandbox. For automatic CI artifacts, see the
-[GitHub Action guide](docs/GITHUB_ACTION.md).
-
-## Quick start
-
-ReproMin requires Python 3.9 or newer and has no runtime dependencies.
-
-For a five-minute, copy-paste workflow, start with the
-[English quick start](docs/QUICKSTART.md). It installs the current release,
-creates a tiny network-free failing project, reduces both files and text, and
-validates the exported payload fingerprint. The larger
-[examples guide](docs/EXAMPLES.md) covers individual languages and build tools.
-Windows users can run the same complete workflow with explicit virtual
-environment paths in the [PowerShell quick start](docs/QUICKSTART.windows.md).
-
-For a workflow that must stay identical across local runs, Doctor, and CI,
-store its semantic reduction settings in a strict, versioned JSON file:
-
-```json
-{
-  "schema_version": 1,
-  "failure": {
-    "command": "python -m pytest -q",
-    "match": "FAILED tests/test_regression.py"
-  },
-  "reduction": {
-    "adapter": "python",
-    "source_reducer": "python"
-  }
-}
+```text
+failing repository + reproduction command + failure signal
+                         |
+                         v
+       remove one candidate, then run the command again
+                         |
+                         v
+        smaller repository + report + replayable evidence
 ```
 
-Use it with `repomin . --config .repomin.json --output /tmp/project-repro` or
-the matching Doctor command. The file owns semantic options; ReproMin rejects
-ambiguous CLI overrides while still allowing runtime paths, checkpoints, and
-verbosity outside the file. See the
-[configuration specification](docs/CONFIGURATION.md) for every field, Action
-usage, validation rules, and migration boundaries.
+## What it delivers
 
-Before a long reduction, run the read-only [doctor preflight](docs/DOCTOR.md)
-to detect supported reducers and verify that an optional failure command passes
-its baseline checks in fresh copies:
+In the [public tsdown pilot](docs/CASE_STUDY_TSDOWN_979.md), ReproMin reduced a
+prepared reproduction from 14 files to 8, removed two unrelated configuration
+files and two unnecessary CSS-module consumers, validated the exact exported
+tree, and reproduced the target symptom in `3/3` fresh-copy replays.
+
+| Evidence | Before | After |
+| --- | ---: | ---: |
+| Repository files | 14 | 8 |
+| CSS module consumers | 4 | 2 |
+| Fresh-copy failure replays | - | 3/3 |
+
+That is feasibility evidence, not a claim that every repository will shrink by
+the same amount. ReproMin is most useful when a failure is already repeatable
+but the repository is too large to share, review, or keep as a regression
+fixture.
+
+## Is ReproMin the right tool?
+
+| Goal | Start with |
+| --- | --- |
+| Find the commit that introduced a regression | `git bisect` |
+| Capture an environment and its runtime dependencies | A container or ReproZip |
+| Minimize one compiler input or source file | C-Reduce, C-Vise, or Perses |
+| Shrink a multi-file project while rerunning its real build or test | ReproMin |
+| Remove one obvious file from an already tiny example | Manual editing |
+
+ReproMin works between source reducers and environment capture tools. It
+reduces the project structure while treating your build, test, or reproduction
+command as the final authority.
+
+## What it can reduce
+
+| Layer | Coverage |
+| --- | --- |
+| Repository tree | Files and directories in any trusted local repository |
+| Build manifests | Maven, Gradle, Python, Pipenv, Node, Composer, MSBuild, Bundler, Cargo, and Go |
+| Source structure | Native Java and Python symbol reducers |
+| Selected text | Explicit UTF-8 files reduced by line |
+| Custom semantic edits | Optional HTTP integration, always checked by the ordinary failure oracle |
+
+Java and Python have native source-aware reducers. Other languages still
+benefit from repository, manifest, and explicit text reduction; ReproMin does
+not claim semantic source reduction for every language.
+
+## Try it on a real failure
+
+ReproMin requires Python 3.9 or newer and has no runtime dependencies. Follow
+the [five-minute quick start](docs/QUICKSTART.md) for a self-contained run, the
+[PowerShell quick start](docs/QUICKSTART.windows.md) on Windows, or the
+[中文快速开始](docs/QUICKSTART.zh-CN.md).
+
+After [installation](#install), one command runs the real reducer against a
+trusted, network-free fixture and keeps the result for inspection:
+
+```sh
+repomin demo ./repomin-demo
+```
+
+It creates only the new `./repomin-demo` directory, refuses to overwrite an
+existing path, reduces three files to two, line-reduces the required input, and
+validates the exact exported payload fingerprint.
+
+For a repository you trust, first run the read-only
+[Doctor preflight](docs/DOCTOR.md):
 
 ```sh
 repomin doctor . \
-  --command 'python -m pytest -q' \
-  --match 'FAILED tests/test_regression.py' \
-  --output /tmp/project-repro
+  --command 'python -m pytest -q tests/test_checkout.py' \
+  --match 'FAILED tests/test_checkout.py' \
+  --output ../checkout-repro
 ```
 
-Doctor keeps its detailed text output as the default. To share a successful or
-blocked preflight without publishing local paths or failure details, select its
-deterministic, strict-whitelist Markdown summary:
+Then start with an explicit five-minute budget rather than an unbounded first
+trial:
 
 ```sh
-repomin doctor . --format markdown
+repomin . \
+  --command 'python -m pytest -q tests/test_checkout.py' \
+  --match 'FAILED tests/test_checkout.py' \
+  --max-attempts 25 \
+  --max-duration 300 \
+  --output ../checkout-repro
 ```
 
-The shareable summary contains only aggregate readiness evidence and fixed
-check statuses. It omits commands, match expressions, environment metadata,
-paths, filenames, input-selection values, and raw diagnostics. `--format json`
-provides the full machine-readable diagnostic result; `--json` remains its
-compatibility alias, and the two output selectors cannot be combined. See the
-[Doctor guide](docs/DOCTOR.md) for the complete privacy and exit-code contract.
+Use a marker, an exact exit code, or both to distinguish the target failure
+from unrelated test, import, or setup failures. ReproMin preserves exactly the
+oracle you configure; a weak oracle can produce a small but misleading result. The
+[real-failure pilot guide](docs/REAL_FAILURE_PILOT.md) shows how to design and
+review that contract.
 
-After a reduction, use the [replay command](docs/REPLAY.md) to check the
-recorded failure contract against fresh copies of the exported payload:
+After a run, validate the payload without executing its command again:
 
 ```sh
-repomin report replay /tmp/project-repro.repomin/report.json \
-  --payload /tmp/project-repro \
-  --yes
+repomin report validate ../checkout-repro.repomin/report.json \
+  --payload ../checkout-repro \
+  --format markdown
 ```
 
-The replay and transport-fingerprint workflow is included in the current
-`v0.1.0.dev9` pre-release. The [real-failure pilot guide](docs/REAL_FAILURE_PILOT.md)
-describes the report and privacy boundaries.
+The path-free Markdown result is suitable for a first review. Inspect the full
+payload and report before sharing either one.
 
-The [public tsdown pilot](docs/CASE_STUDY_TSDOWN_979.md) shows an actual
-`14 -> 8` file reduction, a strengthened executable oracle, exact payload
-validation, and `3/3` fresh-copy replays without making a root-cause claim.
+## Who benefits
 
-The [public pydoctor pilot](docs/CASE_STUDY_PYDOCTOR_728.md) shows how a strict
-late-failure oracle turned a long-standing upstream request into a nine-file
-fixture with green public CI, exact validation, and `3/3` fresh-copy replay.
+- **Application and CI teams** can attach a small failure artifact instead of
+  a full checkout when a regression needs to be reported or reviewed.
+- **Library and build-tool maintainers** can isolate the dependency, manifest
+  entry, source symbol, or module that keeps a failure reproducible.
+- **Test and benchmark authors** can turn a reduced tree into a deterministic
+  regression fixture with an auditable `report.json`.
+- **AI-assisted debugging workflows** can propose edits while the deterministic
+  oracle remains the acceptance gate.
 
-Trying ReproMin on a real workflow? A successful, inconclusive, or blocked run
-is useful feedback. Use the [pilot issue](https://github.com/fly1d/repomin/issues/11)
-for a sanitized CI/dependency failure, or the [user workflow feedback
-template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md)
-when you want to report value, friction, or compatibility without publishing a
-failure. Attach the Doctor Markdown summary when a preflight is relevant.
-Review the payload and report first; do not upload credentials, private URLs,
-proprietary source, raw logs, commands, or environment values.
+For repeatable local and CI runs, store the reduction contract in a
+[versioned configuration file](docs/CONFIGURATION.md). To create CI artifacts,
+use the [GitHub Action](docs/GITHUB_ACTION.md). To verify an old result in fresh
+copies, use [report replay](docs/REPLAY.md).
 
-中文用户可以先阅读[中文快速开始](docs/QUICKSTART.zh-CN.md)，其中包含一个
-可直接运行的最小缩减示例、安全边界和报告说明。
+> **Status:** ReproMin is a pre-alpha feasibility build. The default host
+> backend executes the supplied command directly and is not a sandbox. The
+> optional Docker backend reduces access but is not a complete security
+> boundary. The result is evidence for one configured reproduction, not proof
+> of code correctness or production reliability.
+
+Trying a real workflow is more valuable than another feature request right
+now. Report a useful, inconclusive, or blocked run through the
+[user workflow feedback template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md),
+or offer a sanitized public failure in [pilot issue #11](https://github.com/fly1d/repomin/issues/11).
+Never upload credentials, private URLs, proprietary source, raw logs, commands,
+or environment values.
 
 ## Install
 
@@ -142,7 +162,7 @@ command does not modify your system Python:
 python3 -m venv .venv
 . .venv/bin/activate                         # macOS/Linux
 python -m pip install --upgrade pip
-REPOMIN_VERSION=0.1.0.dev9
+REPOMIN_VERSION=0.1.0.dev10
 python -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 python -m repomin --version
@@ -155,7 +175,7 @@ wheel with PowerShell's environment-variable syntax:
 ```powershell
 py -3 -m venv .venv
 .venv\Scripts\Activate.ps1
-$env:REPOMIN_VERSION = "0.1.0.dev9"
+$env:REPOMIN_VERSION = "0.1.0.dev10"
 python -m pip install "https://github.com/fly1d/repomin/releases/download/v${env:REPOMIN_VERSION}/repomin-${env:REPOMIN_VERSION}-py3-none-any.whl"
 python -m repomin --version
 ```
@@ -166,7 +186,7 @@ environment unactivated and replace `python` above with
 start](docs/QUICKSTART.windows.md) uses that explicit interpreter for every
 install, preflight, reduction, validation, and replay command.
 
-The [release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev9)
+The [release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev10)
 includes SHA-256 checksums for the wheel and source archive; verify the
 downloaded asset there when supply-chain verification is required. The wheel is
 preferred for a quick install because it needs no build step.
@@ -174,7 +194,7 @@ preferred for a quick install because it needs no build step.
 To install the source archive instead, keep the same `REPOMIN_VERSION` value:
 
 ```sh
-REPOMIN_VERSION=0.1.0.dev9
+REPOMIN_VERSION=0.1.0.dev10
 python -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}.tar.gz"
 ```
@@ -201,7 +221,7 @@ python -m repomin --version
 The plain `python -m pip install -e .` form is also sufficient when you only
 need the package and do not plan to run the lint, coverage, build, or release
 checks. A version-matched source archive is available on the same [release
-page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev9) for users who
+page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev10) for users who
 need to inspect or build from source.
 
 ### Shell completion

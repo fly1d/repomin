@@ -10,7 +10,7 @@ SUPPORTED_SHELLS: Final = ("bash", "zsh", "fish", "powershell")
 
 _BASH = r'''# Bash completion for repomin.
 _repomin() {
-    local cur prev options value_options
+    local cur prev options value_options candidate
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     if [[ "${COMP_WORDS[1]}" == "report" ]]; then
@@ -96,8 +96,21 @@ _repomin() {
         fi
         return 0
     fi
+    if [[ "${COMP_WORDS[1]}" == "demo" ]]; then
+        COMPREPLY=()
+        if (( COMP_CWORD == 2 )); then
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=( $(compgen -W "--help" -- "$cur") )
+            else
+                while IFS= read -r candidate; do
+                    COMPREPLY+=("${candidate%/}/")
+                done < <(compgen -d -- "$cur")
+            fi
+        fi
+        return 0
+    fi
     if (( COMP_CWORD == 1 )); then
-        COMPREPLY=( $(compgen -W "completion doctor report" -- "$cur") )
+        COMPREPLY=( $(compgen -W "completion demo doctor report" -- "$cur") )
         return 0
     fi
     options="--version --help --config --command --match --exit-code --output --session --resume --timeout --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --jobs --no-cache --max-attempts --max-duration --ignore --ignore-path --gitignore --gitignore-file --gitignore-recursive --keep --env --java-exception --python-exception --process-failure --baseline-runs --min-baseline-passes --candidate-runs --min-candidate-passes --min-baseline-rate --min-candidate-rate --confidence --run-confidence --holdout-runs --min-holdout-rate --holdout-confidence --adapter --source-reducer --text-file --semantic-reducer --semantic-endpoint --semantic-model --semantic-timeout --java-classpath --quiet --verbose"
@@ -200,8 +213,15 @@ _repomin() {
             '--format[output format]:format:(text json markdown)'
         return
     fi
+    if [[ "$words[2]" == "demo" ]]; then
+        _arguments -s \
+            '1:new workspace:_directories' \
+            '--help[show demo help]'
+        return
+    fi
     options=(
         '1:repository:_files'
+        'demo[run a self-contained first reduction]'
         'doctor[check reducers, toolchains, and an optional baseline]'
         'report[inspect or validate a report]'
         'completion[print a shell completion script]'
@@ -267,8 +287,19 @@ _repomin "$@"
 
 
 _FISH = r'''# Fish completion for repomin.
-complete -c repomin -f -n '__fish_use_subcommand' -a 'completion doctor report' -d 'command'
+function __repomin_demo_mode
+    set -l tokens (commandline -opc)
+    test (count $tokens) -ge 2; and test "$tokens[2]" = demo
+end
+
+function __repomin_demo_needs_workspace
+    __repomin_demo_mode; and test (count (commandline -opc)) -eq 2
+end
+
+complete -c repomin -f -n '__fish_use_subcommand' -a 'completion demo doctor report' -d 'command'
 complete -c repomin -f -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish powershell' -d 'shell'
+complete -c repomin -f -n '__repomin_demo_mode; and __repomin_demo_needs_workspace' -a '(__fish_complete_directories)' -d 'new workspace'
+complete -c repomin -f -n '__repomin_demo_mode; and __repomin_demo_needs_workspace' -l help -d 'show demo help'
 complete -c repomin -f -n '__fish_seen_subcommand_from report' -a 'validate replay compare' -d 'report command'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from validate' -l payload -r -a '(__fish_complete_directories)' -d 'exported payload directory'
 complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from validate' -l json -d 'print a machine-readable result'
@@ -294,54 +325,54 @@ complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l gitignore-recu
 
 set -l boolean_options version help resume no-cache gitignore gitignore-recursive java-exception python-exception process-failure
 for option in $boolean_options
-    complete -c repomin -f -l $option
+    complete -c repomin -f -n 'not __repomin_demo_mode' -l $option
 end
 
-complete -c repomin -f -l quiet -d 'suppress routine status output'
-complete -c repomin -f -l verbose -d 'print detailed reduction progress'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l quiet -d 'suppress routine status output'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l verbose -d 'print detailed reduction progress'
 
-complete -c repomin -f -l command -r -d 'failure reproduction command'
-complete -c repomin -f -l config -r -a '(__fish_complete_path)' -d 'versioned JSON reduction spec'
-complete -c repomin -f -l match -r -d 'failure output pattern'
-complete -c repomin -f -l exit-code -r -d 'required exit code'
-complete -c repomin -f -l output -r -a '(__fish_complete_directories)'
-complete -c repomin -f -l session -r -a '(__fish_complete_directories)'
-complete -c repomin -f -l timeout -r
-complete -c repomin -f -l backend -r -a 'host docker'
-complete -c repomin -f -l docker-image -r
-complete -c repomin -f -l docker-network -r -a 'none bridge host'
-complete -c repomin -f -l docker-cpus -r
-complete -c repomin -f -l docker-memory -r
-complete -c repomin -f -l docker-pids-limit -r
-complete -c repomin -f -l docker-tmpfs-size -r
-complete -c repomin -f -l docker-workspace-limit -r
-complete -c repomin -f -l jobs -r
-complete -c repomin -f -l max-attempts -r
-complete -c repomin -f -l max-duration -r
-complete -c repomin -f -l ignore -r
-complete -c repomin -f -l ignore-path -r -a '(__fish_complete_path)'
-complete -c repomin -f -l gitignore-file -r -a '(__fish_complete_path)'
-complete -c repomin -f -l keep -r -a '(__fish_complete_path)'
-complete -c repomin -f -l env -r
-complete -c repomin -f -l baseline-runs -r
-complete -c repomin -f -l min-baseline-passes -r
-complete -c repomin -f -l candidate-runs -r
-complete -c repomin -f -l min-candidate-passes -r
-complete -c repomin -f -l min-baseline-rate -r
-complete -c repomin -f -l min-candidate-rate -r
-complete -c repomin -f -l confidence -r
-complete -c repomin -f -l run-confidence -r
-complete -c repomin -f -l holdout-runs -r
-complete -c repomin -f -l min-holdout-rate -r
-complete -c repomin -f -l holdout-confidence -r
-complete -c repomin -f -l adapter -r -a 'auto none maven gradle python pipenv node composer dotnet ruby cargo go'
-complete -c repomin -f -l source-reducer -r -a 'auto none java python'
-complete -c repomin -f -l text-file -r -a '(__fish_complete_path)'
-complete -c repomin -f -l semantic-reducer -r -a 'none http'
-complete -c repomin -f -l semantic-endpoint -r
-complete -c repomin -f -l semantic-model -r
-complete -c repomin -f -l semantic-timeout -r
-complete -c repomin -f -l java-classpath -r -a '(__fish_complete_path)'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l command -r -d 'failure reproduction command'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l config -r -a '(__fish_complete_path)' -d 'versioned JSON reduction spec'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l match -r -d 'failure output pattern'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l exit-code -r -d 'required exit code'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l output -r -a '(__fish_complete_directories)'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l session -r -a '(__fish_complete_directories)'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l timeout -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l backend -r -a 'host docker'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-image -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-network -r -a 'none bridge host'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-cpus -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-memory -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-pids-limit -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-tmpfs-size -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-workspace-limit -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l jobs -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l max-attempts -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l max-duration -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l ignore -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l ignore-path -r -a '(__fish_complete_path)'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l gitignore-file -r -a '(__fish_complete_path)'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l keep -r -a '(__fish_complete_path)'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l env -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l baseline-runs -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l min-baseline-passes -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l candidate-runs -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l min-candidate-passes -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l min-baseline-rate -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l min-candidate-rate -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l confidence -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l run-confidence -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l holdout-runs -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l min-holdout-rate -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l holdout-confidence -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l adapter -r -a 'auto none maven gradle python pipenv node composer dotnet ruby cargo go'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l source-reducer -r -a 'auto none java python'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l text-file -r -a '(__fish_complete_path)'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l semantic-reducer -r -a 'none http'
+complete -c repomin -f -n 'not __repomin_demo_mode' -l semantic-endpoint -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l semantic-model -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l semantic-timeout -r
+complete -c repomin -f -n 'not __repomin_demo_mode' -l java-classpath -r -a '(__fish_complete_path)'
 '''
 
 
@@ -350,7 +381,7 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
 
     $options = @(
-        'doctor', 'report', 'completion',
+        'doctor', 'report', 'demo', 'completion',
         '--version', '--help', '--config', '--command', '--match', '--exit-code', '--output', '--json',
         '--session', '--resume', '--timeout', '--backend', '--docker-image',
         '--docker-network', '--docker-cpus', '--docker-memory',
@@ -440,6 +471,56 @@ Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
     }
     $doctorMode = $subcommand -eq 'doctor'
     $reportMode = $subcommand -eq 'report'
+    $demoMode = $subcommand -eq 'demo'
+    if ($demoMode) {
+        $acceptsWorkspace = $elements.Count -eq 2 -or (
+            $elements.Count -eq 3 -and -not [string]::IsNullOrEmpty($wordToComplete)
+        )
+        if (-not $acceptsWorkspace) {
+            return
+        }
+        if ($wordToComplete -like '-*') {
+            @('--help') |
+                Where-Object { $_ -like "$wordToComplete*" } |
+                ForEach-Object {
+                    [System.Management.Automation.CompletionResult]::new(
+                        $_, $_, 'ParameterName', 'show demo help'
+                    )
+                }
+            return
+        }
+        $parentPath = if ([string]::IsNullOrEmpty($wordToComplete)) {
+            '.'
+        } else {
+            Split-Path -Parent $wordToComplete
+        }
+        $leafPrefix = if ([string]::IsNullOrEmpty($wordToComplete)) {
+            ''
+        } else {
+            Split-Path -Leaf $wordToComplete
+        }
+        if ([string]::IsNullOrEmpty($parentPath)) {
+            $parentPath = '.'
+        }
+        Get-ChildItem -LiteralPath $parentPath -Directory -Force -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.Name.StartsWith(
+                    $leafPrefix,
+                    [System.StringComparison]::OrdinalIgnoreCase
+                )
+            } |
+            ForEach-Object {
+                $completionText = $_.FullName
+                if ($_.PSIsContainer) {
+                    $completionText += [System.IO.Path]::DirectorySeparatorChar
+                }
+                $completionText = "'" + $completionText.Replace("'", "''") + "'"
+                [System.Management.Automation.CompletionResult]::new(
+                    $completionText, $_.Name, 'ProviderItem', $_.FullName
+                )
+            }
+        return
+    }
     if ($reportMode) {
         $validateMode = $elements | Where-Object { $_.Extent.Text -eq 'validate' }
         $replayMode = $elements | Where-Object { $_.Extent.Text -eq 'replay' }

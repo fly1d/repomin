@@ -168,9 +168,9 @@ inputs:
     required: false
     default: "1"
   python-version:
-    description: Python version used to install and run ReproMin; setup-python puts it first on PATH for the reproduction command
+    description: Optional Python version used to install and run ReproMin; empty preserves the job's current python on PATH
     required: false
-    default: "3.13"
+    default: ""
   artifact-name:
     description: Name of the uploaded GitHub Actions artifact
     required: false
@@ -183,6 +183,7 @@ runs:
   using: composite
   steps:
     - name: Set up Python
+      if: ${{ inputs.python-version != '' }}
       uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
       with:
         python-version: ${{ inputs.python-version }}
@@ -474,19 +475,19 @@ runs:
             args+=(--docker-image "$REPOMIN_DOCKER_IMAGE")
           fi
         fi
-        repomin "${args[@]}"
+        python -m repomin "${args[@]}"
         payload_path="$output_path"
         report_path="$payload_path.repomin/report.json"
         if [[ ! -d "$payload_path" || ! -f "$report_path" ]]; then
           echo "ReproMin did not produce the expected payload and report paths" >&2
           exit 1
         fi
-        repomin report validate "$report_path" --payload "$payload_path" --json >/dev/null
+        python -m repomin report validate "$report_path" --payload "$payload_path" --json >/dev/null
         summary_path=""
         if [[ "$REPOMIN_STEP_SUMMARY" == true ]]; then
           if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
             summary_path="$GITHUB_STEP_SUMMARY"
-            repomin report validate "$report_path" --payload "$payload_path" --format markdown >> "$summary_path"
+            python -m repomin report validate "$report_path" --payload "$payload_path" --format markdown >> "$summary_path"
             {
               printf '\n## ReproMin artifact\n\n'
               if [[ "${GITHUB_SERVER_URL:-}" =~ ^https://[A-Za-z0-9.-]+$ && "${GITHUB_REPOSITORY:-}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ && "${GITHUB_RUN_ID:-}" =~ ^[0-9]+$ ]]; then

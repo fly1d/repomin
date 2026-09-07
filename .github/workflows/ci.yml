@@ -71,6 +71,8 @@ jobs:
         run: |
           & "$env:GITHUB_WORKSPACE\scripts\check_windows_quickstart.ps1" `
             -Python $env:REPOMIN_TEST_PYTHON
+      - name: Run portable quick-start smoke
+        run: python scripts/check_quickstart.py
       - name: Validate PowerShell completion
         if: runner.os == 'Windows'
         shell: pwsh
@@ -108,6 +110,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Select the job's existing Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
       - name: Run local ReproMin action
         id: repomin
         uses: ./
@@ -166,6 +172,7 @@ jobs:
           [[ "$ACTUAL_BYTE_RETENTION" =~ ^[0-9]+(\.[0-9]+)?$ ]]
           [[ "$ACTUAL_FINGERPRINT_MODE" == "exact" ]]
           [[ "$ACTUAL_FINGERPRINT_VERIFIED" == "true" ]]
+          python -c 'import sys; assert sys.version_info[:2] == (3, 11), sys.version'
       - name: Check privacy-safe step summary
         shell: bash
         env:
@@ -195,7 +202,7 @@ jobs:
             find action-smoke-download -print >&2
             exit 1
           fi
-          repomin report validate "$report" --payload "$payload" --json
+          python -m repomin report validate "$report" --payload "$payload" --json
           [[ -f "$payload/keep-me.txt" ]]
           [[ -f "$payload/exit-sentinel.txt" ]]
           [[ ! -s "$payload/exit-sentinel.txt" ]]
@@ -280,7 +287,7 @@ jobs:
           [[ -f "$PAYLOAD_PATH/reproduce.py" ]]
           [[ -f "$PAYLOAD_PATH/required.txt" ]]
           [[ ! -e "$PAYLOAD_PATH/unused.txt" ]]
-          repomin report validate "$REPORT_PATH" --payload "$PAYLOAD_PATH" --json
+          python -m repomin report validate "$REPORT_PATH" --payload "$PAYLOAD_PATH" --json
           grep -F '| `oracle_mode` | `python_exception` |' "$SUMMARY_PATH"
           ! grep -F 'ValueError' "$SUMMARY_PATH"
           ! grep -F 'payment failed' "$SUMMARY_PATH"
@@ -332,6 +339,7 @@ jobs:
           java-exception: "true"
           adapter: none
           source-reducer: none
+          python-version: "3.13"
           artifact-name: action-java-exception-smoke
       - name: Check Java exception signature output and payload
         shell: bash
@@ -345,7 +353,8 @@ jobs:
           [[ -f "$PAYLOAD_PATH/reproduce.py" ]]
           [[ -f "$PAYLOAD_PATH/required.txt" ]]
           [[ ! -e "$PAYLOAD_PATH/unused.txt" ]]
-          repomin report validate "$REPORT_PATH" --payload "$PAYLOAD_PATH" --json
+          python -m repomin report validate "$REPORT_PATH" --payload "$PAYLOAD_PATH" --json
+          python -c 'import sys; assert sys.version_info[:2] == (3, 13), sys.version'
           python - "$REPORT_PATH" <<'PY'
           import json
           import sys

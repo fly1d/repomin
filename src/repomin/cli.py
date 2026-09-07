@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
+import io
 import json
 import math
 import os
@@ -124,6 +126,21 @@ _BYTE_MULTIPLIERS = {
     "tib": 1024**4,
 }
 _ENVIRONMENT_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_DEMO_FAILURE_MARKER = "REPOMIN_DEMO_FAILURE"
+_DEMO_PYTHON_ENVIRONMENT = "REPOMIN_DEMO_PYTHON"
+_DEMO_SCRIPT = """\
+from pathlib import Path
+import sys
+
+lines = Path("input.txt").read_text(encoding="utf-8").splitlines()
+if "NEEDLE" not in lines:
+    print("DIFFERENT_FAILURE", file=sys.stderr)
+    raise SystemExit(2)
+print("REPOMIN_DEMO_FAILURE", file=sys.stderr)
+raise SystemExit(1)
+"""
+_DEMO_INPUT = "remove-before\nNEEDLE\nremove-after\n"
+_DEMO_UNUSED = "unrelated fixture line\n" * 24
 
 
 def _parse_byte_size(value: str) -> int:
@@ -318,8 +335,12 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
     semantic_environment = os.environ if semantic_environment_defaults else {}
     parser = argparse.ArgumentParser(
         prog="repomin",
-        description="Reduce a repository while preserving a command failure.",
+        description=(
+            "Reduce a repository while preserving a command failure. New here? "
+            "Run `repomin demo WORKSPACE` for a self-contained first reduction."
+        ),
         epilog=(
+            "Try a self-contained reduction with `repomin demo WORKSPACE`. "
             "Preflight with `repomin doctor --help`; inspect evidence with "
             "`repomin report --help`. Generate shell completion with "
             "`repomin completion bash`, "
@@ -702,8 +723,165 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
     return parser
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def _demo_python_command() -> Tuple[str, str]:
+    if not sys.executable:
+        raise RuntimeError("the current Python executable is unavailable")
+    try:
+        executable = Path(sys.executable).resolve(strict=True)
+    except OSError as exc:
+        raise RuntimeError("the current Python executable is unavailable") from exc
+    if not executable.is_file():
+        raise RuntimeError("the current Python executable is not a regular file")
+    if os.name == "nt":
+        command = '"%%%s%%" -I -S reproduce.py' % _DEMO_PYTHON_ENVIRONMENT
+    else:
+        command = '"$%s" -I -S reproduce.py' % _DEMO_PYTHON_ENVIRONMENT
+    return command, "%s=%s" % (_DEMO_PYTHON_ENVIRONMENT, executable)
+
+
+def _write_demo_file(path: Path, content: str) -> None:
+    with path.open("x", encoding="utf-8", newline="\n") as handle:
+        handle.write(content)
+
+
+def _validate_demo_result(payload: Path, summary: dict) -> None:
+    files = sorted(
+        path.relative_to(payload).as_posix()
+        for path in payload.rglob("*")
+        if path.is_file()
+    )
+    if files != ["input.txt", "reproduce.py"]:
+        raise RuntimeError("unexpected minimized payload: %s" % ", ".join(files))
+    if (payload / "input.txt").read_text(encoding="utf-8") != "NEEDLE\n":
+        raise RuntimeError("the demo text reducer did not reach its expected result")
+    if summary.get("source_files") != 3 or summary.get("output_files") != 2:
+        raise RuntimeError("the demo report contains unexpected file counts")
+    if summary.get("payload_fingerprint_mode") != "exact":
+        raise RuntimeError("the demo payload did not pass exact fingerprint validation")
+
+
+def _demo_command(argv: Sequence[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="repomin demo",
+        description=(
+            "Create a trusted, network-free fixture in a new workspace, run the "
+            "real reducer, and validate the minimized payload."
+        ),
+    )
+    parser.add_argument(
+        "workspace",
+        type=Path,
+        help=(
+            "new directory to create; it will contain source, reduced, and "
+            "reduced.repomin (existing paths are never overwritten)"
+        ),
+    )
+    args = parser.parse_args(list(argv))
+    workspace = args.workspace.expanduser()
+    created = False
+    try:
+        try:
+            workspace.mkdir(mode=0o700)
+        except FileExistsError:
+            print(
+                "repomin demo: workspace already exists; refusing to overwrite: %s"
+                % workspace,
+                file=sys.stderr,
+            )
+            return 2
+        created = True
+        workspace = workspace.resolve(strict=True)
+        source = workspace / "source"
+        payload = workspace / "reduced"
+        metadata = workspace / "reduced.repomin"
+        source.mkdir()
+        _write_demo_file(source / "reproduce.py", _DEMO_SCRIPT)
+        _write_demo_file(source / "input.txt", _DEMO_INPUT)
+        _write_demo_file(source / "unused.txt", _DEMO_UNUSED)
+        demo_command, demo_environment = _demo_python_command()
+
+        captured_stdout = io.StringIO()
+        with contextlib.redirect_stdout(captured_stdout):
+            reduction_exit = main(
+                [
+                    str(source),
+                    "--command",
+                    demo_command,
+                    "--env",
+                    demo_environment,
+                    "--match",
+                    _DEMO_FAILURE_MARKER,
+                    "--exit-code",
+                    "1",
+                    "--adapter",
+                    "none",
+                    "--source-reducer",
+                    "none",
+                    "--text-file",
+                    "input.txt",
+                    "--timeout",
+                    "10",
+                    "--max-attempts",
+                    "100",
+                    "--max-duration",
+                    "60",
+                    "--output",
+                    str(payload),
+                    "--quiet",
+                ],
+                semantic_environment_defaults=False,
+            )
+        if reduction_exit != 0:
+            status = "interrupted" if reduction_exit == 130 else "reduction failed"
+            print(
+                "repomin demo: %s; workspace retained at %s" % (status, workspace),
+                file=sys.stderr,
+            )
+            return reduction_exit
+
+        report_path = metadata / "report.json"
+        report = validate_report_file(report_path, payload)
+        summary = _validation_summary(report, report_path, payload)
+        _validate_demo_result(payload, summary)
+
+        print("ReproMin demo completed.")
+        print(
+            "Reduced: %d files / %d bytes -> %d files / %d bytes in %d attempts."
+            % (
+                summary["source_files"],
+                summary["source_bytes"],
+                summary["output_files"],
+                summary["output_bytes"],
+                summary["attempts"],
+            )
+        )
+        print("Removed: unused.txt and two unrelated input lines.")
+        print("Kept: reproduce.py and input.txt (only NEEDLE remains).")
+        print("Validated: exact payload fingerprint.")
+        print("Workspace: %s" % workspace)
+        print("Payload: %s" % payload)
+        print("Report: %s" % report_path)
+        return 0
+    except KeyboardInterrupt:
+        print("repomin demo: interrupted", file=sys.stderr)
+        if created:
+            print("repomin demo: workspace retained at %s" % workspace, file=sys.stderr)
+        return 130
+    except (OSError, ReportValidationError, RuntimeError, ValueError) as exc:
+        print("repomin demo: %s" % exc, file=sys.stderr)
+        if created:
+            print("repomin demo: workspace retained at %s" % workspace, file=sys.stderr)
+        return 2
+
+
+def main(
+    argv: Optional[Sequence[str]] = None,
+    *,
+    semantic_environment_defaults: bool = True,
+) -> int:
     raw_argv = list(sys.argv[1:] if argv is None else argv)
+    if raw_argv and raw_argv[0] == "demo":
+        return _demo_command(raw_argv[1:])
     if raw_argv and raw_argv[0] == "doctor":
         return _doctor_command(raw_argv[1:])
     if raw_argv and raw_argv[0] == "report":
@@ -734,9 +912,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     except ConfigError as exc:
         print("repomin: %s" % exc, file=sys.stderr)
         return 2
-    args = build_parser(semantic_environment_defaults=not using_config).parse_args(
-        raw_argv
-    )
+    args = build_parser(
+        semantic_environment_defaults=(
+            semantic_environment_defaults and not using_config
+        )
+    ).parse_args(raw_argv)
 
     def inform(message: str) -> None:
         if not args.quiet:
