@@ -41,6 +41,15 @@ def _run(*arguments: str) -> subprocess.CompletedProcess[str]:
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="repomin-quickstart-") as directory:
         root = Path(directory)
+        demo_workspace = root / "demo"
+        demo = _run("demo", str(demo_workspace))
+        if not demo.stdout.startswith("ReproMin demo completed.\n"):
+            raise RuntimeError("demo did not emit its completion receipt")
+        if (demo_workspace / "reduced" / "input.txt").read_text(
+            encoding="utf-8"
+        ) != "NEEDLE\n":
+            raise RuntimeError("demo did not export the expected minimized input")
+
         source = root / "case"
         output = root / "reduced"
         source.mkdir()
@@ -140,7 +149,7 @@ raise SystemExit(1)
         if '"passes": 2' not in replay.stdout or '"runs": 2' not in replay.stdout:
             raise RuntimeError("replay did not preserve the failure in two fresh copies")
 
-    print("Quick-start smoke passed: Doctor, reduce, validate, and 2/2 replay.")
+    print("Quick-start smoke passed: demo, Doctor, reduce, validate, and 2/2 replay.")
     return 0
 
 

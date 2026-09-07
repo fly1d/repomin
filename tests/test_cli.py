@@ -454,9 +454,7 @@ class CliTest(unittest.TestCase):
             self.assertEqual("none", report["execution"]["semantic_reducer"])
             self.assertIsNone(report["execution"]["semantic_endpoint"])
             self.assertIsNone(report["execution"]["semantic_model"])
-            self.assertEqual(
-                ["REPOMIN_DEMO_PYTHON"], report["execution"]["environment_names"]
-            )
+            self.assertEqual([], report["execution"]["environment_names"])
             self.assertIn("ReproMin demo completed.", stdout.getvalue())
             self.assertIn("Reduced: 3 files /", stdout.getvalue())
             self.assertIn("Removed: unused.txt", stdout.getvalue())
@@ -505,13 +503,10 @@ class CliTest(unittest.TestCase):
             executable = path_type.return_value.resolve.return_value
             executable.is_file.return_value = True
             executable.__str__.return_value = r"C:\Python&Tools\python.exe"
-            command, environment = _demo_python_command()
+            command = _demo_python_command()
 
         self.assertEqual(
-            '@"%REPOMIN_DEMO_PYTHON%" -I -S reproduce.py', command
-        )
-        self.assertEqual(
-            r"REPOMIN_DEMO_PYTHON=C:\Python&Tools\python.exe", environment
+            r'"C:\Python&Tools\python.exe" -I -S reproduce.py', command
         )
 
     def test_demo_reports_an_interrupted_reduction_distinctly(self) -> None:

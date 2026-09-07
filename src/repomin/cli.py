@@ -8,6 +8,7 @@ import json
 import math
 import os
 import re
+import shlex
 import stat
 import sys
 from pathlib import Path
@@ -127,7 +128,6 @@ _BYTE_MULTIPLIERS = {
 }
 _ENVIRONMENT_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _DEMO_FAILURE_MARKER = "REPOMIN_DEMO_FAILURE"
-_DEMO_PYTHON_ENVIRONMENT = "REPOMIN_DEMO_PYTHON"
 _DEMO_SCRIPT = """\
 from pathlib import Path
 import sys
@@ -723,7 +723,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
     return parser
 
 
-def _demo_python_command() -> Tuple[str, str]:
+def _demo_python_command() -> str:
     if not sys.executable:
         raise RuntimeError("the current Python executable is unavailable")
     try:
@@ -733,11 +733,8 @@ def _demo_python_command() -> Tuple[str, str]:
     if not executable.is_file():
         raise RuntimeError("the current Python executable is not a regular file")
     if os.name == "nt":
-        # The leading @ prevents cmd.exe /s /c from stripping the quoted path.
-        command = '@"%%%s%%" -I -S reproduce.py' % _DEMO_PYTHON_ENVIRONMENT
-    else:
-        command = '"$%s" -I -S reproduce.py' % _DEMO_PYTHON_ENVIRONMENT
-    return command, "%s=%s" % (_DEMO_PYTHON_ENVIRONMENT, executable)
+        return '"%s" -I -S reproduce.py' % executable
+    return shlex.join([str(executable), "-I", "-S", "reproduce.py"])
 
 
 def _write_demo_file(path: Path, content: str) -> None:
@@ -799,7 +796,6 @@ def _demo_command(argv: Sequence[str]) -> int:
         _write_demo_file(source / "reproduce.py", _DEMO_SCRIPT)
         _write_demo_file(source / "input.txt", _DEMO_INPUT)
         _write_demo_file(source / "unused.txt", _DEMO_UNUSED)
-        demo_command, demo_environment = _demo_python_command()
 
         captured_stdout = io.StringIO()
         with contextlib.redirect_stdout(captured_stdout):
@@ -807,9 +803,7 @@ def _demo_command(argv: Sequence[str]) -> int:
                 [
                     str(source),
                     "--command",
-                    demo_command,
-                    "--env",
-                    demo_environment,
+                    _demo_python_command(),
                     "--match",
                     _DEMO_FAILURE_MARKER,
                     "--exit-code",

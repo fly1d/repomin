@@ -43,8 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Doctor preflight, reduction, exact payload validation, and fresh-copy replay;
   the Windows CI job executes the same `3 -> 2` workflow as a smoke test.
 - A portable quick-start smoke now runs Doctor, reduction, Markdown validation,
-  and two fresh-copy replays on Linux, macOS, Windows, and both installed
-  release distributions.
+  two fresh-copy replays, and the self-contained demo on Linux, macOS, Windows,
+  and both installed release distributions.
 - A tag-bound release-candidate workflow now rejects tag/source/archive
   version mismatches, reuses the release artifact checker, and stores only a
   short-lived Actions artifact without publishing to PyPI or GitHub Releases.
