@@ -38,6 +38,13 @@ the same amount. ReproMin is most useful when a failure is already repeatable
 but the repository is too large to share, review, or keep as a regression
 fixture.
 
+A second maintainer-led
+[Gradle composite-build pilot](docs/CASE_STUDY_GRADLE_38843.md) reduced two
+public source snapshots from 854 files and 3,817,947 bytes to an 11-file,
+87,862-byte reproduction. It passed `5/5` fresh-copy replays and one empty-cache
+cold start. That artifact has not been sent upstream and does not count as
+independent adoption.
+
 ## Is ReproMin the right tool?
 
 | Goal | Start with |
@@ -1280,6 +1287,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for extension points and project rules,
   sanitized real CI or dependency failure.
 - [docs/CASE_STUDY_TSDOWN_979.md](docs/CASE_STUDY_TSDOWN_979.md) - a public
   upstream pilot, its reduction evidence, and oracle-design lessons.
+- [docs/CASE_STUDY_GRADLE_38843.md](docs/CASE_STUDY_GRADLE_38843.md) - a
+  two-repository Gradle composite-build pilot with staged reduction and cache
+  portability findings.
+- [docs/CASE_STUDY_PYDOCTOR_728.md](docs/CASE_STUDY_PYDOCTOR_728.md) - a
+  technical pilot and postmortem on authorship and recipient boundaries.
 - [CHANGELOG.md](CHANGELOG.md) - notable changes by release.
 - [docs/RELEASING.md](docs/RELEASING.md) - GitHub Release checklist and artifact verification.
 

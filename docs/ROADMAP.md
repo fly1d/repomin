@@ -58,10 +58,12 @@ reproduction.
   independent trials. If most trials fail at oracle design, prioritize an
   `init` or capture workflow instead of another reducer.
 - Use the [tsdown](CASE_STUDY_TSDOWN_979.md) technical pilot to improve oracle
-  design and the
+  design, the [Gradle composite-build pilot](CASE_STUDY_GRADLE_38843.md) to
+  track staged-budget and build-cache portability friction, and the
   [pydoctor outreach postmortem](CASE_STUDY_PYDOCTOR_728.md) to enforce
   authorship disclosure and recipient boundaries. The pydoctor artifact was
-  not adopted and is not evidence of community value.
+  not adopted, and the Gradle artifact has not been delivered upstream;
+  neither is evidence of community value.
 - Do not use automated cold outreach. Contact another project only after a
   human has checked its policies and the recipient has opted into the pilot;
   disclose material agent involvement in the first message.
