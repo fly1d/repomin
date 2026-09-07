@@ -139,16 +139,27 @@ if "NEEDLE" not in lines:
 print("REPOMIN_DEMO_FAILURE", file=sys.stderr)
 raise SystemExit(1)
 """
-_DEMO_WINDOWS_SCRIPT = r"""@echo off
-"%SystemRoot%\System32\findstr.exe" /l /x /c:"NEEDLE" "input.txt" >nul 2>&1
-if errorlevel 1 goto different_failure
->&2 echo REPOMIN_DEMO_FAILURE
-exit /b 1
-
-:different_failure
->&2 echo DIFFERENT_FAILURE
-exit /b 2
+_DEMO_WINDOWS_SCRIPT = r"""$ErrorActionPreference = "Stop"
+try {
+    $lines = [System.IO.File]::ReadAllLines(
+        (Join-Path $PSScriptRoot "input.txt")
+    )
+} catch {
+    [Console]::Error.WriteLine("DIFFERENT_FAILURE")
+    exit 2
+}
+if (-not ($lines -ccontains "NEEDLE")) {
+    [Console]::Error.WriteLine("DIFFERENT_FAILURE")
+    exit 2
+}
+[Console]::Error.WriteLine("REPOMIN_DEMO_FAILURE")
+exit 1
 """
+_DEMO_WINDOWS_COMMAND = (
+    r"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe "
+    r"-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass "
+    r"-File .\reproduce.ps1"
+)
 _DEMO_INPUT = "remove-before\nNEEDLE\nremove-after\n"
 _DEMO_UNUSED = "unrelated fixture line\n" * 24
 
@@ -735,7 +746,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
 
 def _demo_reproducer() -> Tuple[str, str, str]:
     if os.name == "nt":
-        return "reproduce.cmd", _DEMO_WINDOWS_SCRIPT, r'call ".\reproduce.cmd"'
+        return "reproduce.ps1", _DEMO_WINDOWS_SCRIPT, _DEMO_WINDOWS_COMMAND
     if not sys.executable:
         raise RuntimeError("the current Python executable is unavailable")
     try:

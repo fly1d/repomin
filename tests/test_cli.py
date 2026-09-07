@@ -435,7 +435,7 @@ class CliTest(unittest.TestCase):
 
             self.assertEqual(0, exit_code, stderr.getvalue())
             self.assertEqual("", stderr.getvalue())
-            reproducer_name = "reproduce.cmd" if os.name == "nt" else "reproduce.py"
+            reproducer_name = "reproduce.ps1" if os.name == "nt" else "reproduce.py"
             self.assertEqual(
                 ["input.txt", reproducer_name],
                 sorted(
@@ -499,11 +499,15 @@ class CliTest(unittest.TestCase):
         with patch("repomin.cli.os.name", "nt"):
             name, content, command = _demo_reproducer()
 
-        self.assertEqual("reproduce.cmd", name)
-        self.assertEqual(r'call ".\reproduce.cmd"', command)
-        self.assertIn(r"%SystemRoot%\System32\findstr.exe", content)
+        self.assertEqual("reproduce.ps1", name)
+        self.assertIn(
+            r"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe",
+            command,
+        )
+        self.assertIn(r"-File .\reproduce.ps1", command)
+        self.assertIn("$PSScriptRoot", content)
         self.assertIn("REPOMIN_DEMO_FAILURE", content)
-        self.assertNotIn("python", (content + command).lower())
+        self.assertNotIn("python.exe", (content + command).lower())
 
     def test_demo_reports_an_interrupted_reduction_distinctly(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -514,7 +518,7 @@ class CliTest(unittest.TestCase):
                     exit_code = _demo_command([str(workspace)])
 
             self.assertEqual(130, exit_code)
-            reproducer_name = "reproduce.cmd" if os.name == "nt" else "reproduce.py"
+            reproducer_name = "reproduce.ps1" if os.name == "nt" else "reproduce.py"
             self.assertTrue((workspace / "source" / reproducer_name).is_file())
             self.assertIn("interrupted; workspace retained", stderr.getvalue())
             self.assertNotIn("reduction failed", stderr.getvalue())
