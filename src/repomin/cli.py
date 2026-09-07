@@ -733,7 +733,8 @@ def _demo_python_command() -> Tuple[str, str]:
     if not executable.is_file():
         raise RuntimeError("the current Python executable is not a regular file")
     if os.name == "nt":
-        command = '"%%%s%%" -I -S reproduce.py' % _DEMO_PYTHON_ENVIRONMENT
+        # The leading @ prevents cmd.exe /s /c from stripping the quoted path.
+        command = '@"%%%s%%" -I -S reproduce.py' % _DEMO_PYTHON_ENVIRONMENT
     else:
         command = '"$%s" -I -S reproduce.py' % _DEMO_PYTHON_ENVIRONMENT
     return command, "%s=%s" % (_DEMO_PYTHON_ENVIRONMENT, executable)

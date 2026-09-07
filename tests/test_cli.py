@@ -18,6 +18,7 @@ from unittest.mock import patch
 from repomin.cli import (
     _build_runner,
     _demo_command,
+    _demo_python_command,
     _format_heartbeat,
     _format_reduction_start,
     _parse_byte_size,
@@ -493,6 +494,24 @@ class CliTest(unittest.TestCase):
         self.assertLess(
             root_help.index("New here?"),
             root_help.index("positional arguments:"),
+        )
+
+    def test_demo_windows_command_keeps_a_special_character_path_quoted(
+        self,
+    ) -> None:
+        with patch("repomin.cli.Path") as path_type, patch(
+            "repomin.cli.os.name", "nt"
+        ):
+            executable = path_type.return_value.resolve.return_value
+            executable.is_file.return_value = True
+            executable.__str__.return_value = r"C:\Python&Tools\python.exe"
+            command, environment = _demo_python_command()
+
+        self.assertEqual(
+            '@"%REPOMIN_DEMO_PYTHON%" -I -S reproduce.py', command
+        )
+        self.assertEqual(
+            r"REPOMIN_DEMO_PYTHON=C:\Python&Tools\python.exe", environment
         )
 
     def test_demo_reports_an_interrupted_reduction_distinctly(self) -> None:
