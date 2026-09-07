@@ -50,6 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Long reductions now emit rate-limited, privacy-safe aggregate status on
+  stderr by default. `--quiet` suppresses routine status output, while
+  `--verbose` adds detailed component and accepted-candidate progress; stdout
+  remains limited to the final payload path.
 - The starter-contribution index now advertises a scoped Ruby `Gemfile`
   walkthrough and separates an assigned contribution under review from work
   that is still available to claim.

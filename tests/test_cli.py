@@ -17,6 +17,8 @@ from unittest.mock import patch
 
 from repomin.cli import (
     _build_runner,
+    _format_heartbeat,
+    _format_reduction_start,
     _parse_byte_size,
     _parse_confidence,
     _parse_environment,
@@ -36,7 +38,7 @@ from repomin.oracle import (
     exact_binomial_upper_tail,
 )
 from repomin.report import validate_report_document
-from repomin.session import _tree_digest
+from repomin.session import HeartbeatSnapshot, _tree_digest
 
 
 SCRIPT = """\
@@ -141,15 +143,16 @@ def _report(output: Path) -> dict:
 
 
 class _CheckpointRunner:
-    def __init__(self, interrupt_at=None):
+    def __init__(self, interrupt_at=None, output="ORIGINAL_FAILURE"):
         self.calls = 0
         self.interrupt_at = interrupt_at
+        self.output = output
 
     def run(self, cwd: Path) -> RunResult:
         self.calls += 1
         if self.interrupt_at is not None and self.calls >= self.interrupt_at:
             raise KeyboardInterrupt
-        return RunResult(1, "ORIGINAL_FAILURE", "", 0.01)
+        return RunResult(1, self.output, "", 0.01)
 
 
 class _PrefixPassRunner:
@@ -415,11 +418,28 @@ class CliTest(unittest.TestCase):
         self.assertIn("compare   compare privacy-safe evidence", help_text)
         self.assertIn("repomin report validate --help", help_text)
 
-    def test_reduction_help_explains_verbose_output_stream(self) -> None:
-        self.assertIn(
-            "print reduction progress to stderr",
-            build_parser().format_help(),
-        )
+    def test_reduction_help_explains_output_modes(self) -> None:
+        help_text = build_parser().format_help()
+        self.assertIn("suppress routine status output on stderr", help_text)
+        self.assertIn("print detailed reduction progress to stderr", help_text)
+
+    def test_quiet_and_verbose_are_mutually_exclusive(self) -> None:
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as raised:
+                build_parser().parse_args(
+                    [
+                        "--command",
+                        "false",
+                        "--match",
+                        "failure",
+                        "--quiet",
+                        "--verbose",
+                    ]
+                )
+
+        self.assertEqual(2, raised.exception.code)
+        self.assertIn("not allowed with argument --quiet", stderr.getvalue())
 
     def test_report_validate_help_describes_full_payload_evidence(self) -> None:
         stdout = io.StringIO()
@@ -681,10 +701,12 @@ class CliTest(unittest.TestCase):
                 stats.accepted += 1
 
         progress = []
+        phases = []
         _run_fixed_point(
             [("first", first), ("second", second)],
             stats,
             progress.append,
+            phase_progress=phases.append,
         )
 
         self.assertEqual(["first", "second", "first"], calls)
@@ -696,6 +718,7 @@ class CliTest(unittest.TestCase):
             ],
             progress,
         )
+        self.assertEqual(["first", "second", "first"], phases)
 
     def test_parses_docker_resource_sizes(self) -> None:
         self.assertEqual(512, _parse_byte_size("512"))
@@ -985,6 +1008,123 @@ class CliTest(unittest.TestCase):
             ]
         )
         self.assertEqual(2.5, args.max_duration)
+
+    def test_reduction_start_formats_bounded_and_unbounded_budgets(self) -> None:
+        self.assertEqual(
+            "Starting reduction: backend=docker jobs=4 per-command-timeout=12.5s "
+            "reducers=maven,files,text max-attempts=50 max-duration=90s",
+            _format_reduction_start(
+                backend="docker",
+                jobs=4,
+                timeout=12.5,
+                reducers=("maven", "files", "text"),
+                max_attempts=50,
+                max_duration=90.0,
+            ),
+        )
+        self.assertEqual(
+            "Starting reduction: backend=host jobs=1 per-command-timeout=120s "
+            "reducers=files max-attempts=unbounded max-duration=unbounded",
+            _format_reduction_start(
+                backend="host",
+                jobs=1,
+                timeout=120.0,
+                reducers=("files",),
+                max_attempts=None,
+                max_duration=None,
+            ),
+        )
+
+    def test_heartbeat_formats_only_safe_aggregate_fields(self) -> None:
+        snapshot = HeartbeatSnapshot(
+            phase="files",
+            reason="interval",
+            elapsed_seconds=31.25,
+            attempts=17,
+            completed_attempts=16,
+            accepted=3,
+            rejected=7,
+            superseded=2,
+            no_op=4,
+            aborted=0,
+            candidate_samples=22,
+            candidate_passes=8,
+            oracle_samples=17,
+            cache_hits=5,
+        )
+
+        self.assertEqual(
+            "Progress: phase=files elapsed=31.2s attempts=17/50 "
+            "oracle-samples=17 accepted=3 cache-hits=5",
+            _format_heartbeat(snapshot, max_attempts=50),
+        )
+        self.assertNotIn("interval", _format_heartbeat(snapshot, max_attempts=50))
+        self.assertNotIn("rejected", _format_heartbeat(snapshot, max_attempts=50))
+
+    def test_default_mode_emits_safe_heartbeat(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "private-source-path"
+            output = root / "private-output-path"
+            source.mkdir()
+            private_command = "private-command --token private-command-value"
+            private_match = "PRIVATE_MATCH_VALUE"
+            private_environment = "PRIVATE_ENV_VALUE"
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with patch(
+                "repomin.cli._build_runner",
+                return_value=_CheckpointRunner(output=private_match),
+            ):
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(
+                    stderr
+                ):
+                    exit_code = main(
+                        [
+                            str(source),
+                            "--command",
+                            private_command,
+                            "--match",
+                            private_match,
+                            "--env",
+                            "PRIVATE_NAME=" + private_environment,
+                            "--baseline-runs",
+                            "1",
+                            "--adapter",
+                            "none",
+                            "--source-reducer",
+                            "none",
+                            "--max-attempts",
+                            "50",
+                            "--output",
+                            str(output),
+                        ]
+                    )
+
+            self.assertEqual(0, exit_code, stderr.getvalue())
+            self.assertEqual(str(output.resolve()) + "\n", stdout.getvalue())
+            heartbeat_lines = [
+                line
+                for line in stderr.getvalue().splitlines()
+                if line.startswith(("Starting reduction:", "Progress:"))
+            ]
+            self.assertEqual(2, len(heartbeat_lines))
+            self.assertRegex(
+                heartbeat_lines[1],
+                r"^Progress: phase=files elapsed=\d+\.\ds attempts=0/50 "
+                r"oracle-samples=0 accepted=0 cache-hits=0$",
+            )
+            progress_text = "\n".join(heartbeat_lines)
+            for private_value in (
+                private_command,
+                private_match,
+                private_environment,
+                source.name,
+                output.name,
+            ):
+                with self.subTest(private_value=private_value):
+                    self.assertNotIn(private_value, progress_text)
 
     def test_semantic_timeout_is_parsed_as_seconds(self) -> None:
         args = build_parser().parse_args(
@@ -1276,6 +1416,12 @@ class CliTest(unittest.TestCase):
 
             self.assertEqual(0, exit_code, stderr.getvalue())
             self.assertEqual(str(output.resolve()) + "\n", stdout.getvalue())
+            self.assertIn(
+                "Starting reduction: backend=host jobs=2 "
+                "per-command-timeout=120s reducers=files "
+                "max-attempts=unbounded max-duration=unbounded",
+                stderr.getvalue(),
+            )
             self.assertTrue((output / "reproduce.py").exists())
             self.assertTrue((output / "required.txt").exists())
             self.assertFalse((output / "unused.txt").exists())
@@ -1305,6 +1451,99 @@ class CliTest(unittest.TestCase):
             self.assertIn("required.txt", reproduction)
             self.assertNotIn("unused.txt", reproduction)
             self.assertEqual(0, report["cache_hits"])
+
+    def test_quiet_suppresses_routine_stderr_but_keeps_payload_stdout(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            output = root / "output"
+            source.mkdir()
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with patch("repomin.cli._build_runner", return_value=_CheckpointRunner()):
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(
+                    stderr
+                ):
+                    exit_code = main(
+                        [
+                            str(source),
+                            "--command",
+                            "reproduce",
+                            "--match",
+                            "ORIGINAL_FAILURE",
+                            "--baseline-runs",
+                            "1",
+                            "--adapter",
+                            "none",
+                            "--source-reducer",
+                            "none",
+                            "--quiet",
+                            "--output",
+                            str(output),
+                        ]
+                    )
+
+            self.assertEqual(0, exit_code, stderr.getvalue())
+            self.assertEqual(str(output.resolve()) + "\n", stdout.getvalue())
+            self.assertEqual("", stderr.getvalue())
+
+    def test_quiet_does_not_suppress_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            missing = Path(directory) / "missing"
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                exit_code = main(
+                    [
+                        str(missing),
+                        "--command",
+                        "reproduce",
+                        "--match",
+                        "ORIGINAL_FAILURE",
+                        "--quiet",
+                    ]
+                )
+
+            self.assertEqual(2, exit_code)
+            self.assertIn("source is not a directory", stderr.getvalue())
+
+    def test_verbose_keeps_detailed_reducer_progress(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            output = root / "output"
+            source.mkdir()
+            (source / "unused.txt").write_text("remove\n", encoding="utf-8")
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with patch("repomin.cli._build_runner", return_value=_CheckpointRunner()):
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(
+                    stderr
+                ):
+                    exit_code = main(
+                        [
+                            str(source),
+                            "--command",
+                            "reproduce",
+                            "--match",
+                            "ORIGINAL_FAILURE",
+                            "--baseline-runs",
+                            "1",
+                            "--adapter",
+                            "none",
+                            "--source-reducer",
+                            "none",
+                            "--verbose",
+                            "--output",
+                            str(output),
+                        ]
+                    )
+
+            self.assertEqual(0, exit_code, stderr.getvalue())
+            self.assertEqual(str(output.resolve()) + "\n", stdout.getvalue())
+            self.assertIn("fixed-point component: files", stderr.getvalue())
+            self.assertIn("accepted: remove 1 files: unused.txt", stderr.getvalue())
 
     def test_custom_ignore_is_applied_before_baseline_and_recorded(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

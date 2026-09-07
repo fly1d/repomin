@@ -261,19 +261,33 @@ class ConfigExpansionTests(_ConfigTestCase):
                         )
 
     def test_runtime_options_remain_allowed(self):
-        expanded = self._expand(
-            _minimal_spec(),
-            extra=("--output=out", "--session", "state", "--resume", "--verbose"),
-        )
-        self.assertEqual(
-            ["--output=out", "--session", "state", "--resume", "--verbose"],
-            expanded[-5:],
-        )
+        for output_mode in ("--quiet", "--verbose"):
+            with self.subTest(output_mode=output_mode):
+                expanded = self._expand(
+                    _minimal_spec(),
+                    extra=(
+                        "--output=out",
+                        "--session",
+                        "state",
+                        "--resume",
+                        output_mode,
+                    ),
+                )
+                self.assertEqual(
+                    [
+                        "--output=out",
+                        "--session",
+                        "state",
+                        "--resume",
+                        output_mode,
+                    ],
+                    expanded[-5:],
+                )
 
     def test_doctor_only_allows_its_runtime_options(self):
         with tempfile.TemporaryDirectory() as directory:
             path = self._write(Path(directory), _minimal_spec())
-            for option in ("--session=state", "--resume", "--verbose"):
+            for option in ("--session=state", "--resume", "--quiet", "--verbose"):
                 with self.subTest(option=option):
                     with self.assertRaisesRegex(
                         ConfigError, "%s cannot be combined" % option.split("=", 1)[0]
@@ -343,6 +357,7 @@ class ConfigSchemaTests(_ConfigTestCase):
             "output",
             "session",
             "resume",
+            "quiet",
             "verbose",
             "env",
             "semantic_reducer",

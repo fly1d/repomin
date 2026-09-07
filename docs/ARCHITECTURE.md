@@ -542,6 +542,16 @@ for its own changes because local stability is its reducer contract. The queue
 is empty only after all components have run since the most recent external
 change, which is the global fixed point.
 
+Progress reporting is an observer of this process, never a reduction input. A
+session publishes an aggregate heartbeat only after a complete candidate window
+has been classified, so parallel attempts cannot expose partially updated
+counters. The CLI forces a snapshot at each active component transition and
+otherwise rate-limits snapshots by elapsed time or completed attempts. Its
+process-local monotonic clock is neither checkpointed nor used for the persisted
+duration budget, and reporting creates no background thread. Aggregate progress
+omits commands, match expressions, environment values, output, paths, and
+candidate descriptions; stdout remains reserved for the final payload path.
+
 `--max-attempts N` changes the terminal condition from global fixed point to
 logical-attempt budget. Candidate preparation checks the accumulated logical
 attempt count before each window and stops once `N` is reached. The final
