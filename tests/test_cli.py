@@ -2087,6 +2087,8 @@ class CliTest(unittest.TestCase):
                         endpoint,
                         "--semantic-model",
                         "test-model",
+                        "--semantic-timeout",
+                        "12.5",
                         "--output",
                         str(output),
                     ]
@@ -2098,6 +2100,7 @@ class CliTest(unittest.TestCase):
             self.assertEqual("http", report["execution"]["semantic_reducer"])
             self.assertEqual("test-model", report["execution"]["semantic_model"])
             self.assertEqual(endpoint, report["execution"]["semantic_endpoint"])
+            self.assertEqual(12.5, report["execution"]["semantic_timeout"])
             self.assertEqual(1, report["execution"]["semantic_calls"])
             self.assertEqual(1, report["execution"]["semantic_accepted"])
             reproduction = (_metadata_output(output) / "REPOMIN.md").read_text(
@@ -2139,6 +2142,7 @@ class CliTest(unittest.TestCase):
             self.assertEqual("none", report["execution"]["semantic_reducer"])
             self.assertIsNone(report["execution"]["semantic_model"])
             self.assertIsNone(report["execution"]["semantic_endpoint"])
+            self.assertIsNone(report["execution"]["semantic_timeout"])
             self.assertEqual(0, report["execution"]["semantic_calls"])
             self.assertEqual(0, report["execution"]["semantic_accepted"])
             reproduction = (_metadata_output(output) / "REPOMIN.md").read_text(
@@ -2149,6 +2153,64 @@ class CliTest(unittest.TestCase):
                 phase["phase"] for phase in report["phase_statistics"]["phases"]
             }
             self.assertNotIn("semantic", phases)
+
+    def test_resume_rejects_changed_semantic_timeout_before_sampling(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            session = root / "session"
+            output = root / "output"
+            source.mkdir()
+            (source / "unused.txt").write_text("unused\n", encoding="utf-8")
+            arguments = [
+                str(source),
+                "--command",
+                "reproduce",
+                "--match",
+                "ORIGINAL_FAILURE",
+                "--baseline-runs",
+                "1",
+                "--adapter",
+                "none",
+                "--source-reducer",
+                "none",
+                "--semantic-reducer",
+                "http",
+                "--semantic-endpoint",
+                "http://127.0.0.1:1/v1/chat/completions",
+                "--semantic-model",
+                "test-model",
+                "--semantic-timeout",
+                "12.5",
+                "--session",
+                str(session),
+                "--output",
+                str(output),
+            ]
+
+            with patch(
+                "repomin.cli._build_runner",
+                return_value=_CheckpointRunner(interrupt_at=2),
+            ):
+                with contextlib.redirect_stderr(io.StringIO()):
+                    self.assertEqual(130, main(arguments))
+
+            checkpoint = json.loads(
+                (session / "state.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(12.5, checkpoint["identity"]["semantic_timeout"])
+            self.assertEqual(12.5, checkpoint["stats"]["semantic_timeout"])
+
+            changed = list(arguments)
+            changed[changed.index("12.5")] = "30"
+            resumed_runner = _CheckpointRunner()
+            stderr = io.StringIO()
+            with patch("repomin.cli._build_runner", return_value=resumed_runner):
+                with contextlib.redirect_stderr(stderr):
+                    self.assertEqual(2, main(changed + ["--resume"]))
+
+            self.assertEqual(0, resumed_runner.calls)
+            self.assertIn("session configuration changed", stderr.getvalue())
 
     def test_semantic_timeout_must_be_positive_when_http_is_enabled(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

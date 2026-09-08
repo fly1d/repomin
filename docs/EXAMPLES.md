@@ -10,8 +10,8 @@ the shortest network-free demonstration of structured manifest reduction.
 | [Requirements chain](#shrink-a-requirements-include-chain) | Python dependency/include reduction | None |
 | [Pipenv manifest](#shrink-a-pipenv-pipfile) | Package and development dependency reduction | None |
 | [Node manifest](#shrink-a-node-package-manifest-without-node) | Script and dependency reduction | None; Node is not invoked |
-| [Cargo workspace](#shrink-a-cargo-workspace-without-network-access) | Workspace-member reduction | None; Cargo is not invoked |
-| [Go module](#shrink-a-go-module-without-network-access) | Module requirement reduction | None; Go is not invoked |
+| [Cargo workspace](#shrink-a-cargo-workspace-without-network-access) | Workspace-member reduction | Local Cargo toolchain; no network |
+| [Go module](#shrink-a-go-module-without-network-access) | Module requirement reduction | Local Go toolchain; no network |
 | [Selected text](#shrink-a-data-files-contents-with---text-file) | Explicit line-level reduction | Python only |
 | [Docker](#run-the-reproduction-in-docker) | Isolated command backend | Docker and a local image |
 | [FastAPI](#reduce-a-fastapi-dependency-regression) | Python manifest reduction in Docker | Docker; initial image build uses network |

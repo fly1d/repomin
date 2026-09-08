@@ -91,6 +91,8 @@ def main(argv: list[str] | None = None) -> int:
                     endpoint,
                     "--semantic-model",
                     "benchmark-model",
+                    "--semantic-timeout",
+                    "12.5",
                     "--output",
                     str(output),
                 ],
@@ -110,6 +112,7 @@ def main(argv: list[str] | None = None) -> int:
             assert report["execution"]["semantic_reducer"] == "http"
             assert report["execution"]["semantic_model"] == "benchmark-model"
             assert report["execution"]["semantic_endpoint"] == endpoint
+            assert report["execution"]["semantic_timeout"] == 12.5
             assert report["execution"]["semantic_calls"] >= 1
             assert report["execution"]["semantic_accepted"] == 1
             assert (output / "data.txt").read_text(encoding="utf-8") == "NEEDLE\n"

@@ -865,9 +865,12 @@ Because the global scheduler is a dirty worklist, an accepted semantic edit
 requeues the deterministic reducers. This forms the same
 syntax-then-semantic-then-syntax alternation described by LPR without importing
 an LLM runtime. Checkpoints and reports record `semantic_reducer`,
-`semantic_model`, `semantic_endpoint`, `semantic_calls`, and
+`semantic_model`, `semantic_endpoint`, `semantic_timeout`, `semantic_calls`, and
 `semantic_accepted`; the session identity includes the semantic configuration,
-so a resumed run rejects a changed provider or model.
+so a resumed run rejects a changed provider, model, or effective HTTP timeout.
+Legacy HTTP checkpoints without timeout provenance cannot prove their original
+configuration and must start a new session; disabled semantic reduction has no
+effective semantic timeout.
 
 ## Report and checkpoint fields
 
@@ -879,7 +882,8 @@ reduction configuration and provenance, including the input-control knobs
 (`ignored_names`, `ignored_paths`, `gitignore_files`, `gitignore_sha256`,
 `gitignore_recursive`, `keep_paths`, `max_attempts`, `max_duration_seconds`,
 `budget_exhausted`) and the opt-in semantic reducer fields (`semantic_reducer`,
-`semantic_model`, `semantic_endpoint`, `semantic_calls`, `semantic_accepted`).
+`semantic_model`, `semantic_endpoint`, `semantic_timeout`, `semantic_calls`,
+`semantic_accepted`).
 Secrets are never written: explicit environment variables appear only as sorted
 names plus a SHA-256 digest, and the semantic bearer token is never stored.
 

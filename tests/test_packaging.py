@@ -58,6 +58,18 @@ def _setup_config() -> configparser.ConfigParser:
 
 
 class PackagingContractTests(unittest.TestCase):
+    def test_explicit_manifest_entries_exist_in_a_clean_checkout(self) -> None:
+        manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
+        missing = []
+        for line in manifest.splitlines():
+            directive, separator, relative = line.partition(" ")
+            if directive != "include" or not separator:
+                continue
+            if not any(path.is_file() for path in ROOT.glob(relative)):
+                missing.append(relative)
+
+        self.assertEqual([], missing)
+
     def test_fastapi_fixture_dependency_sources_stay_maintainable(self) -> None:
         fixture = ROOT / "benchmarks" / "python-fastapi"
         dockerfile = (fixture / "Dockerfile").read_text(encoding="utf-8")

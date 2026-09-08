@@ -227,6 +227,33 @@ class ReportCompareTest(unittest.TestCase):
             self.assertNotIn(secret, text)
             self.assertNotIn(secret, markdown)
 
+    def test_semantic_timeout_difference_is_compared(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = _report()
+            second = _report()
+            for report, timeout in ((first, 12.5), (second, 30.0)):
+                report["execution"].update(
+                    {
+                        "semantic_reducer": "http",
+                        "semantic_model": "model-a",
+                        "semantic_endpoint": "https://example.invalid/v1/chat/completions",
+                        "semantic_timeout": timeout,
+                    }
+                )
+
+            result = compare_reports(
+                [
+                    _write_report(root, "first.json", first),
+                    _write_report(root, "second.json", second),
+                ]
+            )
+
+        self.assertIn(
+            "semantic reducer configuration differs",
+            result["context_warnings"],
+        )
+
     def test_input_selection_and_oracle_identity_are_compared_opaquely(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

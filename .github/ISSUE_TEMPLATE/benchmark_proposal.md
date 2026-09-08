@@ -2,7 +2,7 @@
 name: Benchmark or real reproduction
 about: Propose a deterministic fixture that improves reducer coverage
 title: ""
-labels: enhancement,good first issue
+labels: enhancement
 assignees: ""
 ---
 

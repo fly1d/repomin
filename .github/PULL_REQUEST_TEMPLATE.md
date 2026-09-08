@@ -1,11 +1,3 @@
----
-name: Pull request
-about: Contribute a change to ReproMin
-title: ""
-labels: ""
-assignees: ""
----
-
 ## Summary
 
 What does this change do and why is it needed?
