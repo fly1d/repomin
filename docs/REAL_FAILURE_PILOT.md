@@ -13,6 +13,23 @@ large staged reduction and a path-sensitive cache boundary, and the
 which combines a strict late-failure oracle with an important example of
 community boundaries that were not respected.
 
+## Offer a public case without installing
+
+You do not need to install ReproMin or design the complete oracle before asking
+for help. For a public repository, add these three items to
+[pilot issue #11](https://github.com/fly1d/repomin/issues/11):
+
+1. the repository and revision;
+2. a deterministic local command that reproduces the failure; and
+3. the exit code, exception type, or stable output that distinguishes the
+   target failure from setup and dependency failures.
+
+A maintainer can check fit, run Doctor, propose a strict oracle, and perform a
+bounded first reduction. The repository must have an explicit open-source
+license, and the command must not require credentials, private services,
+special hardware, or production data. The result is not sent to another
+project until a human has reviewed the artifact and that project's policies.
+
 ## Install the pilot build
 
 The replay and transport-fingerprint workflow described below is included in

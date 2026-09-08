@@ -82,16 +82,26 @@ the [five-minute quick start](docs/QUICKSTART.md) for a self-contained run, the
 [PowerShell quick start](docs/QUICKSTART.windows.md) on Windows, or the
 [中文快速开始](docs/QUICKSTART.zh-CN.md).
 
-After [installation](#install), one command runs the real reducer against a
-trusted, network-free fixture and keeps the result for inspection:
+If you already have
+[`uv`](https://docs.astral.sh/uv/getting-started/installation/), the shortest
+evaluation is one command. It runs the published release in a temporary,
+isolated environment and does not install ReproMin into your project or system
+Python:
 
 ```sh
-repomin demo ./repomin-demo
+uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev10/repomin-0.1.0.dev10-py3-none-any.whl \
+  repomin demo ./repomin-demo
 ```
 
 It creates only the new `./repomin-demo` directory, refuses to overwrite an
 existing path, reduces three files to two, line-reduces the required input, and
 validates the exact exported payload fingerprint.
+
+No installation is required to offer a public pilot either. Share a public
+repository, a deterministic failure command, and the expected failure signal
+in [pilot issue #11](https://github.com/fly1d/repomin/issues/11); a maintainer
+can perform the first bounded run. Only run repositories and commands you
+trust, and do not post secrets, private URLs, proprietary source, or raw logs.
 
 For a repository you trust, first run the read-only
 [Doctor preflight](docs/DOCTOR.md):

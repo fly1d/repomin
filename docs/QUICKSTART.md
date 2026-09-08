@@ -10,6 +10,20 @@ macOS or Linux. Windows users can follow the complete
 installation, fixture creation, Doctor preflight, reduction, validation, and
 replay steps.
 
+If [`uv`](https://docs.astral.sh/uv/getting-started/installation/) is already
+available, run the published release without installing it into your project
+or system Python:
+
+```sh
+uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev10/repomin-0.1.0.dev10-py3-none-any.whl \
+  repomin demo ./repomin-demo
+```
+
+This is the shortest tour. It creates a disposable tool environment, performs
+and validates a real network-free `3 -> 2` reduction, and leaves the demo
+workspace for inspection. Continue below when you want a persistent,
+versioned installation and the complete workflow.
+
 ## 1. Install in an isolated environment
 
 ```sh
