@@ -353,29 +353,11 @@ class CliTest(unittest.TestCase):
                 self.assertEqual("", stderr.getvalue())
 
     def test_doctor_completion_includes_keep_and_text_file_paths(self) -> None:
-        scripts = {}
-        for shell in ("bash", "zsh"):
+        for shell in ("bash", "zsh", "fish", "powershell"):
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
                 self.assertEqual(0, main(["completion", shell]))
-            scripts[shell] = stdout.getvalue()
-
-        bash_start = scripts["bash"].index(
-            'if [[ "${COMP_WORDS[1]}" == "doctor" ]]; then'
-        )
-        bash_end = scripts["bash"].index("if (( COMP_CWORD == 1 ))", bash_start)
-        bash_doctor = scripts["bash"][bash_start:bash_end]
-
-        zsh_start = scripts["zsh"].index(
-            'if [[ "$words[2]" == "doctor" ]]; then'
-        )
-        zsh_end = scripts["zsh"].index("\n        return\n    fi", zsh_start)
-        zsh_doctor = scripts["zsh"][zsh_start:zsh_end]
-
-        for shell, doctor_block in (
-            ("bash", bash_doctor),
-            ("zsh", zsh_doctor),
-        ):
+            script = stdout.getvalue()
             for option in (
                 "--config",
                 "--keep",
@@ -390,7 +372,8 @@ class CliTest(unittest.TestCase):
                 "--confidence",
             ):
                 with self.subTest(shell=shell, option=option):
-                    self.assertIn(option, doctor_block)
+                    expected = "-l " + option[2:] if shell == "fish" else option
+                    self.assertIn(expected, script)
 
     def test_shell_completion_rejects_unknown_shell(self) -> None:
         stderr = io.StringIO()

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bash, Zsh, Fish, and PowerShell completion now derive option names, value
+  arity, choices, repeatability, and descriptions from the real command
+  parsers, leaving only file-versus-directory hints as completion metadata.
 - Reduction help now groups options by user task and uses a concise primary
   invocation, while successful reductions and the self-contained demo print a
   copyable, non-executing report-validation command as the next step.
@@ -25,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Shell completion now isolates reduction, Doctor, demo, completion, and each
+  report command; completes positional paths and supported shell names in the
+  correct context; and preserves Bash path candidates containing spaces.
 - The effective HTTP semantic timeout is now preserved in session identity,
   checkpoints, and reports. Resume rejects timeout changes before sampling,
   report comparison can detect them, and legacy HTTP sessions without this
