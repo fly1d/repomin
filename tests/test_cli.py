@@ -21,6 +21,7 @@ from repomin.cli import (
     _demo_reproducer,
     _format_heartbeat,
     _format_reduction_start,
+    _validation_command,
     _parse_byte_size,
     _parse_confidence,
     _parse_environment,
@@ -461,6 +462,9 @@ class CliTest(unittest.TestCase):
             self.assertIn("Removed: unused.txt", stdout.getvalue())
             self.assertIn("Validated: exact payload fingerprint.", stdout.getvalue())
             self.assertIn("only NEEDLE remains", stdout.getvalue())
+            self.assertIn("Repeat validation:", stdout.getvalue())
+            self.assertIn("--format markdown", stdout.getvalue())
+            self.assertIn("repomin doctor --help", stdout.getvalue())
 
     def test_demo_refuses_to_overwrite_an_existing_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -492,8 +496,47 @@ class CliTest(unittest.TestCase):
         root_help = build_parser().format_help()
         self.assertLess(
             root_help.index("New here?"),
-            root_help.index("positional arguments:"),
+            root_help.index("failure to preserve:"),
         )
+
+    def test_reduction_help_groups_advanced_options(self) -> None:
+        help_text = build_parser().format_help()
+        self.assertIn(
+            "usage: repomin SOURCE --command COMMAND --match REGEX [options]",
+            help_text,
+        )
+        self.assertIn(
+            "repomin SOURCE --command COMMAND --process-failure [options]",
+            help_text,
+        )
+        self.assertIn("repomin SOURCE --config PATH [options]", help_text)
+        self.assertIn("repomin {demo,doctor,report,completion} ...", help_text)
+        headings = (
+            "failure to preserve:",
+            "execution and limits:",
+            "input selection:",
+            "reducers:",
+            "reliability and sampling:",
+            "Docker backend:",
+            "optional semantic reducer:",
+            "output and sessions:",
+        )
+        positions = [help_text.index(heading) for heading in headings]
+        self.assertEqual(sorted(positions), positions)
+
+    def test_validation_command_quotes_paths_for_the_current_shell(self) -> None:
+        report = Path("result with spaces.repomin") / "report.json"
+        payload = Path("result with spaces")
+        command = _validation_command(report, payload)
+        if os.name == "nt":
+            self.assertIn("'result with spaces.repomin\\report.json'", command)
+            self.assertIn("--payload 'result with spaces'", command)
+        else:
+            self.assertEqual(
+                "repomin report validate 'result with spaces.repomin/report.json' "
+                "--payload 'result with spaces' --format markdown",
+                command,
+            )
 
     def test_demo_windows_reproducer_does_not_embed_a_python_path(self) -> None:
         with patch("repomin.cli.os.name", "nt"):
@@ -1553,6 +1596,14 @@ class CliTest(unittest.TestCase):
             )
             self.assertIn(
                 "Report: %s" % (_metadata_output(output.resolve()) / "report.json"),
+                stderr.getvalue(),
+            )
+            self.assertIn(
+                "Next: validate the exported payload without running its command:",
+                stderr.getvalue(),
+            )
+            self.assertIn(
+                "--payload %s --format markdown" % output.resolve(),
                 stderr.getvalue(),
             )
             self.assertEqual(2, report["execution"]["jobs"])

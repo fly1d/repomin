@@ -75,6 +75,10 @@ class DoctorTest(unittest.TestCase):
         self.assertTrue(ok)
         self.assertTrue(result["adapters"]["python"]["detected"])
         self.assertEqual("not_run", result["baseline"]["status"])
+        self.assertIn(
+            "Next: add --command and a failure signal",
+            format_doctor(result),
+        )
         after = sorted(path.relative_to(source).as_posix() for path in source.rglob("*"))
         self.assertEqual(before, after)
 
@@ -97,6 +101,10 @@ class DoctorTest(unittest.TestCase):
         self.assertEqual(2, result["baseline"]["minimum_passes"])
         self.assertEqual(0.95, result["baseline"]["confidence"])
         self.assertFalse((source / "doctor").exists())
+        self.assertIn(
+            "Next: rerun the same failure options with `repomin`",
+            format_doctor(result),
+        )
 
     def test_doctor_rejects_empty_or_whitespace_command_without_running(self) -> None:
         source = self._source()

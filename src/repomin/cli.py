@@ -356,6 +356,13 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
     semantic_environment = os.environ if semantic_environment_defaults else {}
     parser = argparse.ArgumentParser(
         prog="repomin",
+        usage=(
+            "%(prog)s SOURCE --command COMMAND --match REGEX [options]\n"
+            "       %(prog)s SOURCE --command COMMAND --exit-code CODE [options]\n"
+            "       %(prog)s SOURCE --command COMMAND --process-failure [options]\n"
+            "       %(prog)s SOURCE --config PATH [options]\n"
+            "       %(prog)s {demo,doctor,report,completion} ..."
+        ),
         description=(
             "Reduce a repository while preserving a command failure. New here? "
             "Run `repomin demo WORKSPACE` for a self-contained first reduction."
@@ -369,12 +376,20 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "`repomin completion powershell`."
         ),
     )
+    failure_options = parser.add_argument_group("failure to preserve")
+    execution_options = parser.add_argument_group("execution and limits")
+    input_options = parser.add_argument_group("input selection")
+    reducer_options = parser.add_argument_group("reducers")
+    reliability_options = parser.add_argument_group("reliability and sampling")
+    docker_options = parser.add_argument_group("Docker backend")
+    semantic_options = parser.add_argument_group("optional semantic reducer")
+    output_options = parser.add_argument_group("output and sessions")
     parser.add_argument(
         "--version",
         action="version",
         version="repomin %s" % __version__,
     )
-    parser.add_argument(
+    failure_options.add_argument(
         "--config",
         metavar="PATH",
         help=(
@@ -382,106 +397,112 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "combined with this file"
         ),
     )
-    parser.add_argument("source", nargs="?", default=".", help="repository to reduce")
-    parser.add_argument(
+    failure_options.add_argument(
+        "source", nargs="?", default=".", help="repository to reduce"
+    )
+    failure_options.add_argument(
         "--command",
         required=True,
         type=_parse_command,
         help="failure reproduction command",
     )
-    parser.add_argument(
+    failure_options.add_argument(
         "--match",
         help=(
             "regular expression that must remain present in command output "
             "(required unless --process-failure or --exit-code is enabled)"
         ),
     )
-    parser.add_argument(
+    failure_options.add_argument(
         "--exit-code",
         type=int,
         help="required exit code; by default any non-zero exit is accepted",
     )
-    parser.add_argument("--output", help="output directory (default: SOURCE-minimal)")
-    parser.add_argument(
+    output_options.add_argument(
+        "--output", help="output directory (default: SOURCE-minimal)"
+    )
+    output_options.add_argument(
         "--session",
         help="persistent reduction session directory for checkpointing",
     )
-    parser.add_argument(
+    output_options.add_argument(
         "--resume",
         action="store_true",
         help="resume an existing --session instead of starting a new reduction",
     )
-    parser.add_argument("--timeout", type=float, default=120.0, help="seconds per run")
-    parser.add_argument(
+    execution_options.add_argument(
+        "--timeout", type=float, default=120.0, help="seconds per run"
+    )
+    execution_options.add_argument(
         "--backend",
         choices=("host", "docker"),
         default="host",
         help="command execution backend (default: host)",
     )
-    parser.add_argument(
+    docker_options.add_argument(
         "--docker-image",
         help="local image used by the Docker backend",
     )
-    parser.add_argument(
+    docker_options.add_argument(
         "--docker-network",
         choices=("none", "bridge", "host"),
         default="none",
         help="Docker network policy (default: none)",
     )
-    parser.add_argument(
+    docker_options.add_argument(
         "--docker-cpus",
         type=float,
         help="Docker CPU quota in cores",
     )
-    parser.add_argument(
+    docker_options.add_argument(
         "--docker-memory",
         type=_parse_byte_size,
         metavar="SIZE",
         help="Docker memory and swap limit (for example: 2GiB)",
     )
-    parser.add_argument(
+    docker_options.add_argument(
         "--docker-pids-limit",
         type=int,
         default=DEFAULT_DOCKER_PIDS_LIMIT,
         help="maximum container processes (default: 512)",
     )
-    parser.add_argument(
+    docker_options.add_argument(
         "--docker-tmpfs-size",
         type=_parse_byte_size,
         default=DEFAULT_DOCKER_TMPFS_BYTES,
         metavar="SIZE",
         help="size of the container /tmp filesystem (default: 1GiB)",
     )
-    parser.add_argument(
+    docker_options.add_argument(
         "--docker-workspace-limit",
         type=_parse_byte_size,
         metavar="SIZE",
         help="maximum total size of the writable candidate workspace",
     )
-    parser.add_argument(
+    execution_options.add_argument(
         "--jobs",
         type=int,
         default=1,
         help="candidate commands to run concurrently (default: 1)",
     )
-    parser.add_argument(
+    execution_options.add_argument(
         "--no-cache",
         action="store_true",
         help="disable session-local content-addressed result caching",
     )
-    parser.add_argument(
+    execution_options.add_argument(
         "--max-attempts",
         type=int,
         metavar="N",
         help="stop the reduction after N logical candidate attempts",
     )
-    parser.add_argument(
+    execution_options.add_argument(
         "--max-duration",
         type=float,
         metavar="SECONDS",
         help="stop the reduction after this many wall-clock seconds",
     )
-    parser.add_argument(
+    input_options.add_argument(
         "--ignore",
         dest="ignore_names",
         action="append",
@@ -493,7 +514,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "repeat for multiple names"
         ),
     )
-    parser.add_argument(
+    input_options.add_argument(
         "--ignore-path",
         dest="ignore_paths",
         action="append",
@@ -505,12 +526,12 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "multiple paths (glob syntax is not accepted)"
         ),
     )
-    parser.add_argument(
+    input_options.add_argument(
         "--gitignore",
         action="store_true",
         help="apply the repository .gitignore as additional exclusions",
     )
-    parser.add_argument(
+    input_options.add_argument(
         "--gitignore-file",
         dest="gitignore_files",
         action="append",
@@ -521,7 +542,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "(relative paths are resolved against the repository)"
         ),
     )
-    parser.add_argument(
+    input_options.add_argument(
         "--gitignore-recursive",
         action="store_true",
         help=(
@@ -529,7 +550,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "their respective directories"
         ),
     )
-    parser.add_argument(
+    input_options.add_argument(
         "--keep",
         dest="keep_paths",
         action="append",
@@ -541,7 +562,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "file reducer; repeat for multiple paths (the path itself is kept)"
         ),
     )
-    parser.add_argument(
+    execution_options.add_argument(
         "--env",
         dest="environment_entries",
         action="append",
@@ -553,7 +574,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "multiple variables (values are omitted from reports)"
         ),
     )
-    signature_group = parser.add_mutually_exclusive_group()
+    signature_group = failure_options.add_mutually_exclusive_group()
     signature_group.add_argument(
         "--java-exception",
         action="store_true",
@@ -569,29 +590,29 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
         action="store_true",
         help="learn and preserve the exact process termination signature",
     )
-    parser.add_argument(
+    reliability_options.add_argument(
         "--baseline-runs",
         type=int,
         default=2,
         help="baseline samples collected before reduction (default: 2)",
     )
-    parser.add_argument(
+    reliability_options.add_argument(
         "--min-baseline-passes",
         type=int,
         help="minimum passing baseline samples (default: all baseline runs)",
     )
-    parser.add_argument(
+    reliability_options.add_argument(
         "--candidate-runs",
         type=int,
         default=1,
         help="independent oracle runs for each candidate (default: 1)",
     )
-    parser.add_argument(
+    reliability_options.add_argument(
         "--min-candidate-passes",
         type=int,
         help="minimum passing candidate samples (default: all candidate runs)",
     )
-    parser.add_argument(
+    reliability_options.add_argument(
         "--min-baseline-rate",
         type=_parse_rate,
         metavar="RATE",
@@ -600,7 +621,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "when set without --min-baseline-passes, the count minimum is 1"
         ),
     )
-    parser.add_argument(
+    reliability_options.add_argument(
         "--min-candidate-rate",
         type=_parse_rate,
         metavar="RATE",
@@ -609,7 +630,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "early acceptance also requires an anytime-valid bound"
         ),
     )
-    parser.add_argument(
+    reliability_options.add_argument(
         "--confidence",
         type=_parse_confidence,
         default=0.95,
@@ -619,7 +640,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "descriptive Wilson bounds (default: 0.95)"
         ),
     )
-    parser.add_argument(
+    reliability_options.add_argument(
         "--run-confidence",
         type=_parse_confidence,
         metavar="LEVEL",
@@ -628,25 +649,25 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "requires --min-candidate-rate"
         ),
     )
-    parser.add_argument(
+    reliability_options.add_argument(
         "--holdout-runs",
         type=int,
         metavar="N",
         help="fresh fixed-size samples used only for final certification",
     )
-    parser.add_argument(
+    reliability_options.add_argument(
         "--min-holdout-rate",
         type=_parse_rate,
         metavar="RATE",
         help="minimum exact one-sided lower bound certified by the holdout",
     )
-    parser.add_argument(
+    reliability_options.add_argument(
         "--holdout-confidence",
         type=_parse_confidence,
         metavar="LEVEL",
         help="holdout confidence level (default when enabled: 0.95)",
     )
-    parser.add_argument(
+    reducer_options.add_argument(
         "--adapter",
         choices=(
             "auto",
@@ -665,13 +686,13 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
         default="auto",
         help="structured manifest reducer",
     )
-    parser.add_argument(
+    reducer_options.add_argument(
         "--source-reducer",
         choices=("auto", "none", "java", "python"),
         default="auto",
         help="source-level reducer",
     )
-    parser.add_argument(
+    reducer_options.add_argument(
         "--text-file",
         dest="text_files",
         action="append",
@@ -683,7 +704,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "repository-relative path; repeat for multiple files"
         ),
     )
-    parser.add_argument(
+    semantic_options.add_argument(
         "--semantic-reducer",
         choices=("none", "http"),
         default=semantic_environment.get("REPOMIN_SEMANTIC_REDUCER", "none"),
@@ -692,7 +713,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "OpenAI-compatible chat-completions endpoint"
         ),
     )
-    parser.add_argument(
+    semantic_options.add_argument(
         "--semantic-endpoint",
         default=semantic_environment.get("REPOMIN_SEMANTIC_ENDPOINT"),
         metavar="URL",
@@ -701,7 +722,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "--semantic-reducer http (or REPOMIN_SEMANTIC_ENDPOINT)"
         ),
     )
-    parser.add_argument(
+    semantic_options.add_argument(
         "--semantic-model",
         default=semantic_environment.get("REPOMIN_SEMANTIC_MODEL"),
         metavar="NAME",
@@ -710,7 +731,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "(or REPOMIN_SEMANTIC_MODEL)"
         ),
     )
-    parser.add_argument(
+    semantic_options.add_argument(
         "--semantic-timeout",
         type=float,
         default=semantic_environment.get("REPOMIN_SEMANTIC_TIMEOUT", "60"),
@@ -720,7 +741,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "(or REPOMIN_SEMANTIC_TIMEOUT; default: 60)"
         ),
     )
-    parser.add_argument(
+    reducer_options.add_argument(
         "--java-classpath",
         action="append",
         default=[],
@@ -730,7 +751,7 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
             "(does not change the reproduction command or Docker mounts)"
         ),
     )
-    output_group = parser.add_mutually_exclusive_group()
+    output_group = output_options.add_mutually_exclusive_group()
     output_group.add_argument(
         "--quiet",
         action="store_true",
@@ -762,6 +783,20 @@ def _demo_reproducer() -> Tuple[str, str, str]:
 def _write_demo_file(path: Path, content: str) -> None:
     with path.open("x", encoding="utf-8", newline="\n") as handle:
         handle.write(content)
+
+
+def _quote_cli_argument(value: Path) -> str:
+    text = str(value)
+    if os.name != "nt":
+        return shlex.quote(text)
+    return "'%s'" % text.replace("'", "''")
+
+
+def _validation_command(report_path: Path, payload: Path) -> str:
+    return "repomin report validate %s --payload %s --format markdown" % (
+        _quote_cli_argument(report_path),
+        _quote_cli_argument(payload),
+    )
 
 
 def _validate_demo_result(payload: Path, summary: dict, reproducer_name: str) -> None:
@@ -880,6 +915,9 @@ def _demo_command(argv: Sequence[str]) -> int:
         print("Workspace: %s" % workspace)
         print("Payload: %s" % payload)
         print("Report: %s" % report_path)
+        print("Repeat validation:")
+        print("  %s" % _validation_command(report_path, payload))
+        print("Next: run `repomin doctor --help` before trying your own repository.")
         return 0
     except KeyboardInterrupt:
         print("repomin demo: interrupted", file=sys.stderr)
@@ -1557,7 +1595,10 @@ def main(
         )
         print(str(output))
         inform("Metadata: %s" % metadata_output)
-        inform("Report: %s" % (metadata_output / "report.json"))
+        report_path = metadata_output / "report.json"
+        inform("Report: %s" % report_path)
+        inform("Next: validate the exported payload without running its command:")
+        inform("  %s" % _validation_command(report_path, output))
         return 0
     except KeyboardInterrupt:
         if session_path is not None:

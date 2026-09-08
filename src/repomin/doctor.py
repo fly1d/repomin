@@ -982,6 +982,17 @@ def format_doctor(result: Mapping[str, object]) -> str:
             "Baseline: %(passes)s/%(runs)s passes, exit code %(exit_code)s"
             % baseline
         )
+        lines.append(
+            "Next: rerun the same failure options with `repomin` instead of "
+            "`repomin doctor`."
+        )
+    elif result.get("ok"):
+        lines.append(
+            "Next: add --command and a failure signal to verify a baseline "
+            "before reducing."
+        )
+    else:
+        lines.append("Next: fix failed checks, then run `repomin doctor` again.")
     return "\n".join(lines) + "\n"
 
 
