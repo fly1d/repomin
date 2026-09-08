@@ -20,7 +20,10 @@ _RELEASE_DOCUMENTS = (
 )
 _RELEASE_REFERENCE_PATTERNS = (
     re.compile(r"fly1d/repomin@v([0-9][^\s`]*)"),
-    re.compile(r"releases/(?:download|tag)/v([0-9][^\s)`]*)"),
+    re.compile(
+        r"releases/(?:download|tag)/v"
+        r"([0-9]+\.[0-9]+\.[0-9]+(?:[.-][0-9A-Za-z.-]+)?)"
+    ),
     re.compile(r"`v([0-9][^`]*)`\s+(?:pre-release|发布包)"),
     re.compile(r"\bREPOMIN_VERSION\s*=\s*['\"]?([0-9][^'\"\s]+)"),
     re.compile(

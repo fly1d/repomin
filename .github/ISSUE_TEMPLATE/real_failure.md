@@ -11,6 +11,12 @@ guide](https://github.com/fly1d/repomin/blob/main/docs/REAL_FAILURE_PILOT.md).
 Never include credentials, proprietary source, or confidential logs.
 Fill in what you can and write `N/A` for details that are unavailable.
 
+For a public repository, you may stop after **Workflow** and **Failure
+contract**. No ReproMin installation or completed run is required; a maintainer
+can check fit and perform the first bounded run. The repository must have an
+explicit open-source license, and the command must not require credentials,
+private services, special hardware, or production data.
+
 ## Workflow
 
 - Public repository or fixture (optional):

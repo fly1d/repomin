@@ -2,6 +2,15 @@
 
 ReproMin 会在每次候选修改后重新执行失败命令，只保留仍能复现原始失败的修改。它适合把一个过大的失败仓库缩减成便于提交 issue 或制作回归测试的最小复现目录。
 
+如果已经安装了 [`uv`](https://docs.astral.sh/uv/getting-started/installation/)，可以用一条命令体验发布版本，无需把 ReproMin 安装到项目或系统 Python：
+
+```sh
+uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev10/repomin-0.1.0.dev10-py3-none-any.whl \
+  repomin demo ./repomin-demo
+```
+
+这条命令会使用临时隔离环境，离线完成并验证一次真实的 `3 -> 2` 文件缩减，并保留 demo 工作目录供检查。需要长期安装和完整流程时再继续下面的步骤。
+
 ## 安装
 
 ReproMin 需要 Python 3.9 或更高版本，目前从 GitHub Release 安装，还没有发布到
