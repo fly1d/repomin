@@ -342,13 +342,21 @@ class NativeCompletionTests(unittest.TestCase):
             "(TabExpansion2 -inputScript $line "
             "-cursorColumn $line.Length).CompletionMatches.CompletionText\n"
         )
-        result = subprocess.run(
-            [self.powershell, "-NoProfile", "-NonInteractive", "-Command", "-"],
-            input=program,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "completion-test.ps1"
+            script.write_text(program, encoding="utf-8")
+            result = subprocess.run(
+                [
+                    self.powershell,
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-File",
+                    str(script),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(
             {"bash", "zsh", "fish", "powershell"},
