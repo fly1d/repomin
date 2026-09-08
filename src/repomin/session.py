@@ -1674,6 +1674,10 @@ class ReductionSession:
         try:
             stats_state = state["stats"]
             self.stats = _stats_from_dict(stats_state)
+            _validate_restored_semantic_configuration(
+                self.stats,
+                expected_identity,
+            )
             self.stats.session_path = str(self.persistent_path)
             self.stats.resumed = True
             self._completed_phases = set(state.get("completed_phases", []))
@@ -2422,6 +2426,13 @@ def _session_identities_match(saved: object, current: object) -> bool:
     if not isinstance(saved, dict) or not isinstance(current, dict):
         return False
     normalized_saved = dict(saved)
+    if (
+        normalized_saved.get("semantic_reducer") == "http"
+        and "semantic_timeout" not in normalized_saved
+    ):
+        # A legacy HTTP session may have used a non-default timeout. Treat the
+        # missing provenance as incompatible instead of inventing a value.
+        return False
     # Older sessions remain compatible with later options whose defaults do
     # not change the original reduction semantics.
     normalized_saved.setdefault("min_baseline_rate", None)
@@ -2446,6 +2457,7 @@ def _session_identities_match(saved: object, current: object) -> bool:
     normalized_saved.setdefault("semantic_reducer", None)
     normalized_saved.setdefault("semantic_endpoint", None)
     normalized_saved.setdefault("semantic_model", None)
+    normalized_saved.setdefault("semantic_timeout", None)
     normalized_saved.setdefault("text_files", [])
     normalized_saved.setdefault(
         "environment_names", []
@@ -2480,6 +2492,7 @@ def _session_identities_match(saved: object, current: object) -> bool:
     normalized_current.setdefault("semantic_reducer", None)
     normalized_current.setdefault("semantic_endpoint", None)
     normalized_current.setdefault("semantic_model", None)
+    normalized_current.setdefault("semantic_timeout", None)
     normalized_current.setdefault("text_files", [])
     normalized_current.setdefault("environment_names", [])
     normalized_current.setdefault(
@@ -2490,6 +2503,30 @@ def _session_identities_match(saved: object, current: object) -> bool:
         "holdout_certification_policy", HOLDOUT_CERTIFICATION_POLICY
     )
     return normalized_saved == normalized_current
+
+
+def _validate_restored_semantic_configuration(
+    stats: ReductionStats,
+    identity: dict,
+) -> None:
+    reducer = identity.get("semantic_reducer")
+    http_enabled = reducer == "http"
+    expected = (
+        reducer,
+        identity.get("semantic_model") if http_enabled else None,
+        identity.get("semantic_endpoint") if http_enabled else None,
+        identity.get("semantic_timeout") if http_enabled else None,
+    )
+    actual = (
+        stats.semantic_reducer,
+        stats.semantic_model,
+        stats.semantic_endpoint,
+        stats.semantic_timeout,
+    )
+    if actual != expected:
+        raise SessionError(
+            "session contains inconsistent semantic reducer configuration"
+        )
 
 
 def _remove_ignored(root: Path, ignores: Set[str]) -> None:
@@ -3062,6 +3099,7 @@ def _stats_to_dict(stats: ReductionStats) -> dict:
         "semantic_reducer": stats.semantic_reducer,
         "semantic_model": stats.semantic_model,
         "semantic_endpoint": stats.semantic_endpoint,
+        "semantic_timeout": stats.semantic_timeout,
         "semantic_calls": stats.semantic_calls,
         "semantic_accepted": stats.semantic_accepted,
         "environment_names": list(stats.environment_names),
@@ -3180,6 +3218,7 @@ def _stats_from_dict(data: dict) -> ReductionStats:
     values.setdefault("semantic_reducer", None)
     values.setdefault("semantic_model", None)
     values.setdefault("semantic_endpoint", None)
+    values.setdefault("semantic_timeout", None)
     values.setdefault("semantic_calls", 0)
     values.setdefault("semantic_accepted", 0)
     values.setdefault("environment_names", [])

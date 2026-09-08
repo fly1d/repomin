@@ -1,81 +1,50 @@
 # Good first issues
 
-The following GitHub issues are intentionally scoped for a first contribution.
-Comment on an issue before starting, keep the change inside its stated scope,
-and follow [CONTRIBUTING.md](../CONTRIBUTING.md) for tests and documentation.
+The live GitHub issue list is the source of truth for available starter work:
 
-## Ready to claim
+- [Open `good first issue` tasks](https://github.com/fly1d/repomin/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22)
+- [All open issues](https://github.com/fly1d/repomin/issues)
+- [Suggest a focused change](https://github.com/fly1d/repomin/issues/new/choose)
 
-- [Add a runnable Ruby Gemfile walkthrough](https://github.com/fly1d/repomin/issues/25)
-  brings the existing network-free `Gemfile` fixture into the main examples
-  guide. The documentation-only issue covers reduction, exact payload
-  validation, an independent Ruby oracle rerun, and the no-Bundler/no-install
-  boundary.
-
-Completed tasks are removed from this section so contributors do not start
-work against a closed issue. New scoped tasks are added after their user
-workflow and acceptance criteria are ready.
-
-## Recently completed
-
-- [Add a runnable Composer manifest walkthrough](https://github.com/fly1d/repomin/issues/22)
-  now documents network-free `composer.json` reduction, exact payload
-  validation, an independent Python oracle rerun, and the
-  no-PHP/no-Composer/no-install boundary in the main examples.
-- [Add a runnable Node package manifest walkthrough](https://github.com/fly1d/repomin/issues/20)
-  now documents the network-free `package.json` reduction, retained payload
-  validation, an independent oracle rerun, and the no-install trust boundary
-  in the main examples.
-- [Add a runnable FastAPI/Docker pilot example](https://github.com/fly1d/repomin/issues/19)
-  now documents the local image build, exact retained payload, payload
-  validation, and Docker/network/security boundaries in the main examples.
-- [Add an end-to-end report replay benchmark](https://github.com/fly1d/repomin/issues/17)
-  now ships as the `report-replay` offline check. Run
-  `python3 benchmarks/run_offline.py --only report-replay` when adding or
-  reviewing report workflows.
-
-The [real CI failure pilot](https://github.com/fly1d/repomin/issues/11) is still
-open for users who have a sanitized workflow to share. This is a feedback and
-fixture-discovery contribution rather than a reserved code task. Check the
-repository's [open issues](https://github.com/fly1d/repomin/issues) for newly
-proposed work, or use the [issue template chooser](https://github.com/fly1d/repomin/issues/new/choose)
-to suggest a focused contribution.
-
-You do not need a publishable failure to help. A successful, inconclusive, or
-blocked trial is useful when it includes the workflow goal, version and runner,
-what you tried, and the resulting value or friction. Use the [user workflow
-feedback template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md)
-for that report; it is intentionally separate from implementation issues so
-maintainers can turn repeated observations into examples, compatibility notes,
-or better defaults.
+Closed work stays in GitHub's issue history rather than being copied into this
+document. That prevents contributors from claiming a task whose status changed
+after the documentation was published.
 
 ## Claim and submit
 
-Use this short loop for a starter issue:
+1. Check that the issue is open and unassigned, then comment with the part you
+   plan to change. Wait for the maintainer to confirm the scope before doing
+   substantial work.
+2. Follow the issue's acceptance criteria and keep the pull request focused.
+   Fixture or documentation work should include the exact command run and its
+   observed result.
+3. Run `python3 scripts/check_contribution.py` before opening the pull request.
+   Add `--with-benchmarks` when changing a fixture.
+4. Include `Closes #<issue-number>` and the checks you ran in the pull request
+   description.
 
-1. Check that the issue is still open and does not already have an assignee,
-   then comment with the part you plan to change. Wait for the maintainer to
-   confirm the scope before doing substantial work.
-2. Keep the change on a focused branch and follow the issue's acceptance
-   criteria. For documentation or fixture work, run the exact command shown in
-   the issue and capture the result (including the expected payload and report
-   validation when applicable).
-3. Before opening a pull request, run
-   `python3 scripts/check_contribution.py`; add `--with-benchmarks` for fixture
-   changes. Open the PR against `main`, include `Closes #<issue-number>`, and
-   paste the checks and observed output into the PR template.
-4. Leave the issue linked until review and CI are complete. If the task is no
-   longer available, choose another issue from the [open issue
-   list](https://github.com/fly1d/repomin/issues) instead of starting parallel
-   work.
+Read [CONTRIBUTING.md](../CONTRIBUTING.md) for the complete development and
+review contracts.
 
-## Proposing another starter task
+## Contribute workflow evidence
 
-A good starter issue should describe one user workflow, name the likely files,
-define observable acceptance criteria, and avoid changing reduction semantics.
-Suitable areas include documentation examples, completion ergonomics, strict
-manifest extensions that reuse an existing parser, and deterministic benchmark
-assertions. Open a feature request before implementing a new reducer or backend
-whose trust boundary is not already documented.
+You do not need a publishable failure to help. A successful, inconclusive, or
+blocked trial is useful when it records the workflow goal, ReproMin version,
+runner, attempted command, and resulting value or friction.
 
-The complete project direction remains in [ROADMAP.md](ROADMAP.md).
+- Use the [workflow feedback template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md)
+  for a sanitized trial.
+- Use the [real-failure pilot](https://github.com/fly1d/repomin/issues/11) when
+  you can share a suitable Maven, Gradle, or Python reproduction.
+
+## Propose another starter task
+
+A good starter issue names one user workflow, the likely files, and observable
+acceptance criteria. It should avoid changing reduction semantics. Suitable
+areas include focused documentation, completion ergonomics, deterministic
+benchmark assertions, and strict extensions that reuse an existing manifest
+parser.
+
+Open a feature request before implementing a reducer or backend whose trust
+boundary is not already documented. Project priorities and explicit non-goals
+are maintained in [ROADMAP.md](ROADMAP.md).

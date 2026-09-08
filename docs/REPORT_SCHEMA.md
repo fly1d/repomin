@@ -74,6 +74,10 @@ Important fields include:
 - `environment_names` and `environment_sha256`: names and a digest of explicit
   environment values. Values are intentionally never recorded.
 - `timeout_seconds`: configured timeout for each reproduction command.
+- `semantic_reducer`, `semantic_model`, `semantic_endpoint`, and
+  `semantic_timeout`: opt-in semantic backend provenance. The timeout is the
+  positive HTTP request timeout in seconds, or `null` when that backend is
+  disabled. Legacy reports may omit it.
 - `budget_exhausted`: boolean indicating whether an optional reduction budget
   stopped the search before the normal fixed-point condition.
 

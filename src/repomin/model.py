@@ -12,6 +12,7 @@ CANDIDATE_FAMILY_CONTROL_POLICY = "harmonic-alpha-spending-v1"
 REDUCTION_STRATEGY = "hierarchical-fixed-point-v2"
 HOLDOUT_CERTIFICATION_POLICY = "fixed-n-clopper-pearson-one-sided-v1"
 TREE_FINGERPRINT_POLICY = "tree-sha256-v2"
+DEFAULT_SEMANTIC_TIMEOUT_SECONDS = 60.0
 # A transport-friendly digest used when artifact stores rewrite filesystem
 # metadata such as modification times. It intentionally covers content,
 # paths, and entry kinds, but not mutable filesystem metadata.
@@ -221,6 +222,7 @@ class ReductionStats:
     semantic_endpoint: Optional[str] = None
     semantic_calls: int = 0
     semantic_accepted: int = 0
+    semantic_timeout: Optional[float] = None
 
 
 @dataclass(frozen=True)

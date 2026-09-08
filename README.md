@@ -34,7 +34,7 @@ failing repository + command + failure signal
 ReproMin is useful when a bug already reproduces but the repository is too
 large to share, review, or keep as a regression fixture.
 
-Two maintainer-led public pilots show the current scope:
+Two maintainer-led technical pilots show the current scope:
 
 | Pilot | Before | After | Fresh-copy evidence |
 | --- | ---: | ---: | ---: |
@@ -227,20 +227,17 @@ Invoke-Expression (repomin completion powershell | Out-String)
 
 ## Documentation
 
-Pick the document that matches the task in front of you:
+The [documentation index](docs/README.md) separates first-run guides from
+reference and maintainer material. Common paths are:
 
 | Task | Guide |
 | --- | --- |
 | Complete the first reduction | [Quick start](docs/QUICKSTART.md) |
-| Prepare a real bug or CI failure | [Real-failure pilot](docs/REAL_FAILURE_PILOT.md) |
-| Understand or fix a preflight result | [Doctor](docs/DOCTOR.md) |
-| Find an ecosystem example | [Examples](docs/EXAMPLES.md) |
-| Reuse one reviewed configuration | [Configuration](docs/CONFIGURATION.md) |
-| Validate, replay, or compare evidence | [Replay](docs/REPLAY.md) and [report schema](docs/REPORT_SCHEMA.md) |
-| Run reduction in GitHub Actions | [GitHub Action](docs/GITHUB_ACTION.md) |
-| Use Docker or understand reducer guarantees | [Architecture](docs/ARCHITECTURE.md) |
-| Add optional model-proposed edits | [LLM reduction](docs/LLM_REDUCTION.md) |
-| See priorities and explicit non-goals | [Roadmap](docs/ROADMAP.md) |
+| Prepare and preflight a real failure | [Real-failure pilot](docs/REAL_FAILURE_PILOT.md) and [Doctor](docs/DOCTOR.md) |
+| Find an ecosystem workflow | [Examples](docs/EXAMPLES.md) |
+| Automate a repeatable run | [Configuration](docs/CONFIGURATION.md) and [GitHub Action](docs/GITHUB_ACTION.md) |
+| Validate or replay evidence | [Replay](docs/REPLAY.md) and [report schema](docs/REPORT_SCHEMA.md) |
+| Understand guarantees or contribute | [Documentation index](docs/README.md) |
 
 Support routes are listed in [SUPPORT.md](SUPPORT.md). Not sure whether your
 failure fits? Post a sanitized question in [GitHub

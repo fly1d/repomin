@@ -77,24 +77,24 @@ class CommunityTemplateTest(unittest.TestCase):
             self.assertIn(required, text)
         self.assertNotIn("compact, privacy-safe result", text)
 
-    def test_issue_chooser_exposes_the_real_failure_template(self) -> None:
+    def test_issue_chooser_has_one_route_per_request_type(self) -> None:
         config = (_ROOT / ".github" / "ISSUE_TEMPLATE" / "config.yml").read_text(
             encoding="utf-8"
         )
-        self.assertIn("name: Share a real CI or dependency failure", config)
-        self.assertIn(
-            "issues/new?template=real_failure.md",
-            config,
-        )
+        self.assertIn("name: Usage questions", config)
+        self.assertIn("github.com/fly1d/repomin/discussions", config)
+        self.assertNotIn("issues/new?template=", config)
+        self.assertFalse((_ISSUE_TEMPLATE_DIR / "question.md").exists())
 
-    def test_issue_chooser_exposes_adoption_feedback_template(self) -> None:
-        config = (_ROOT / ".github" / "ISSUE_TEMPLATE" / "config.yml").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("name: Share user workflow feedback", config)
-        self.assertIn(
-            "issues/new?template=adoption_feedback.md",
-            config,
+    def test_benchmark_proposals_are_not_automatically_starter_tasks(self) -> None:
+        fields = _frontmatter(_ISSUE_TEMPLATE_DIR / "benchmark_proposal.md")
+        labels = {
+            label.strip() for label in fields["labels"].split(",") if label.strip()
+        }
+        self.assertIn("enhancement", labels)
+        self.assertNotIn(
+            "good first issue",
+            labels,
         )
 
 

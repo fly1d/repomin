@@ -223,6 +223,56 @@ class ReportValidationTest(unittest.TestCase):
                 ):
                     validate_report_document(report)
 
+    def test_semantic_timeout_matches_the_recorded_backend(self) -> None:
+        legacy = _report()
+        self.assertIs(validate_report_document(legacy), legacy)
+
+        legacy_http = _report()
+        legacy_http["execution"]["semantic_reducer"] = "http"
+        self.assertIs(validate_report_document(legacy_http), legacy_http)
+
+        disabled = _report()
+        disabled["execution"]["semantic_reducer"] = "none"
+        disabled["execution"]["semantic_timeout"] = None
+        self.assertIs(validate_report_document(disabled), disabled)
+
+        enabled = _report()
+        enabled["execution"]["semantic_reducer"] = "http"
+        enabled["execution"]["semantic_timeout"] = 12.5
+        self.assertIs(validate_report_document(enabled), enabled)
+
+        for value in (True, "12.5", 0, -1, float("nan"), float("inf")):
+            with self.subTest(value=value):
+                malformed = _report()
+                malformed["execution"]["semantic_reducer"] = "http"
+                malformed["execution"]["semantic_timeout"] = value
+                with self.assertRaisesRegex(
+                    ReportValidationError,
+                    "semantic_timeout",
+                ):
+                    validate_report_document(malformed)
+
+        for reducer, timeout in (("none", 12.5), (None, 12.5), ("http", None)):
+            with self.subTest(reducer=reducer, timeout=timeout):
+                malformed = _report()
+                malformed["execution"]["semantic_reducer"] = reducer
+                malformed["execution"]["semantic_timeout"] = timeout
+                with self.assertRaisesRegex(
+                    ReportValidationError,
+                    "semantic_timeout",
+                ):
+                    validate_report_document(malformed)
+
+        missing_reducer = _report()
+        missing_reducer["execution"]["semantic_timeout"] = None
+        with self.assertRaisesRegex(ReportValidationError, "semantic_timeout"):
+            validate_report_document(missing_reducer)
+
+        unknown_reducer = _report()
+        unknown_reducer["execution"]["semantic_reducer"] = "custom"
+        with self.assertRaisesRegex(ReportValidationError, "semantic_reducer"):
+            validate_report_document(unknown_reducer)
+
     def test_schema_versions_must_be_integer_one(self) -> None:
         for path, value in (
             (("schema_version",), True),

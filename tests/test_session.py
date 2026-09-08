@@ -366,6 +366,24 @@ class ReductionSessionTest(unittest.TestCase):
         with_semantic["semantic_endpoint"] = "http://localhost:8000/v1/chat/completions"
         self.assertFalse(_session_identities_match(dict(base), with_semantic))
 
+        with_default_semantic_timeout = dict(with_semantic)
+        with_default_semantic_timeout["semantic_timeout"] = 60.0
+        self.assertFalse(
+            _session_identities_match(
+                with_semantic,
+                with_default_semantic_timeout,
+            )
+        )
+
+        changed_semantic_timeout = dict(with_default_semantic_timeout)
+        changed_semantic_timeout["semantic_timeout"] = 30.0
+        self.assertFalse(
+            _session_identities_match(
+                with_default_semantic_timeout,
+                changed_semantic_timeout,
+            )
+        )
+
         changed_semantic = dict(with_semantic)
         changed_semantic["semantic_model"] = "model-b"
         self.assertFalse(
@@ -4151,6 +4169,86 @@ class ReductionSessionTest(unittest.TestCase):
                 self.assertIsNone(restored_event.oracle_anytime_lower_bound)
             finally:
                 resumed.close()
+
+    def test_persistent_session_rejects_invalid_semantic_timeout_provenance(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            checkpoint = root / "checkpoint"
+            source.mkdir()
+            (source / "seed.txt").write_text("seed\n", encoding="utf-8")
+            identity = {
+                "command": "reproduce",
+                "semantic_reducer": "http",
+                "semantic_model": "model-a",
+                "semantic_endpoint": "http://localhost:8000/v1/chat/completions",
+                "semantic_timeout": 60.0,
+            }
+            stats = ReductionStats(
+                source_files=1,
+                source_bytes=5,
+                semantic_reducer="http",
+                semantic_model="model-a",
+                semantic_endpoint="http://localhost:8000/v1/chat/completions",
+                semantic_timeout=60.0,
+            )
+            session = ReductionSession(
+                source,
+                FailureOracle(
+                    _CountingRunner("ORIGINAL_FAILURE"),
+                    FailureSpec("ORIGINAL_FAILURE"),
+                ),
+                stats,
+                session_path=checkpoint,
+                identity=identity,
+            )
+            session.close()
+
+            state_path = checkpoint / "state.json"
+            original = json.loads(state_path.read_text(encoding="utf-8"))
+            cases = (
+                ("missing identity", "identity", None, "configuration changed"),
+                (
+                    "missing stats",
+                    "stats",
+                    None,
+                    "inconsistent semantic reducer configuration",
+                ),
+                (
+                    "changed stats",
+                    "stats",
+                    30.0,
+                    "inconsistent semantic reducer configuration",
+                ),
+            )
+            for name, section, value, error in cases:
+                with self.subTest(name=name):
+                    state = json.loads(json.dumps(original))
+                    if value is None:
+                        state[section].pop("semantic_timeout")
+                    else:
+                        state[section]["semantic_timeout"] = value
+                    state_path.write_text(
+                        json.dumps(state, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
+                    with self.assertRaisesRegex(
+                        SessionError,
+                        error,
+                    ):
+                        ReductionSession(
+                            source,
+                            FailureOracle(
+                                _CountingRunner("ORIGINAL_FAILURE"),
+                                FailureSpec("ORIGINAL_FAILURE"),
+                            ),
+                            ReductionStats(source_files=0, source_bytes=0),
+                            session_path=checkpoint,
+                            resume=True,
+                            identity=identity,
+                        )
 
     def test_persistent_session_rejects_source_or_configuration_changes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

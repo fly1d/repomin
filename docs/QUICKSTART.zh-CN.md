@@ -184,7 +184,8 @@ repomin report replay "$demo_dir/reduced.repomin/report.json" \
 
 ## 下一步
 
-- 查看 [英文 README](../README.md) 了解所有 CLI 参数和高级 reducer；
+- 查看 `repomin --help` 了解 CLI 参数，并通过 [英文 README](../README.md)
+  选择常见工作流；
 - 查看 [示例目录](EXAMPLES.md) 了解 Python、Pipenv、Node、Cargo、Go、
   FastAPI/Docker 和 Gradle 等已文档化流程；
 - 查看 [架构说明](ARCHITECTURE.md) 了解 oracle、checkpoint 和 reducer 的边界；

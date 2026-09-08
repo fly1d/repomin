@@ -100,6 +100,7 @@ def validate_report_document(report: object) -> Dict[str, object]:
         )
         if timeout <= 0.0:
             raise ReportValidationError("execution.timeout_seconds must be positive")
+    _validate_semantic_execution(execution)
     if "budget_exhausted" in execution and not isinstance(
         execution["budget_exhausted"], bool
     ):
@@ -735,6 +736,45 @@ def _validate_execution_limits(execution: Dict[str, object]) -> None:
             )
 
 
+def _validate_semantic_execution(execution: Dict[str, object]) -> None:
+    """Validate semantic timeout provenance while accepting legacy reports."""
+    if "semantic_reducer" not in execution:
+        if "semantic_timeout" in execution:
+            raise ReportValidationError(
+                "execution.semantic_timeout requires semantic_reducer"
+            )
+        return
+
+    reducer = execution["semantic_reducer"]
+    if reducer is not None and (
+        not isinstance(reducer, str) or reducer not in {"none", "http"}
+    ):
+        raise ReportValidationError(
+            "execution.semantic_reducer must be none, http, or null"
+        )
+    if "semantic_timeout" not in execution:
+        # Reports created before timeout provenance was added remain readable.
+        return
+
+    timeout = execution["semantic_timeout"]
+    if reducer != "http":
+        if timeout is not None:
+            raise ReportValidationError(
+                "execution.semantic_timeout must be null when semantic reduction "
+                "is disabled"
+            )
+        return
+    if timeout is None:
+        raise ReportValidationError(
+            "execution.semantic_timeout must be positive for the http reducer"
+        )
+    numeric_timeout = _require_nonnegative_number(
+        execution, "semantic_timeout", "execution"
+    )
+    if numeric_timeout <= 0.0:
+        raise ReportValidationError("execution.semantic_timeout must be positive")
+
+
 def _validate_execution_environment(execution: Dict[str, object]) -> None:
     """Validate explicit environment metadata without requiring legacy fields."""
     if "environment_names" in execution:
@@ -954,6 +994,12 @@ def verify_existing_report(
             and "timeout_seconds" not in actual_execution
         ):
             expected_execution.pop("timeout_seconds", None)
+        if (
+            isinstance(actual_execution, dict)
+            and isinstance(expected_execution, dict)
+            and "semantic_timeout" not in actual_execution
+        ):
+            expected_execution.pop("semantic_timeout", None)
         actual_output = actual_report.get("output")
         expected_output = expected_report.get("output")
         if isinstance(actual_output, dict) and isinstance(expected_output, dict):
@@ -1039,6 +1085,7 @@ def _build_report(
             "semantic_reducer": stats.semantic_reducer,
             "semantic_model": stats.semantic_model,
             "semantic_endpoint": stats.semantic_endpoint,
+            "semantic_timeout": stats.semantic_timeout,
             "semantic_calls": stats.semantic_calls,
             "semantic_accepted": stats.semantic_accepted,
             "environment_names": list(stats.environment_names),

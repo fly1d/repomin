@@ -6,13 +6,14 @@ import urllib.request
 from pathlib import Path, PurePosixPath
 from typing import List, Optional, Protocol, Sequence
 
+from repomin.model import DEFAULT_SEMANTIC_TIMEOUT_SECONDS
 from repomin.session import MutationCandidate, ReductionSession
 
 
 DEFAULT_MAX_FILES = 64
 DEFAULT_MAX_FILE_BYTES = 20000
 DEFAULT_MAX_TOTAL_BYTES = 120000
-DEFAULT_TIMEOUT_SECONDS = 60.0
+DEFAULT_TIMEOUT_SECONDS = DEFAULT_SEMANTIC_TIMEOUT_SECONDS
 DEFAULT_MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 
 
@@ -63,7 +64,7 @@ class HttpSemanticBackend:
         endpoint: str,
         model: str,
         token: Optional[str] = None,
-        timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        timeout: float = DEFAULT_SEMANTIC_TIMEOUT_SECONDS,
         max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
     ) -> None:
         if not endpoint:

@@ -142,13 +142,12 @@ credentials, and cannot create or modify a GitHub Release. Both the normal CI
 workflow and the release-candidate workflow must be green before a maintainer
 uses the candidate in the manual process below.
 
-Do not move or recreate an existing release tag to obtain another candidate.
-In particular, never rebuild current `main` as `v0.1.0.dev9` or replace the
-published `v0.1.0.dev9` assets. Prepare a new version in a reviewed commit and
-create a new tag instead. If validation exposes a bad release commit, fix it
-under the next version and tag; do not publish artifacts from the failed run.
-A transient runner or package-index failure may be rerun against the same
-unchanged tag.
+Do not move or recreate an existing release tag to obtain another candidate,
+and never rebuild current `main` under an already published version or replace
+that version's assets. Prepare a new version in a reviewed commit and create a
+new tag instead. If validation exposes a bad release commit, fix it under the
+next version and tag; do not publish artifacts from the failed run. A transient
+runner or package-index failure may be rerun against the same unchanged tag.
 
 ## Hosted Release Controls
 

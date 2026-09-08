@@ -18,6 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The README is now a focused product and first-run guide; detailed reducer,
   sampling, Docker, session, and report contracts remain in the linked
   reference documentation.
+- Benchmark and contributor guidance now use task-focused indexes instead of
+  duplicating fixture contracts and closed issue history. Community requests
+  have one route per request type, and semantic-reduction guidance reflects
+  the implemented opt-in HTTP workflow and its privacy boundary.
+
+### Fixed
+
+- The effective HTTP semantic timeout is now preserved in session identity,
+  checkpoints, and reports. Resume rejects timeout changes before sampling,
+  report comparison can detect them, and legacy HTTP sessions without this
+  provenance fail closed instead of assuming a value.
+- The input-control benchmark now retains its intentionally ignored fixture
+  files in clean checkouts and source distributions, with a packaging check
+  that rejects missing explicit manifest entries.
 
 ## [0.1.0.dev10] - 2026-09-07
 

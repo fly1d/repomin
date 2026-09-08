@@ -46,6 +46,7 @@ from repomin.maven import MavenReducer
 from repomin.model import (
     CANDIDATE_FAMILY_CONTROL_POLICY,
     CANDIDATE_SAMPLING_POLICY,
+    DEFAULT_SEMANTIC_TIMEOUT_SECONDS,
     FailureSpec,
     HOLDOUT_CERTIFICATION_POLICY,
     REDUCTION_STRATEGY,
@@ -734,11 +735,15 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
     semantic_options.add_argument(
         "--semantic-timeout",
         type=float,
-        default=semantic_environment.get("REPOMIN_SEMANTIC_TIMEOUT", "60"),
+        default=semantic_environment.get(
+            "REPOMIN_SEMANTIC_TIMEOUT",
+            str(DEFAULT_SEMANTIC_TIMEOUT_SECONDS),
+        ),
         metavar="SECONDS",
         help=(
             "HTTP timeout for --semantic-reducer http "
-            "(or REPOMIN_SEMANTIC_TIMEOUT; default: 60)"
+            "(or REPOMIN_SEMANTIC_TIMEOUT; default: %g)"
+            % DEFAULT_SEMANTIC_TIMEOUT_SECONDS
         ),
     )
     reducer_options.add_argument(
@@ -1063,6 +1068,7 @@ def main(
         semantic_reducer = args.semantic_reducer
         semantic_endpoint = args.semantic_endpoint
         semantic_model = args.semantic_model
+        semantic_timeout: Optional[float] = None
         if semantic_reducer == "http":
             if not semantic_endpoint:
                 raise ValueError(
@@ -1080,6 +1086,7 @@ def main(
                 raise ValueError(
                     "--semantic-timeout must be a positive number of seconds"
                 )
+            semantic_timeout = float(args.semantic_timeout)
         if args.run_confidence is not None and args.min_candidate_rate is None:
             raise ValueError("--run-confidence requires --min-candidate-rate")
         _validate_rate_attainable(
@@ -1173,6 +1180,7 @@ def main(
             semantic_endpoint=(
                 semantic_endpoint if semantic_reducer == "http" else None
             ),
+            semantic_timeout=semantic_timeout,
         )
         oracle = FailureOracle(
             runner,
@@ -1239,6 +1247,7 @@ def main(
                 semantic_reducer,
                 semantic_endpoint,
                 semantic_model,
+                semantic_timeout,
                 args.text_files,
             ),
             execution_working_directory_basename=(
@@ -1408,11 +1417,12 @@ def main(
                 file_reducer = FileReducer(session)
                 semantic_reducer_obj: Optional[SemanticReducer] = None
                 if semantic_reducer == "http":
+                    assert semantic_timeout is not None
                     semantic_backend = HttpSemanticBackend(
                         semantic_endpoint,
                         semantic_model,
                         token=os.environ.get("REPOMIN_SEMANTIC_TOKEN"),
-                        timeout=float(args.semantic_timeout),
+                        timeout=semantic_timeout,
                     )
                     semantic_reducer_obj = SemanticReducer(
                         session,
@@ -2575,6 +2585,7 @@ def _session_identity(
     semantic_reducer: Optional[str] = None,
     semantic_endpoint: Optional[str] = None,
     semantic_model: Optional[str] = None,
+    semantic_timeout: Optional[float] = None,
     text_files: Sequence[str] = (),
 ) -> dict:
     configured_environment = {} if environment is None else dict(environment)
@@ -2610,6 +2621,7 @@ def _session_identity(
         "semantic_reducer": semantic_reducer,
         "semantic_endpoint": semantic_endpoint,
         "semantic_model": semantic_model,
+        "semantic_timeout": semantic_timeout,
         "text_files": sorted(set(text_files)),
         "java_exception": args.java_exception,
         "python_exception": args.python_exception,

@@ -247,8 +247,9 @@ accepts one basename rather than a path.
 
 These are the same exact-path and exclusion contracts as the CLI. In
 particular, a protected path can override an exclusion for reachability, while
-other enabled reducers may still edit a protected file. See the input-control
-sections in the [README](../README.md) and [Doctor guide](DOCTOR.md).
+other enabled reducers may still edit a protected file. See
+[input exclusions](ARCHITECTURE.md#input-exclusions) for the traversal contract
+and the [Doctor guide](DOCTOR.md) for preflight behavior.
 
 ## Strict validation
 
