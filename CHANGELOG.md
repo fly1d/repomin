@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Reduction help now groups options by user task and uses a concise primary
+  invocation, while successful reductions and the self-contained demo print a
+  copyable, non-executing report-validation command as the next step.
+- Doctor's text result now ends with a concrete next action for a passing
+  baseline, a static-only preflight, or failed checks without echoing private
+  command or path values.
+- The README is now a focused product and first-run guide; detailed reducer,
+  sampling, Docker, session, and report contracts remain in the linked
+  reference documentation.
+
 ## [0.1.0.dev10] - 2026-09-07
 
 ### Added
