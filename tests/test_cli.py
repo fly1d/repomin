@@ -1603,7 +1603,11 @@ class CliTest(unittest.TestCase):
                 stderr.getvalue(),
             )
             self.assertIn(
-                "--payload %s --format markdown" % output.resolve(),
+                "  %s\n"
+                % _validation_command(
+                    _metadata_output(output.resolve()) / "report.json",
+                    output.resolve(),
+                ),
                 stderr.getvalue(),
             )
             self.assertEqual(2, report["execution"]["jobs"])
