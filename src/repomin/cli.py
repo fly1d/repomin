@@ -18,7 +18,6 @@ from repomin import __version__
 from repomin.execution import CommandRunner, DockerRunner, Runner, RunnerError
 from repomin.cargo_manifest import CargoManifestReducer
 from repomin.composer_manifest import ComposerManifestReducer
-from repomin.completion import SUPPORTED_SHELLS, completion_script
 from repomin.config import ConfigError, config_option_present, expand_config_args
 from repomin.dotnet_manifest import DotnetManifestReducer
 from repomin.doctor import (
@@ -820,7 +819,7 @@ def _validate_demo_result(payload: Path, summary: dict, reproducer_name: str) ->
         raise RuntimeError("the demo payload did not pass exact fingerprint validation")
 
 
-def _demo_command(argv: Sequence[str]) -> int:
+def _build_demo_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="repomin demo",
         description=(
@@ -836,7 +835,11 @@ def _demo_command(argv: Sequence[str]) -> int:
             "reduced.repomin (existing paths are never overwritten)"
         ),
     )
-    args = parser.parse_args(list(argv))
+    return parser
+
+
+def _demo_command(argv: Sequence[str]) -> int:
+    args = _build_demo_parser().parse_args(list(argv))
     workspace = args.workspace.expanduser()
     created = False
     try:
@@ -949,6 +952,8 @@ def main(
     if raw_argv and raw_argv[0] == "report":
         return _report_command(raw_argv[1:])
     if raw_argv and raw_argv[0] == "completion":
+        from repomin.completion import SUPPORTED_SHELLS, completion_script
+
         if len(raw_argv) == 2 and raw_argv[1] in SUPPORTED_SHELLS:
             print(completion_script(raw_argv[1]), end="")
             return 0
@@ -1637,8 +1642,7 @@ def main(
         return 2
 
 
-def _doctor_command(argv: Sequence[str]) -> int:
-    """Run read-only checks before starting a reduction."""
+def _build_doctor_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="repomin doctor",
         description=(
@@ -1868,6 +1872,12 @@ def _doctor_command(argv: Sequence[str]) -> int:
         default="text",
         help="output format (default: text; markdown is privacy-safe)",
     )
+    return parser
+
+
+def _doctor_command(argv: Sequence[str]) -> int:
+    """Run read-only checks before starting a reduction."""
+    parser = _build_doctor_parser()
     try:
         args = parser.parse_args(expand_config_args(argv, command="doctor"))
         environment = _environment_mapping(args.environment_entries)
@@ -2178,7 +2188,7 @@ def format_validation_markdown(summary: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _report_validate_command(argv: Sequence[str]) -> int:
+def _build_report_validate_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="repomin report validate")
     parser.add_argument("report", type=Path, help="report.json to validate")
     parser.add_argument(
@@ -2198,6 +2208,11 @@ def _report_validate_command(argv: Sequence[str]) -> int:
         default="text",
         help="output format (default: text; markdown is privacy-safe)",
     )
+    return parser
+
+
+def _report_validate_command(argv: Sequence[str]) -> int:
+    parser = _build_report_validate_parser()
     try:
         args = parser.parse_args(list(argv))
         report = validate_report_file(args.report, args.payload)
@@ -2235,7 +2250,7 @@ def _report_validate_command(argv: Sequence[str]) -> int:
     return 0
 
 
-def _report_compare_command(argv: Sequence[str]) -> int:
+def _build_report_compare_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="repomin report compare",
         description=(
@@ -2266,6 +2281,11 @@ def _report_compare_command(argv: Sequence[str]) -> int:
         default="text",
         help="output format (default: text; markdown is privacy-safe)",
     )
+    return parser
+
+
+def _report_compare_command(argv: Sequence[str]) -> int:
+    parser = _build_report_compare_parser()
     try:
         # Allow labels to be placed between report paths as users naturally
         # build a command incrementally.  This parser has no subparsers or
@@ -2292,7 +2312,7 @@ def _report_compare_command(argv: Sequence[str]) -> int:
     return 0
 
 
-def _report_replay_command(argv: Sequence[str]) -> int:
+def _build_report_replay_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="repomin report replay",
         description=(
@@ -2358,7 +2378,11 @@ def _report_replay_command(argv: Sequence[str]) -> int:
         action="store_true",
         help="print machine-readable replay evidence without raw command output",
     )
-    args = parser.parse_args(list(argv))
+    return parser
+
+
+def _report_replay_command(argv: Sequence[str]) -> int:
+    args = _build_report_replay_parser().parse_args(list(argv))
     try:
         if not args.yes:
             raise ReplayError(

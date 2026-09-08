@@ -1,722 +1,753 @@
-"""Shell completion scripts for the public ``repomin`` command."""
+"""Generate shell completion from the public repomin parsers."""
 
 from __future__ import annotations
 
-from typing import Final
+import argparse
+import shlex
+from dataclasses import dataclass
+from functools import lru_cache
+from typing import Final, Sequence, Tuple
 
 
 SUPPORTED_SHELLS: Final = ("bash", "zsh", "fish", "powershell")
 
-
-_BASH = r'''# Bash completion for repomin.
-_repomin() {
-    local cur prev options value_options candidate
-    cur="${COMP_WORDS[COMP_CWORD]}"
-    prev="${COMP_WORDS[COMP_CWORD-1]}"
-    if [[ "${COMP_WORDS[1]}" == "report" ]]; then
-        if (( COMP_CWORD == 2 )); then
-            COMPREPLY=( $(compgen -W "validate replay compare --help" -- "$cur") )
-            return 0
-        fi
-        if [[ "${COMP_WORDS[2]}" == "replay" ]]; then
-            options="--help --payload --runs --timeout --env --backend --docker-image --docker-network --exit-code --yes --json"
-            value_options="--payload --runs --timeout --env --backend --docker-image --docker-network --exit-code"
-            case "$prev" in
-                --backend) COMPREPLY=( $(compgen -W "recorded host docker" -- "$cur") ); return 0 ;;
-                --docker-network) COMPREPLY=( $(compgen -W "none bridge host" -- "$cur") ); return 0 ;;
-            esac
-            if [[ " $value_options " == *" $prev "* ]]; then
-                if [[ "$prev" == "--payload" ]]; then
-                    COMPREPLY=( $(compgen -f -- "$cur") )
-                fi
-                return 0
-            fi
-            if [[ "$cur" == -* ]]; then
-                COMPREPLY=( $(compgen -W "$options" -- "$cur") )
-            else
-                COMPREPLY=( $(compgen -f -- "$cur") )
-            fi
-            return 0
-        fi
-        if [[ "${COMP_WORDS[2]}" == "validate" ]]; then
-            options="--help --payload --json --format"
-            value_options="--payload --format"
-            case "$prev" in
-                --format) COMPREPLY=( $(compgen -W "text json markdown" -- "$cur") ); return 0 ;;
-            esac
-            if [[ " $value_options " == *" $prev "* ]]; then
-                if [[ "$prev" == "--payload" ]]; then
-                    COMPREPLY=( $(compgen -f -- "$cur") )
-                fi
-                return 0
-            fi
-            if [[ "$cur" == -* ]]; then
-                COMPREPLY=( $(compgen -W "$options" -- "$cur") )
-            else
-                COMPREPLY=( $(compgen -f -- "$cur") )
-            fi
-            return 0
-        fi
-        if [[ "${COMP_WORDS[2]}" == "compare" ]]; then
-            options="--help --format --label"
-            value_options="--format --label"
-            case "$prev" in
-                --format) COMPREPLY=( $(compgen -W "text json markdown" -- "$cur") ); return 0 ;;
-            esac
-            if [[ " $value_options " == *" $prev "* ]]; then
-                if [[ "$prev" == "--label" ]]; then
-                    COMPREPLY=()
-                fi
-                return 0
-            fi
-            if [[ "$cur" == -* ]]; then
-                COMPREPLY=( $(compgen -W "$options" -- "$cur") )
-            else
-                COMPREPLY=( $(compgen -f -- "$cur") )
-            fi
-            return 0
-        fi
-    fi
-    if [[ "${COMP_WORDS[1]}" == "doctor" ]]; then
-        options="--version --help --config --command --match --exit-code --java-exception --python-exception --process-failure --adapter --source-reducer --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --timeout --baseline-runs --min-baseline-passes --min-baseline-rate --confidence --output --ignore --ignore-path --keep --text-file --gitignore --gitignore-file --gitignore-recursive --env --json --format"
-        value_options="--config --command --match --exit-code --adapter --source-reducer --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --timeout --baseline-runs --min-baseline-passes --min-baseline-rate --confidence --output --ignore --ignore-path --keep --text-file --gitignore-file --env --format"
-        case "$prev" in
-            --format) COMPREPLY=( $(compgen -W "text json markdown" -- "$cur") ); return 0 ;;
-            --backend) COMPREPLY=( $(compgen -W "host docker" -- "$cur") ); return 0 ;;
-            --docker-network) COMPREPLY=( $(compgen -W "none bridge host" -- "$cur") ); return 0 ;;
-            --adapter) COMPREPLY=( $(compgen -W "auto none maven gradle python pipenv node composer dotnet ruby cargo go" -- "$cur") ); return 0 ;;
-            --source-reducer) COMPREPLY=( $(compgen -W "auto none java python" -- "$cur") ); return 0 ;;
-        esac
-        if [[ " $value_options " == *" $prev "* ]]; then
-            COMPREPLY=( $(compgen -f -- "$cur") )
-        elif [[ "$cur" == -* ]]; then
-            COMPREPLY=( $(compgen -W "$options" -- "$cur") )
-        else
-            COMPREPLY=( $(compgen -f -- "$cur") )
-        fi
-        return 0
-    fi
-    if [[ "${COMP_WORDS[1]}" == "demo" ]]; then
-        COMPREPLY=()
-        if (( COMP_CWORD == 2 )); then
-            if [[ "$cur" == -* ]]; then
-                COMPREPLY=( $(compgen -W "--help" -- "$cur") )
-            else
-                while IFS= read -r candidate; do
-                    COMPREPLY+=("${candidate%/}/")
-                done < <(compgen -d -- "$cur")
-            fi
-        fi
-        return 0
-    fi
-    if (( COMP_CWORD == 1 )); then
-        COMPREPLY=( $(compgen -W "completion demo doctor report" -- "$cur") )
-        return 0
-    fi
-    options="--version --help --config --command --match --exit-code --output --session --resume --timeout --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --jobs --no-cache --max-attempts --max-duration --ignore --ignore-path --gitignore --gitignore-file --gitignore-recursive --keep --env --java-exception --python-exception --process-failure --baseline-runs --min-baseline-passes --candidate-runs --min-candidate-passes --min-baseline-rate --min-candidate-rate --confidence --run-confidence --holdout-runs --min-holdout-rate --holdout-confidence --adapter --source-reducer --text-file --semantic-reducer --semantic-endpoint --semantic-model --semantic-timeout --java-classpath --quiet --verbose"
-    value_options="--config --command --match --exit-code --output --session --timeout --backend --docker-image --docker-network --docker-cpus --docker-memory --docker-pids-limit --docker-tmpfs-size --docker-workspace-limit --jobs --max-attempts --max-duration --ignore --ignore-path --gitignore-file --keep --env --baseline-runs --min-baseline-passes --candidate-runs --min-candidate-passes --min-baseline-rate --min-candidate-rate --confidence --run-confidence --holdout-runs --min-holdout-rate --holdout-confidence --adapter --source-reducer --text-file --semantic-reducer --semantic-endpoint --semantic-model --semantic-timeout --java-classpath"
-    case "$prev" in
-        --backend) COMPREPLY=( $(compgen -W "host docker" -- "$cur") ); return 0 ;;
-        --docker-network) COMPREPLY=( $(compgen -W "none bridge host" -- "$cur") ); return 0 ;;
-        --adapter) COMPREPLY=( $(compgen -W "auto none maven gradle python pipenv node composer dotnet ruby cargo go" -- "$cur") ); return 0 ;;
-        --source-reducer) COMPREPLY=( $(compgen -W "auto none java python" -- "$cur") ); return 0 ;;
-        --semantic-reducer) COMPREPLY=( $(compgen -W "none http" -- "$cur") ); return 0 ;;
-    esac
-    if [[ " $value_options " == *" $prev "* ]]; then
-        COMPREPLY=( $(compgen -f -- "$cur") )
-        return 0
-    fi
-    if [[ "$cur" == -* ]]; then
-        COMPREPLY=( $(compgen -W "$options" -- "$cur") )
-    else
-        COMPREPLY=( $(compgen -f -- "$cur") )
-    fi
-}
-complete -F _repomin repomin
-'''
+_ROOT_COMMANDS: Final = (
+    ("demo", "run a self-contained first reduction"),
+    ("doctor", "check reducers, toolchains, and an optional baseline"),
+    ("report", "inspect, replay, or compare report evidence"),
+    ("completion", "print a shell completion script"),
+)
+_REPORT_COMMANDS: Final = (
+    ("validate", "validate report structure and optional payload evidence"),
+    ("replay", "run the recorded failure in fresh payload copies"),
+    ("compare", "compare privacy-safe evidence from two or more reports"),
+)
 
 
-_ZSH = r'''#compdef repomin
+@dataclass(frozen=True)
+class CompletionArgument:
+    """Completion metadata derived from one argparse action."""
 
-_repomin() {
-    local -a options
-    if [[ "$words[2]" == "report" ]]; then
-        if [[ "$words[3]" == "validate" ]]; then
-            _arguments -s \
-                '1:report:_files' \
-                '--help[show report validation help]' \
-                '--payload[exported payload directory]:directory:_files -/' \
-                '--json[print a machine-readable result]' \
-                '--format[output format]:format:(text json markdown)'
-        elif [[ "$words[3]" == "replay" ]]; then
-            _arguments -s \
-                '1:report:_files' \
-                '--help[show report replay help]' \
-                '--payload[exported payload directory]:directory:_files -/' \
-                '--runs[number of fresh replay copies]:count:' \
-                '--timeout[seconds per replay run]:seconds:' \
-                '*--env[recorded environment variable]:NAME=VALUE:' \
-                '--backend[execution backend]:backend:(recorded host docker)' \
-                '--docker-image[local Docker image]:image:' \
-                '--docker-network[Docker network policy]:network:(none bridge host)' \
-                '--exit-code[legacy exit-code contract]:code:' \
-                '--yes[acknowledge execution of the report command]' \
-                '--json[print machine-readable replay evidence]'
-        elif [[ "$words[3]" == "compare" ]]; then
-            _arguments -s \
-                '*:report:_files' \
-                '--help[show report comparison help]' \
-                '*--label[short report label]:name:' \
-                '--format[output format]:format:(text json markdown)'
-        else
-            _arguments -s '1:report command:(validate replay compare)' '--help[show report help]'
-        fi
-        return
-    fi
-    if [[ "$words[2]" == "doctor" ]]; then
-        _arguments -s \
-            '1:repository:_files' \
-            '--version[show the installed version]' \
-            '--help[show Doctor help]' \
-            '--config[versioned JSON reduction spec]:file:_files' \
-            '--command[optional failure reproduction command]:command:' \
-            '--match[regular expression required in output]:pattern:' \
-            '--exit-code[exact process exit code]:code:' \
-            '--java-exception[preserve a normalized Java exception]' \
-            '--python-exception[preserve a normalized Python exception]' \
-            '--process-failure[preserve process termination]' \
-            '--adapter[structured manifest reducer]:adapter:(auto none maven gradle python pipenv node composer dotnet ruby cargo go)' \
-            '--source-reducer[source-level reducer]:reducer:(auto none java python)' \
-            '--backend[execution backend]:backend:(host docker)' \
-            '--docker-image[Docker image]:image:' \
-            '--docker-network[Docker network policy]:network:(none bridge host)' \
-            '--docker-cpus[Docker CPU quota]:cores:' \
-            '--docker-memory[Docker memory limit]:size:' \
-            '--docker-pids-limit[maximum container processes]:count:' \
-            '--docker-tmpfs-size[container /tmp size]:size:' \
-            '--docker-workspace-limit[writable workspace limit]:size:' \
-            '--timeout[seconds per baseline run]:seconds:' \
-            '--baseline-runs[fresh baseline copies]:count:' \
-            '--min-baseline-passes[minimum baseline passes]:count:' \
-            '--min-baseline-rate[minimum baseline rate]:rate:' \
-            '--confidence[confidence level]:level:' \
-            '--output[output path to check]:path:_files' \
-            '--ignore[ignored basename]:name:' \
-            '--ignore-path[ignored repository path]:path:_files' \
-            '*--keep[protected repository path]:path:_files' \
-            '*--text-file[UTF-8 text reduction target]:path:_files' \
-            '--gitignore[apply repository .gitignore]' \
-            '--gitignore-file[apply a gitignore-style file]:file:_files' \
-            '--gitignore-recursive[apply nested .gitignore files]' \
-            '--env[baseline environment variable]:NAME=VALUE:' \
-            '--json[print a machine-readable result]' \
-            '--format[output format]:format:(text json markdown)'
-        return
-    fi
-    if [[ "$words[2]" == "demo" ]]; then
-        _arguments -s \
-            '1:new workspace:_directories' \
-            '--help[show demo help]'
-        return
-    fi
-    options=(
-        '1:repository:_files'
-        'demo[run a self-contained first reduction]'
-        'doctor[check reducers, toolchains, and an optional baseline]'
-        'report[inspect or validate a report]'
-        'completion[print a shell completion script]'
-        '--version[show the installed version]'
-        '--help[show command help]'
-        '--config[versioned JSON reduction spec]:file:_files'
-        '--command[failure reproduction command]:command:'
-        '--match[regular expression that must remain present]:pattern:'
-        '--exit-code[required exit code]:code:(0 1 2 7 9)'
-        '--output[output directory]:directory:_files -/'
-        '--session[persistent session directory]:directory:_files -/'
-        '--resume[resume an existing session]'
-        '--timeout[seconds per run]:seconds:'
-        '--backend[execution backend]:backend:(host docker)'
-        '--docker-image[Docker image]:image:'
-        '--docker-network[Docker network policy]:network:(none bridge host)'
-        '--docker-cpus[Docker CPU quota]:cores:'
-        '--docker-memory[Docker memory limit]:size:'
-        '--docker-pids-limit[maximum container processes]:count:'
-        '--docker-tmpfs-size[container /tmp size]:size:'
-        '--docker-workspace-limit[writable workspace limit]:size:'
-        '--jobs[concurrent candidate commands]:count:'
-        '--no-cache[disable result caching]'
-        '--max-attempts[logical candidate attempt budget]:count:'
-        '--max-duration[wall-clock budget]:seconds:'
-        '--ignore[ignored basename]:name:'
-        '--ignore-path[ignored repository-relative path]:path:_files'
-        '--gitignore[apply repository .gitignore]'
-        '--gitignore-file[apply a gitignore-style file]:file:_files'
-        '--gitignore-recursive[apply nested .gitignore files]'
-        '--keep[protect a repository-relative path]:path:_files'
-        '--env[reproduction environment variable]:NAME=VALUE:'
-        '--java-exception[preserve a normalized Java exception]'
-        '--python-exception[preserve a normalized Python exception]'
-        '--process-failure[preserve process termination]'
-        '--baseline-runs[baseline samples]:count:'
-        '--min-baseline-passes[minimum baseline passes]:count:'
-        '--candidate-runs[candidate samples]:count:'
-        '--min-candidate-passes[minimum candidate passes]:count:'
-        '--min-baseline-rate[minimum baseline rate]:rate:'
-        '--min-candidate-rate[minimum candidate rate]:rate:'
-        '--confidence[confidence level]:level:'
-        '--run-confidence[run-wide confidence]:level:'
-        '--holdout-runs[holdout samples]:count:'
-        '--min-holdout-rate[minimum holdout rate]:rate:'
-        '--holdout-confidence[holdout confidence]:level:'
-        '--adapter[structured manifest reducer]:adapter:(auto none maven gradle python pipenv node composer dotnet ruby cargo go)'
-        '--source-reducer[source-level reducer]:reducer:(auto none java python)'
-        '--text-file[line-reduce a UTF-8 text file]:path:_files'
-        '--semantic-reducer[semantic reducer backend]:backend:(none http)'
-        '--semantic-endpoint[OpenAI-compatible endpoint]:url:'
-        '--semantic-model[semantic model name]:name:'
-        '--semantic-timeout[semantic HTTP timeout]:seconds:'
-        '--java-classpath[Java analysis classpath]:path:_files'
-        '--quiet[suppress routine status output]'
-        '--verbose[print detailed reduction progress]'
-    )
-    _arguments -s $options '*:repository or command:_files'
+    name: str
+    description: str
+    takes_value: bool = True
+    value_kind: str = "value"
+    choices: Tuple[str, ...] = ()
+    repeatable: bool = False
+
+
+@dataclass(frozen=True)
+class CompletionCommand:
+    """Options and positionals accepted in one exact command context."""
+
+    key: str
+    options: Tuple[CompletionArgument, ...]
+    positionals: Tuple[CompletionArgument, ...] = ()
+
+
+# argparse cannot distinguish a path from an arbitrary string, or a file from a
+# directory. This is the only completion metadata maintained beside the parsers.
+_PATH_KINDS: Final = {
+    "reduce": {
+        "source": "directory",
+        "--config": "file",
+        "--output": "directory",
+        "--session": "directory",
+        "--ignore-path": "path",
+        "--gitignore-file": "file",
+        "--keep": "path",
+        "--text-file": "file",
+        "--java-classpath": "path",
+    },
+    "doctor": {
+        "source": "directory",
+        "--config": "file",
+        "--output": "path",
+        "--ignore-path": "path",
+        "--keep": "path",
+        "--text-file": "file",
+        "--gitignore-file": "file",
+    },
+    "demo": {"workspace": "directory"},
+    "report_validate": {"report": "file", "--payload": "directory"},
+    "report_replay": {"report": "file", "--payload": "directory"},
+    "report_compare": {"reports": "file"},
 }
 
-_repomin "$@"
-'''
+
+def _description(action: argparse.Action, fallback: str) -> str:
+    help_text = action.help
+    if not help_text or help_text is argparse.SUPPRESS:
+        if fallback == "--version":
+            return "show the installed version"
+        return fallback.replace("--", "").replace("-", " ")
+    return " ".join(str(help_text).split())
 
 
-_FISH = r'''# Fish completion for repomin.
-function __repomin_demo_mode
-    set -l tokens (commandline -opc)
-    test (count $tokens) -ge 2; and test "$tokens[2]" = demo
-end
-
-function __repomin_demo_needs_workspace
-    __repomin_demo_mode; and test (count (commandline -opc)) -eq 2
-end
-
-complete -c repomin -f -n '__fish_use_subcommand' -a 'completion demo doctor report' -d 'command'
-complete -c repomin -f -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish powershell' -d 'shell'
-complete -c repomin -f -n '__repomin_demo_mode; and __repomin_demo_needs_workspace' -a '(__fish_complete_directories)' -d 'new workspace'
-complete -c repomin -f -n '__repomin_demo_mode; and __repomin_demo_needs_workspace' -l help -d 'show demo help'
-complete -c repomin -f -n '__fish_seen_subcommand_from report' -a 'validate replay compare' -d 'report command'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from validate' -l payload -r -a '(__fish_complete_directories)' -d 'exported payload directory'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from validate' -l json -d 'print a machine-readable result'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from validate' -l format -r -a 'text json markdown' -d 'output format'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from compare' -l format -r -a 'text json markdown' -d 'output format'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from compare' -l label -r -d 'short report label'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from compare' -a '(__fish_complete_path)' -d 'report.json'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l payload -r -a '(__fish_complete_directories)' -d 'exported payload directory'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l runs -r -d 'fresh replay copies'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l timeout -r -d 'seconds per replay run'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l env -r -d 'recorded environment variable'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l backend -r -a 'recorded host docker' -d 'execution backend'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l docker-image -r -d 'local Docker image'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l docker-network -r -a 'none bridge host' -d 'Docker network policy'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l exit-code -r -d 'legacy exit-code contract'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l yes -d 'acknowledge report command execution'
-complete -c repomin -f -n '__fish_seen_subcommand_from report; and __fish_seen_subcommand_from replay' -l json -d 'print machine-readable replay evidence'
-complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l json -d 'print a machine-readable result'
-complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l format -r -a 'text json markdown' -d 'output format'
-complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l gitignore -d 'apply repository .gitignore'
-complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l gitignore-file -r -a '(__fish_complete_path)' -d 'apply a gitignore-style file'
-complete -c repomin -f -n '__fish_seen_subcommand_from doctor' -l gitignore-recursive -d 'apply nested .gitignore files'
-
-set -l boolean_options version help resume no-cache gitignore gitignore-recursive java-exception python-exception process-failure
-for option in $boolean_options
-    complete -c repomin -f -n 'not __repomin_demo_mode' -l $option
-end
-
-complete -c repomin -f -n 'not __repomin_demo_mode' -l quiet -d 'suppress routine status output'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l verbose -d 'print detailed reduction progress'
-
-complete -c repomin -f -n 'not __repomin_demo_mode' -l command -r -d 'failure reproduction command'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l config -r -a '(__fish_complete_path)' -d 'versioned JSON reduction spec'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l match -r -d 'failure output pattern'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l exit-code -r -d 'required exit code'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l output -r -a '(__fish_complete_directories)'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l session -r -a '(__fish_complete_directories)'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l timeout -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l backend -r -a 'host docker'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-image -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-network -r -a 'none bridge host'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-cpus -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-memory -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-pids-limit -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-tmpfs-size -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l docker-workspace-limit -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l jobs -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l max-attempts -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l max-duration -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l ignore -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l ignore-path -r -a '(__fish_complete_path)'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l gitignore-file -r -a '(__fish_complete_path)'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l keep -r -a '(__fish_complete_path)'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l env -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l baseline-runs -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l min-baseline-passes -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l candidate-runs -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l min-candidate-passes -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l min-baseline-rate -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l min-candidate-rate -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l confidence -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l run-confidence -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l holdout-runs -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l min-holdout-rate -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l holdout-confidence -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l adapter -r -a 'auto none maven gradle python pipenv node composer dotnet ruby cargo go'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l source-reducer -r -a 'auto none java python'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l text-file -r -a '(__fish_complete_path)'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l semantic-reducer -r -a 'none http'
-complete -c repomin -f -n 'not __repomin_demo_mode' -l semantic-endpoint -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l semantic-model -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l semantic-timeout -r
-complete -c repomin -f -n 'not __repomin_demo_mode' -l java-classpath -r -a '(__fish_complete_path)'
-'''
+def _value_name(action: argparse.Action) -> str:
+    metavar = action.metavar
+    if isinstance(metavar, tuple):
+        metavar = metavar[0] if metavar else None
+    if metavar:
+        return str(metavar)
+    return action.dest.replace("_", "-").upper()
 
 
-_POWERSHELL = r'''# PowerShell completion for repomin.
-Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {
-    param($wordToComplete, $commandAst, $cursorPosition)
-
-    $options = @(
-        'doctor', 'report', 'demo', 'completion',
-        '--version', '--help', '--config', '--command', '--match', '--exit-code', '--output', '--json',
-        '--session', '--resume', '--timeout', '--backend', '--docker-image',
-        '--docker-network', '--docker-cpus', '--docker-memory',
-        '--docker-pids-limit', '--docker-tmpfs-size', '--docker-workspace-limit',
-        '--jobs', '--no-cache', '--max-attempts', '--max-duration', '--ignore',
-        '--ignore-path', '--gitignore', '--gitignore-file', '--gitignore-recursive',
-        '--keep', '--env', '--java-exception', '--python-exception',
-        '--process-failure', '--baseline-runs', '--min-baseline-passes',
-        '--candidate-runs', '--min-candidate-passes', '--min-baseline-rate',
-        '--min-candidate-rate', '--confidence', '--run-confidence',
-        '--holdout-runs', '--min-holdout-rate', '--holdout-confidence',
-        '--adapter', '--source-reducer', '--text-file', '--semantic-reducer',
-        '--semantic-endpoint', '--semantic-model', '--semantic-timeout',
-        '--java-classpath', '--quiet', '--verbose'
-    )
-    $optionTooltips = @{
-        '--quiet' = 'suppress routine status output'
-        '--verbose' = 'print detailed reduction progress'
-    }
-    $doctorOptions = @(
-        '--version', '--help', '--config', '--command', '--match', '--exit-code',
-        '--java-exception', '--python-exception', '--process-failure', '--adapter',
-        '--source-reducer', '--backend', '--docker-image', '--docker-network',
-        '--docker-cpus', '--docker-memory', '--docker-pids-limit',
-        '--docker-tmpfs-size', '--docker-workspace-limit', '--timeout',
-        '--baseline-runs', '--min-baseline-passes', '--min-baseline-rate',
-        '--confidence', '--output', '--ignore', '--ignore-path', '--keep',
-        '--text-file', '--gitignore', '--gitignore-file', '--gitignore-recursive',
-        '--env', '--json', '--format'
-    )
-    $doctorValueOptions = @(
-        '--config', '--command', '--match', '--exit-code', '--adapter',
-        '--source-reducer', '--backend', '--docker-image', '--docker-network',
-        '--docker-cpus', '--docker-memory', '--docker-pids-limit',
-        '--docker-tmpfs-size', '--docker-workspace-limit', '--timeout',
-        '--baseline-runs', '--min-baseline-passes', '--min-baseline-rate',
-        '--confidence', '--output', '--ignore', '--ignore-path', '--keep',
-        '--text-file', '--gitignore-file', '--env', '--format'
-    )
-    $doctorPathOptions = @(
-        '--config', '--output', '--ignore-path', '--keep', '--text-file',
-        '--gitignore-file'
-    )
-    $reportOptions = @('validate', 'replay', 'compare', '--help')
-    $reportValidateOptions = @('--help', '--payload', '--json', '--format')
-    $reportReplayOptions = @(
-        '--help', '--payload', '--runs', '--timeout', '--env', '--backend',
-        '--docker-image', '--docker-network', '--exit-code', '--yes', '--json'
-    )
-    $reportCompareOptions = @('--help', '--label', '--format')
-    $reportPathOptions = @('--payload')
-    $valueOptions = @(
-        '--config', '--command', '--match', '--exit-code', '--output', '--session', '--timeout',
-        '--backend', '--docker-image', '--docker-network', '--docker-cpus',
-        '--docker-memory', '--docker-pids-limit', '--docker-tmpfs-size',
-        '--docker-workspace-limit', '--jobs', '--max-attempts', '--max-duration',
-        '--ignore', '--ignore-path', '--gitignore-file', '--keep', '--env',
-        '--baseline-runs', '--min-baseline-passes', '--candidate-runs',
-        '--min-candidate-passes', '--min-baseline-rate', '--min-candidate-rate',
-        '--confidence', '--run-confidence', '--holdout-runs', '--min-holdout-rate',
-        '--holdout-confidence', '--adapter', '--source-reducer', '--text-file',
-        '--semantic-reducer', '--semantic-endpoint', '--semantic-model',
-        '--semantic-timeout', '--java-classpath'
-    )
-    $pathOptions = @(
-        '--config', '--output', '--session', '--ignore-path', '--gitignore-file', '--keep',
-        '--text-file', '--java-classpath'
-    )
-    $enumValues = @{
-        '--backend' = @('host', 'docker')
-        '--docker-network' = @('none', 'bridge', 'host')
-        '--adapter' = @('auto', 'none', 'maven', 'gradle', 'python', 'pipenv', 'node', 'composer', 'dotnet', 'ruby', 'cargo', 'go')
-        '--source-reducer' = @('auto', 'none', 'java', 'python')
-        '--semantic-reducer' = @('none', 'http')
-    }
-
-    $elements = @($commandAst.CommandElements)
-    $previous = if ($elements.Count -gt 1) {
-        $elements[$elements.Count - 2].Extent.Text
-    } else {
-        ''
-    }
-    $subcommand = if ($elements.Count -gt 1) {
-        $elements[1].Extent.Text
-    } else {
-        ''
-    }
-    $doctorMode = $subcommand -eq 'doctor'
-    $reportMode = $subcommand -eq 'report'
-    $demoMode = $subcommand -eq 'demo'
-    if ($demoMode) {
-        $acceptsWorkspace = $elements.Count -eq 2 -or (
-            $elements.Count -eq 3 -and -not [string]::IsNullOrEmpty($wordToComplete)
-        )
-        if (-not $acceptsWorkspace) {
-            return
-        }
-        if ($wordToComplete -like '-*') {
-            @('--help') |
-                Where-Object { $_ -like "$wordToComplete*" } |
-                ForEach-Object {
-                    [System.Management.Automation.CompletionResult]::new(
-                        $_, $_, 'ParameterName', 'show demo help'
+def _command_from_parser(
+    key: str,
+    parser: argparse.ArgumentParser,
+) -> CompletionCommand:
+    hints = _PATH_KINDS.get(key, {})
+    used_hints = set()
+    options = []
+    positionals = []
+    for action in parser._actions:
+        long_options = [
+            option for option in action.option_strings if option.startswith("--")
+        ]
+        choices = tuple(str(choice) for choice in (action.choices or ()))
+        if long_options:
+            for option in long_options:
+                value_kind = hints.get(option, "value")
+                if option in hints:
+                    used_hints.add(option)
+                options.append(
+                    CompletionArgument(
+                        name=option,
+                        description=_description(action, option),
+                        takes_value=action.nargs != 0,
+                        value_kind=value_kind,
+                        choices=choices,
+                        repeatable=type(action).__name__ == "_AppendAction",
                     )
-                }
-            return
-        }
-        $parentPath = if ([string]::IsNullOrEmpty($wordToComplete)) {
-            '.'
-        } else {
-            Split-Path -Parent $wordToComplete
-        }
-        $leafPrefix = if ([string]::IsNullOrEmpty($wordToComplete)) {
-            ''
-        } else {
-            Split-Path -Leaf $wordToComplete
-        }
-        if ([string]::IsNullOrEmpty($parentPath)) {
-            $parentPath = '.'
-        }
-        Get-ChildItem -LiteralPath $parentPath -Directory -Force -ErrorAction SilentlyContinue |
-            Where-Object {
-                $_.Name.StartsWith(
-                    $leafPrefix,
-                    [System.StringComparison]::OrdinalIgnoreCase
                 )
-            } |
-            ForEach-Object {
-                $completionText = $_.FullName
-                if ($_.PSIsContainer) {
-                    $completionText += [System.IO.Path]::DirectorySeparatorChar
-                }
-                $completionText = "'" + $completionText.Replace("'", "''") + "'"
-                [System.Management.Automation.CompletionResult]::new(
-                    $completionText, $_.Name, 'ProviderItem', $_.FullName
-                )
-            }
-        return
-    }
-    if ($reportMode) {
-        $validateMode = $elements | Where-Object { $_.Extent.Text -eq 'validate' }
-        $replayMode = $elements | Where-Object { $_.Extent.Text -eq 'replay' }
-        $compareMode = $elements | Where-Object { $_.Extent.Text -eq 'compare' }
-        if (-not $validateMode -and -not $replayMode -and -not $compareMode) {
-            $reportOptions |
-                Where-Object { $_ -like "$wordToComplete*" } |
-                ForEach-Object {
-                    [System.Management.Automation.CompletionResult]::new(
-                        $_, $_, 'Command', $_
-                    )
-                }
-            return
-        }
-        if ($replayMode -and $previous -eq '--backend') {
-            @('recorded', 'host', 'docker') |
-                Where-Object { $_ -like "$wordToComplete*" } |
-                ForEach-Object {
-                    [System.Management.Automation.CompletionResult]::new(
-                        $_, $_, 'ParameterValue', $_
-                    )
-                }
-            return
-        }
-        if ($replayMode -and $previous -eq '--docker-network') {
-            @('none', 'bridge', 'host') |
-                Where-Object { $_ -like "$wordToComplete*" } |
-                ForEach-Object {
-                    [System.Management.Automation.CompletionResult]::new(
-                        $_, $_, 'ParameterValue', $_
-                    )
-                }
-            return
-        }
-        if ($validateMode -and $previous -eq '--format') {
-            @('text', 'json', 'markdown') |
-                Where-Object { $_ -like "$wordToComplete*" } |
-                ForEach-Object {
-                    [System.Management.Automation.CompletionResult]::new(
-                        $_, $_, 'ParameterValue', $_
-                    )
-                }
-            return
-        }
-        if ($compareMode -and $previous -eq '--format') {
-            @('text', 'json', 'markdown') |
-                Where-Object { $_ -like "$wordToComplete*" } |
-                ForEach-Object {
-                    [System.Management.Automation.CompletionResult]::new(
-                        $_, $_, 'ParameterValue', $_
-                    )
-                }
-            return
-        }
-        if ($reportPathOptions -contains $previous) {
-            $pathPattern = if ([string]::IsNullOrEmpty($wordToComplete)) {
-                '*'
-            } else {
-                "$wordToComplete*"
-            }
-            Get-ChildItem -Path $pathPattern -Force -ErrorAction SilentlyContinue |
-                ForEach-Object {
-                    $completionText = $_.FullName
-                    if ($_.PSIsContainer) {
-                        $completionText += [System.IO.Path]::DirectorySeparatorChar
-                    }
-                    [System.Management.Automation.CompletionResult]::new(
-                        $completionText, $_.Name, 'ProviderItem', $_.FullName
-                    )
-                }
-            return
-        }
-        $activeReportOptions = if ($replayMode) {
-            $reportReplayOptions
-        } elseif ($compareMode) {
-            $reportCompareOptions
-        } else {
-            $reportValidateOptions
-        }
-        $activeReportOptions |
-            Where-Object { $_ -like "$wordToComplete*" } |
-            ForEach-Object {
-                [System.Management.Automation.CompletionResult]::new(
-                    $_, $_, 'ParameterName', $_
-                )
-            }
-        return
-    }
-    if ($doctorMode) {
-        if ($previous -eq '--format') {
-            @('text', 'json', 'markdown') |
-                Where-Object { $_ -like "$wordToComplete*" } |
-                ForEach-Object {
-                    [System.Management.Automation.CompletionResult]::new(
-                        $_, $_, 'ParameterValue', $_
-                    )
-                }
-            return
-        }
-        if ($enumValues.ContainsKey($previous)) {
-            $enumValues[$previous] |
-                Where-Object { $_ -like "$wordToComplete*" } |
-                ForEach-Object {
-                    [System.Management.Automation.CompletionResult]::new(
-                        $_, $_, 'ParameterValue', $_
-                    )
-                }
-            return
-        }
-        if ($doctorValueOptions -contains $previous) {
-            if ($doctorPathOptions -contains $previous) {
-                $pathPattern = if ([string]::IsNullOrEmpty($wordToComplete)) {
-                    '*'
-                } else {
-                    "$wordToComplete*"
-                }
-                Get-ChildItem -Path $pathPattern -Force -ErrorAction SilentlyContinue |
-                    ForEach-Object {
-                        $completionText = $_.FullName
-                        if ($_.PSIsContainer) {
-                            $completionText += [System.IO.Path]::DirectorySeparatorChar
-                        }
-                        [System.Management.Automation.CompletionResult]::new(
-                            $completionText, $_.Name, 'ProviderItem', $_.FullName
-                        )
-                    }
-            }
-            return
-        }
-        $doctorOptions |
-            Where-Object { $_ -like "$wordToComplete*" } |
-            ForEach-Object {
-                [System.Management.Automation.CompletionResult]::new(
-                    $_, $_, 'ParameterName', $_
-                )
-            }
-        return
-    }
-    if ($enumValues.ContainsKey($previous)) {
-        $enumValues[$previous] |
-            Where-Object { $_ -like "$wordToComplete*" } |
-            ForEach-Object {
-                [System.Management.Automation.CompletionResult]::new(
-                    $_, $_, 'ParameterValue', $_
-                )
-            }
-        return
-    }
-    if ($valueOptions -contains $previous) {
-        if ($pathOptions -contains $previous) {
-            $pathPattern = if ([string]::IsNullOrEmpty($wordToComplete)) {
-                '*'
-            } else {
-                "$wordToComplete*"
-            }
-            Get-ChildItem -Path $pathPattern -Force -ErrorAction SilentlyContinue |
-                ForEach-Object {
-                    $completionText = $_.FullName
-                    if ($_.PSIsContainer) {
-                        $completionText += [System.IO.Path]::DirectorySeparatorChar
-                    }
-                    [System.Management.Automation.CompletionResult]::new(
-                        $completionText, $_.Name, 'ProviderItem', $_.FullName
-                    )
-                }
-        }
-        return
-    }
-    $options |
-        Where-Object { $_ -like "$wordToComplete*" } |
-        ForEach-Object {
-            $tooltip = if ($optionTooltips.ContainsKey($_)) {
-                $optionTooltips[$_]
-            } else {
-                $_
-            }
-            [System.Management.Automation.CompletionResult]::new(
-                $_, $_, 'ParameterName', $tooltip
+            continue
+
+        value_kind = hints.get(action.dest, "value")
+        if action.dest in hints:
+            used_hints.add(action.dest)
+        positionals.append(
+            CompletionArgument(
+                name=_value_name(action),
+                description=_description(action, action.dest),
+                value_kind=value_kind,
+                choices=choices,
+                repeatable=action.nargs in ("*", "+"),
             )
-        }
-}
-'''
+        )
+
+    unused_hints = set(hints) - used_hints
+    if unused_hints:
+        raise RuntimeError(
+            "completion path hints do not match %s parser: %s"
+            % (key, ", ".join(sorted(unused_hints)))
+        )
+    return CompletionCommand(key, tuple(options), tuple(positionals))
+
+
+def _help_option(description: str) -> CompletionArgument:
+    return CompletionArgument("--help", description, takes_value=False)
+
+
+@lru_cache(maxsize=1)
+def completion_command_specs() -> Tuple[CompletionCommand, ...]:
+    """Return immutable completion specs sourced from the real CLI parsers."""
+    from repomin.cli import (
+        _build_demo_parser,
+        _build_doctor_parser,
+        _build_report_compare_parser,
+        _build_report_replay_parser,
+        _build_report_validate_parser,
+        build_parser,
+    )
+
+    parser_specs = (
+        _command_from_parser(
+            "reduce", build_parser(semantic_environment_defaults=False)
+        ),
+        _command_from_parser("doctor", _build_doctor_parser()),
+        _command_from_parser("demo", _build_demo_parser()),
+        _command_from_parser(
+            "report_validate", _build_report_validate_parser()
+        ),
+        _command_from_parser("report_replay", _build_report_replay_parser()),
+        _command_from_parser("report_compare", _build_report_compare_parser()),
+    )
+    completion = CompletionCommand(
+        "completion",
+        (_help_option("show completion help"),),
+        (
+            CompletionArgument(
+                "SHELL",
+                "shell",
+                choices=tuple(SUPPORTED_SHELLS),
+            ),
+        ),
+    )
+    report = CompletionCommand(
+        "report",
+        (_help_option("show report help"),),
+        (
+            CompletionArgument(
+                "COMMAND",
+                "report command",
+                choices=tuple(name for name, _ in _REPORT_COMMANDS),
+            ),
+        ),
+    )
+    return parser_specs[:3] + (completion, report) + parser_specs[3:]
+
+
+def _value_options(command: CompletionCommand) -> Tuple[str, ...]:
+    return tuple(option.name for option in command.options if option.takes_value)
+
+
+def _path_options(
+    command: CompletionCommand,
+    kinds: Sequence[str],
+) -> Tuple[str, ...]:
+    return tuple(
+        option.name
+        for option in command.options
+        if option.takes_value and option.value_kind in kinds
+    )
+
+
+def _choice_options(
+    commands: Sequence[CompletionCommand],
+) -> Tuple[Tuple[str, str, Tuple[str, ...]], ...]:
+    return tuple(
+        (command.key, option.name, option.choices)
+        for command in commands
+        for option in command.options
+        if option.choices
+    )
+
+
+def _bash_words(values: Sequence[str]) -> str:
+    return " ".join(values).replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _render_bash(commands: Sequence[CompletionCommand]) -> str:
+    lines = [
+        "# Bash completion for repomin.",
+        "_repomin_complete_directories() {",
+        "    local candidate",
+        "    while IFS= read -r candidate; do",
+        '        COMPREPLY+=("$completion_prefix${candidate%/}/")',
+        '    done < <(compgen -d -- "$cur")',
+        "}",
+        "",
+        "_repomin_complete_files() {",
+        "    local candidate",
+        "    while IFS= read -r candidate; do",
+        '        COMPREPLY+=("$completion_prefix$candidate")',
+        '    done < <(compgen -f -- "$cur")',
+        "}",
+        "",
+        "_repomin_prefix_completions() {",
+        "    local index",
+        '    if [[ -n "$completion_prefix" ]]; then',
+        '        for (( index=0; index<${#COMPREPLY[@]}; index++ )); do',
+        '            COMPREPLY[index]="$completion_prefix${COMPREPLY[index]}"',
+        "        done",
+        "    fi",
+        "}",
+        "",
+        "_repomin() {",
+        "    local cur prev context options value_options file_options directory_options completion_prefix",
+        '    cur="${COMP_WORDS[COMP_CWORD]}"',
+        '    prev="${COMP_WORDS[COMP_CWORD-1]}"',
+        "    COMPREPLY=()",
+        '    completion_prefix=""',
+        '    if [[ "$cur" == --*=* ]]; then',
+        '        prev="${cur%%=*}"',
+        '        completion_prefix="$prev="',
+        '        cur="${cur#*=}"',
+        "    fi",
+        '    context="reduce"',
+        '    case "${COMP_WORDS[1]}" in',
+        '        demo|doctor|completion) context="${COMP_WORDS[1]}" ;;',
+        "        report)",
+        '            context="report"',
+        '            case "${COMP_WORDS[2]}" in',
+        '                validate|replay|compare) context="report_${COMP_WORDS[2]}" ;;',
+        "            esac",
+        "            ;;",
+        "    esac",
+        '    options=""',
+        '    value_options=""',
+        '    file_options=""',
+        '    directory_options=""',
+        '    positional_kind=""',
+        '    positional_choices=""',
+        '    case "$context" in',
+    ]
+    for command in commands:
+        positional = command.positionals[0] if command.positionals else None
+        lines.extend(
+            [
+                "        %s)" % command.key,
+                '            options="%s"'
+                % _bash_words(tuple(option.name for option in command.options)),
+                '            value_options="%s"'
+                % _bash_words(_value_options(command)),
+                '            file_options="%s"'
+                % _bash_words(_path_options(command, ("file", "path"))),
+                '            directory_options="%s"'
+                % _bash_words(_path_options(command, ("directory",))),
+                '            positional_kind="%s"'
+                % (positional.value_kind if positional else ""),
+                '            positional_choices="%s"'
+                % _bash_words(positional.choices if positional else ()),
+                "            ;;",
+            ]
+        )
+    lines.extend(
+        [
+            "    esac",
+            "",
+            '    if (( COMP_CWORD == 1 )) && [[ -z "$completion_prefix" ]]; then',
+            '        if [[ "$cur" == -* ]]; then',
+            '            COMPREPLY=( $(compgen -W "$options" -- "$cur") )',
+            "        else",
+            '            COMPREPLY=( $(compgen -W "%s" -- "$cur") )'
+            % _bash_words(tuple(name for name, _ in _ROOT_COMMANDS)),
+            "            _repomin_complete_directories",
+            "        fi",
+            "        return 0",
+            "    fi",
+            "",
+            '    case "$context:$prev" in',
+        ]
+    )
+    for key, option, choices in _choice_options(commands):
+        lines.append(
+            '        "%s:%s") COMPREPLY=( $(compgen -W "%s" -- "$cur") ); _repomin_prefix_completions; return 0 ;;'
+            % (key, option, _bash_words(choices))
+        )
+    lines.extend(
+        [
+            "    esac",
+            '    if [[ " $value_options " == *" $prev "* ]]; then',
+            '        if [[ " $directory_options " == *" $prev "* ]]; then',
+            "            _repomin_complete_directories",
+            '        elif [[ " $file_options " == *" $prev "* ]]; then',
+            "            _repomin_complete_files",
+            "        fi",
+            "        return 0",
+            "    fi",
+            '    if [[ "$cur" == -* ]]; then',
+            '        COMPREPLY=( $(compgen -W "$options" -- "$cur") )',
+            "        return 0",
+            "    fi",
+            '    if [[ "$context" == "demo" || "$context" == "completion" || "$context" == "report" ]]; then',
+            "        if (( COMP_CWORD > 2 )); then",
+            "            return 0",
+            "        fi",
+            "    fi",
+            '    if [[ -n "$positional_choices" ]]; then',
+            '        COMPREPLY=( $(compgen -W "$positional_choices" -- "$cur") )',
+            '    elif [[ "$positional_kind" == "directory" ]]; then',
+            "        _repomin_complete_directories",
+            '    elif [[ "$positional_kind" == "file" || "$positional_kind" == "path" ]]; then',
+            "        _repomin_complete_files",
+            "    fi",
+            "}",
+            "complete -F _repomin repomin",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def _zsh_description(value: str) -> str:
+    return value.replace("[", "(").replace("]", ")").replace(":", "-")
+
+
+def _zsh_argument(argument: CompletionArgument, position: int = 0) -> str:
+    description = _zsh_description(argument.description)
+    if position:
+        prefix = "*" if argument.repeatable else str(position)
+        base = "%s:%s:" % (prefix, description)
+    else:
+        base = ("*" if argument.repeatable else "") + argument.name
+        base += "[%s]" % description
+        if not argument.takes_value:
+            return base
+        value_name = argument.name.lower().replace("_", "-").lstrip("-")
+        base += ":%s:" % value_name
+
+    if argument.choices:
+        return base + "(%s)" % " ".join(argument.choices)
+    if argument.value_kind == "directory":
+        return base + "_directories"
+    if argument.value_kind in ("file", "path"):
+        return base + "_files"
+    return base
+
+
+def _zsh_arguments(
+    command: CompletionCommand,
+    indent: str,
+    extras: Sequence[str] = (),
+) -> Sequence[str]:
+    arguments = list(extras)
+    arguments.extend(_zsh_argument(option) for option in command.options)
+    arguments.extend(
+        _zsh_argument(positional, index)
+        for index, positional in enumerate(command.positionals, start=1)
+    )
+    lines = [indent + "_arguments -s \\"]
+    for index, argument in enumerate(arguments):
+        suffix = " \\" if index < len(arguments) - 1 else ""
+        lines.append(indent + "    " + shlex.quote(argument) + suffix)
+    return lines
+
+
+def _render_zsh(commands: Sequence[CompletionCommand]) -> str:
+    specs = {command.key: command for command in commands}
+    lines = ["#compdef repomin", "", "_repomin() {"]
+    lines.append('    if [[ "$words[2]" == "completion" ]]; then')
+    lines.extend(['        words=("${words[@]:1}")', "        (( CURRENT-- ))"])
+    lines.extend(_zsh_arguments(specs["completion"], "        "))
+    lines.extend(["        return", "    fi"])
+    lines.append('    if [[ "$words[2]" == "report" ]]; then')
+    for index, name in enumerate(("validate", "replay", "compare")):
+        keyword = "if" if index == 0 else "elif"
+        lines.append(
+            '        %s [[ "$words[3]" == "%s" ]]; then'
+            % (keyword, name)
+        )
+        lines.extend(
+            [
+                '            words=("${words[@]:2}")',
+                "            (( CURRENT -= 2 ))",
+            ]
+        )
+        lines.extend(_zsh_arguments(specs["report_" + name], "            "))
+    lines.append("        else")
+    lines.extend(['            words=("${words[@]:1}")', "            (( CURRENT-- ))"])
+    lines.extend(_zsh_arguments(specs["report"], "            "))
+    lines.extend(["        fi", "        return", "    fi"])
+    for name in ("doctor", "demo"):
+        lines.append('    if [[ "$words[2]" == "%s" ]]; then' % name)
+        lines.extend(['        words=("${words[@]:1}")', "        (( CURRENT-- ))"])
+        lines.extend(_zsh_arguments(specs[name], "        "))
+        lines.extend(["        return", "    fi"])
+
+    root_commands = tuple(
+        "%s[%s]" % (name, _zsh_description(description))
+        for name, description in _ROOT_COMMANDS
+    )
+    lines.extend(_zsh_arguments(specs["reduce"], "    ", root_commands))
+    lines.extend(["}", "", '_repomin "$@"'])
+    return "\n".join(lines) + "\n"
+
+
+def _fish_quote(value: str) -> str:
+    return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+
+def _fish_action(argument: CompletionArgument) -> str:
+    if argument.choices:
+        return " ".join(argument.choices)
+    if argument.value_kind == "directory":
+        return "(__fish_complete_directories)"
+    if argument.value_kind in ("file", "path"):
+        return "(__fish_complete_path)"
+    return ""
+
+
+def _render_fish(commands: Sequence[CompletionCommand]) -> str:
+    root_names = tuple(name for name, _ in _ROOT_COMMANDS)
+    lines = [
+        "# Fish completion for repomin.",
+        "function __repomin_using_command",
+        "    set -l tokens (commandline -opc)",
+        "    switch $argv[1]",
+        "        case reduce",
+        "            if test (count $tokens) -lt 2",
+        "                return 0",
+        "            end",
+        "            not contains -- $tokens[2] %s"
+        % " ".join(root_names),
+        "        case demo doctor completion",
+        "            test (count $tokens) -ge 2; and test $tokens[2] = $argv[1]",
+        "        case report",
+        "            test (count $tokens) -ge 2; and test $tokens[2] = report; or return 1",
+        "            test (count $tokens) -lt 3; and return 0",
+        "            not contains -- $tokens[3] validate replay compare",
+        "        case report_validate report_replay report_compare",
+        "            set -l report_command (string replace report_ '' $argv[1])",
+        "            test (count $tokens) -ge 3; and test $tokens[2] = report; and test $tokens[3] = $report_command",
+        "    end",
+        "end",
+        "",
+        "function __repomin_demo_needs_workspace",
+        "    __repomin_using_command demo; and test (count (commandline -opc)) -eq 2",
+        "end",
+        "",
+        "complete -c repomin -f -n '__fish_use_subcommand' -a %s -d 'command'"
+        % _fish_quote(" ".join(root_names)),
+        "complete -c repomin -f -n '__repomin_using_command report' -a %s -d 'report command'"
+        % _fish_quote(" ".join(name for name, _ in _REPORT_COMMANDS)),
+    ]
+
+    for command in commands:
+        for option in command.options:
+            condition = "__repomin_using_command %s" % command.key
+            parts = [
+                "complete -c repomin -f -n %s" % _fish_quote(condition),
+                "-l %s" % option.name[2:],
+            ]
+            if option.takes_value:
+                parts.append("-r")
+            action = _fish_action(option)
+            if action:
+                parts.append("-a %s" % _fish_quote(action))
+            parts.append("-d %s" % _fish_quote(option.description))
+            lines.append(" ".join(parts))
+
+        for positional in command.positionals:
+            condition = (
+                "__repomin_demo_needs_workspace"
+                if command.key == "demo"
+                else "__repomin_using_command %s" % command.key
+            )
+            parts = ["complete -c repomin -f -n %s" % _fish_quote(condition)]
+            action = _fish_action(positional)
+            if action:
+                parts.append("-a %s" % _fish_quote(action))
+            parts.append("-d %s" % _fish_quote(positional.description))
+            lines.append(" ".join(parts))
+    return "\n".join(lines) + "\n"
+
+
+def _powershell_quote(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _powershell_array(values: Sequence[str]) -> str:
+    return "@(%s)" % ", ".join(_powershell_quote(value) for value in values)
+
+
+def _powershell_map(
+    variable: str,
+    values: Sequence[Tuple[str, Sequence[str]]],
+) -> Sequence[str]:
+    lines = ["    $%s = @{" % variable]
+    for key, items in values:
+        lines.append(
+            "        %s = %s" % (_powershell_quote(key), _powershell_array(items))
+        )
+    lines.append("    }")
+    return lines
+
+
+def _render_powershell(commands: Sequence[CompletionCommand]) -> str:
+    option_values = tuple(
+        (command.key, tuple(option.name for option in command.options))
+        for command in commands
+    )
+    value_options = tuple(
+        (command.key, _value_options(command)) for command in commands
+    )
+    file_options = tuple(
+        (command.key, _path_options(command, ("file", "path")))
+        for command in commands
+    )
+    directory_options = tuple(
+        (command.key, _path_options(command, ("directory",)))
+        for command in commands
+    )
+    choice_options = tuple(
+        ("%s|%s" % (command.key, option.name), option.choices)
+        for command in commands
+        for option in command.options
+        if option.choices
+    )
+    positional_choices = tuple(
+        (command.key, command.positionals[0].choices)
+        for command in commands
+        if command.positionals and command.positionals[0].choices
+    )
+    positional_kinds = tuple(
+        (command.key, (command.positionals[0].value_kind,))
+        for command in commands
+        if command.positionals
+    )
+    tooltips = tuple(
+        (
+            "%s|%s" % (command.key, option.name),
+            (option.description,),
+        )
+        for command in commands
+        for option in command.options
+    )
+
+    lines = [
+        "# PowerShell completion for repomin.",
+        "Register-ArgumentCompleter -Native -CommandName repomin -ScriptBlock {",
+        "    param($wordToComplete, $commandAst, $cursorPosition)",
+        "",
+    ]
+    lines.extend(_powershell_map("commandOptions", option_values))
+    lines.extend(_powershell_map("commandValueOptions", value_options))
+    lines.extend(_powershell_map("commandFileOptions", file_options))
+    lines.extend(_powershell_map("commandDirectoryOptions", directory_options))
+    lines.extend(_powershell_map("commandChoices", choice_options))
+    lines.extend(_powershell_map("positionChoices", positional_choices))
+    lines.extend(_powershell_map("positionKinds", positional_kinds))
+    lines.extend(_powershell_map("optionTooltips", tooltips))
+    lines.extend(
+        [
+            "",
+            "    function Complete-ReproMinPath {",
+            "        param([bool]$DirectoriesOnly)",
+            "        $parentPath = if ([string]::IsNullOrEmpty($wordToComplete)) {",
+            "            '.'",
+            "        } else {",
+            "            Split-Path -Parent $wordToComplete",
+            "        }",
+            "        $leafPrefix = if ([string]::IsNullOrEmpty($wordToComplete)) {",
+            "            ''",
+            "        } else {",
+            "            Split-Path -Leaf $wordToComplete",
+            "        }",
+            "        if ([string]::IsNullOrEmpty($parentPath)) {",
+            "            $parentPath = '.'",
+            "        }",
+            "        $items = if ($DirectoriesOnly) {",
+            "            Get-ChildItem -LiteralPath $parentPath -Directory -Force -ErrorAction SilentlyContinue",
+            "        } else {",
+            "            Get-ChildItem -LiteralPath $parentPath -Force -ErrorAction SilentlyContinue",
+            "        }",
+            "        $items |",
+            "            Where-Object {",
+            "                $_.Name.StartsWith(",
+            "                    $leafPrefix,",
+            "                    [System.StringComparison]::OrdinalIgnoreCase",
+            "                )",
+            "            } |",
+            "            ForEach-Object {",
+            "                $completionText = $_.FullName",
+            "                if ($_.PSIsContainer) {",
+            "                    $completionText += [System.IO.Path]::DirectorySeparatorChar",
+            "                }",
+            "                $completionText = \"'\" + $completionText.Replace(\"'\", \"''\") + \"'\"",
+            "                [System.Management.Automation.CompletionResult]::new(",
+            "                    $completionText, $_.Name, 'ProviderItem', $_.FullName",
+            "                )",
+            "            }",
+            "    }",
+            "",
+            "    function Complete-ReproMinValues {",
+            "        param($Values, [string]$ResultType)",
+            "        $Values |",
+            "            Where-Object { $_ -like \"$wordToComplete*\" } |",
+            "            ForEach-Object {",
+            "                $tooltip = if ($ResultType -eq 'ParameterName') {",
+            "                    $optionTooltips[$context + '|' + $_][0]",
+            "                } else {",
+            "                    $_",
+            "                }",
+            "                [System.Management.Automation.CompletionResult]::new(",
+            "                    $_, $_, $ResultType, $tooltip",
+            "                )",
+            "            }",
+            "    }",
+            "",
+            "    $elements = @($commandAst.CommandElements)",
+            "    $subcommand = if ($elements.Count -gt 1) {",
+            "        $elements[1].Extent.Text",
+            "    } else {",
+            "        ''",
+            "    }",
+            "    $reportCommand = if ($elements.Count -gt 2) {",
+            "        $elements[2].Extent.Text",
+            "    } else {",
+            "        ''",
+            "    }",
+            "    $context = switch ($subcommand) {",
+            "        'demo' { 'demo'; break }",
+            "        'doctor' { 'doctor'; break }",
+            "        'completion' { 'completion'; break }",
+            "        'report' {",
+            "            if ($reportCommand -in @('validate', 'replay', 'compare')) {",
+            "                'report_' + $reportCommand",
+            "            } else {",
+            "                'report'",
+            "            }",
+            "            break",
+            "        }",
+            "        default { 'reduce' }",
+            "    }",
+            "    $previous = ''",
+            "    if ($elements.Count -gt 1) {",
+            "        $lastElement = $elements[$elements.Count - 1].Extent.Text",
+            "        $previousIndex = if ($lastElement -eq $wordToComplete) {",
+            "            $elements.Count - 2",
+            "        } else {",
+            "            $elements.Count - 1",
+            "        }",
+            "        if ($previousIndex -ge 1) {",
+            "            $previous = $elements[$previousIndex].Extent.Text",
+            "        }",
+            "    }",
+            "",
+            "    $choiceKey = $context + '|' + $previous",
+            "    if ($commandChoices.ContainsKey($choiceKey)) {",
+            "        Complete-ReproMinValues -Values $commandChoices[$choiceKey] -ResultType 'ParameterValue'",
+            "        return",
+            "    }",
+            "    if ($commandDirectoryOptions[$context] -contains $previous) {",
+            "        Complete-ReproMinPath -DirectoriesOnly $true",
+            "        return",
+            "    }",
+            "    if ($commandFileOptions[$context] -contains $previous) {",
+            "        Complete-ReproMinPath -DirectoriesOnly $false",
+            "        return",
+            "    }",
+            "    if ($commandValueOptions[$context] -contains $previous) {",
+            "        return",
+            "    }",
+            "    if ($wordToComplete -like '-*') {",
+            "        Complete-ReproMinValues -Values $commandOptions[$context] -ResultType 'ParameterName'",
+            "        return",
+            "    }",
+            "",
+            "    if ($context -eq 'reduce' -and $elements.Count -le 2) {",
+            "        Complete-ReproMinValues -Values %s -ResultType 'Command'"
+            % _powershell_array(tuple(name for name, _ in _ROOT_COMMANDS)),
+            "    }",
+            "    if ($positionChoices.ContainsKey($context)) {",
+            "        Complete-ReproMinValues -Values $positionChoices[$context] -ResultType 'ParameterValue'",
+            "        return",
+            "    }",
+            "    if ($positionKinds[$context][0] -eq 'directory') {",
+            "        Complete-ReproMinPath -DirectoriesOnly $true",
+            "    } elseif ($positionKinds.ContainsKey($context)) {",
+            "        Complete-ReproMinPath -DirectoriesOnly $false",
+            "    }",
+            "}",
+        ]
+    )
+    return "\n".join(lines) + "\n"
 
 
 def completion_script(shell: str) -> str:
-    """Return the completion script for one supported shell."""
-    scripts = {
-        "bash": _BASH,
-        "zsh": _ZSH,
-        "fish": _FISH,
-        "powershell": _POWERSHELL,
+    """Return a deterministic completion script for one supported shell."""
+    renderers = {
+        "bash": _render_bash,
+        "zsh": _render_zsh,
+        "fish": _render_fish,
+        "powershell": _render_powershell,
     }
     try:
-        return scripts[shell]
+        renderer = renderers[shell]
     except KeyError as exc:
         raise ValueError(
             "unsupported shell %r (choose one of: %s)"
             % (shell, ", ".join(SUPPORTED_SHELLS))
         ) from exc
+    return renderer(completion_command_specs())
