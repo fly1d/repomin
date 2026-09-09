@@ -1,0 +1,48 @@
+title: "[Result] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share the result first, then enough context for another user to judge
+        whether the workflow fits them. Short answers are welcome. Use `N/A`
+        when a field does not apply. Report security vulnerabilities through
+        SECURITY.md instead.
+  - type: textarea
+    id: result-value
+    attributes:
+      label: Result and value
+      description: What changed, what did you learn, or what became easier?
+      placeholder: The reduced reproduction was used in... / The run was blocked by...
+    validations:
+      required: true
+  - type: textarea
+    id: workflow-context
+    attributes:
+      label: Workflow context
+      description: Which ecosystem, failure shape, ReproMin version, and backend did you use?
+      placeholder: Gradle test failure, ReproMin 0.1.0.dev11, host backend.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence-validation
+    attributes:
+      label: Evidence and validation
+      description: Include sanitized before/after size and validation or replay evidence.
+      placeholder: 854 files -> 11 files; exact fingerprint verified; 5/5 fresh-copy replays.
+    validations:
+      required: true
+  - type: textarea
+    id: limits-next-step
+    attributes:
+      label: Limits and next step
+      description: What remains uncertain, blocked, or worth trying next?
+      placeholder: The result depends on... / Next I will...
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety
+      options:
+        - label: I removed secrets, credentials, private URLs, proprietary source, customer data, and confidential logs.
+          required: true

@@ -6,3 +6,6 @@ contact_links:
   - name: Usage questions
     url: https://github.com/fly1d/repomin/discussions/new?category=q-a
     about: Ask for help with commands, backends, adapters, or reports using the structured Q&A form.
+  - name: Share a result
+    url: https://github.com/fly1d/repomin/discussions/new?category=show-and-tell
+    about: Show a useful, blocked, or inconclusive reduction with enough context for another user to learn from it.
