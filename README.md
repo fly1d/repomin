@@ -37,7 +37,8 @@ The demo leaves the reduced payload and evidence report available for
 inspection and prints a copyable validation command. Continue with the
 [five-minute quick start](docs/QUICKSTART.md), the
 [PowerShell guide](docs/QUICKSTART.windows.md), or the
-[Chinese guide](docs/QUICKSTART.zh-CN.md).
+[Chinese guide](docs/QUICKSTART.zh-CN.md). For a failing CI job, start with the
+[GitHub Action](docs/GITHUB_ACTION.md).
 
 > **Project status:** ReproMin is a pre-alpha feasibility build. Use it on a
 > reproducible failure in a repository you trust. The default host backend runs
