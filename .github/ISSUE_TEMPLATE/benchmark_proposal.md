@@ -1,36 +1,48 @@
 ---
-name: Benchmark or real reproduction
-about: Propose a deterministic fixture that improves reducer coverage
-title: ""
+name: Offline benchmark proposal
+about: Propose a deterministic fixture for a missing reducer workflow
+title: "[Benchmark] "
 labels: enhancement
 assignees: ""
 ---
 
-## User workflow
+## Requested outcome
 
-What real failure or reduction workflow does this fixture represent? Explain
-why the existing fixtures do not cover it.
+<!-- Ask maintainers to confirm the fixture and oracle scope before implementation. -->
 
-## Fixture scope
+## Context and impact
 
+<!-- Explain the real failure or workflow and why current fixtures do not cover it. -->
+
+- Source workflow:
+- Missing coverage:
 - Build system or language:
-- Required local tools and versions:
-- Network required: yes/no
+
+## Evidence and validation
+
+<!--
+Describe a deterministic, network-free oracle. State what identifies the target
+failure, what near-match must be rejected, required local tools, and the expected
+minimal payload. Do not include the completed fixture at proposal time.
+-->
+
+- Proposed command and target failure signal:
+- Different failure that must be rejected:
+- Required tools and versions:
 - Expected minimized payload:
+- Why the fixture can run without network access:
 
-Fixtures in `benchmarks/` must be deterministic and network-free. Do not add
-credentials, private source, or dependencies that cannot be redistributed.
+## Done when
 
-## Oracle contract
+- [ ] Maintainers agree on the oracle and fixture boundary.
+- [ ] The eventual fixture has a focused regression test and a short README.
+- [ ] `benchmarks/run_offline.py --only <name>` can verify it without network
+      access.
 
-What command is run, what output or exit behavior identifies the original
-failure, and what different failure should be rejected?
+## Safety
 
-## Acceptance criteria
+- [ ] The proposed material can be redistributed and contains no secrets,
+      credentials, private URLs, proprietary source, customer data, or
+      confidential logs.
 
-- [ ] A self-contained fixture and `README.md` are included.
-- [ ] `benchmarks/run_offline.py --only <name>` passes without network access.
-- [ ] The expected payload and report invariants are asserted by a test.
-- [ ] The benchmark documentation and changelog are updated.
-
-## Additional context
+## Other decision-relevant context (optional)

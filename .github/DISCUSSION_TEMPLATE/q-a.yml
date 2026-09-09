@@ -1,0 +1,46 @@
+title: "[Question] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Lead with the answer or decision you need. Include only context needed to
+        reproduce, explain, or decide the next step. Use `N/A` when a field does
+        not apply. Report security vulnerabilities through SECURITY.md instead.
+  - type: textarea
+    id: requested-outcome
+    attributes:
+      label: Requested outcome
+      description: What exact question should the community answer?
+      placeholder: I need help deciding whether...
+    validations:
+      required: true
+  - type: textarea
+    id: context-impact
+    attributes:
+      label: Context and impact
+      description: What are you trying to do, and what is currently blocked or unclear?
+      placeholder: Goal, workflow, affected users, and why this matters.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence-validation
+    attributes:
+      label: Evidence and validation
+      description: Include versions, backend, sanitized commands or output, and what you already tried.
+      placeholder: ReproMin/Python versions, OS, exact command, observed result, attempted fixes.
+    validations:
+      required: true
+  - type: textarea
+    id: done-when
+    attributes:
+      label: Done when
+      description: What answer or observable result would resolve this question?
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety
+      options:
+        - label: I removed secrets, credentials, private URLs, proprietary source, customer data, and confidential logs.
+          required: true

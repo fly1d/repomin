@@ -22,6 +22,7 @@ maintainer material is kept out of the first-run path.
 ## Reference
 
 - [Architecture and invariants](ARCHITECTURE.md)
+- [Engineering contracts](ENGINEERING_CONTRACTS.md)
 - [Report schema](REPORT_SCHEMA.md)
 
 ## Project direction

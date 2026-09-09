@@ -1,57 +1,58 @@
 ---
 name: User workflow feedback
-about: Share what happened when you tried ReproMin, even without a public failure
+about: Share value or friction from a real trial without filing a bug
 title: "[Feedback] "
 labels: documentation,help wanted
 assignees: ""
 ---
 
-Use this template for a real evaluation of ReproMin when you want to report
-value, friction, or a compatibility boundary. Use the [bug report](bug_report.md)
-for a reproducible defect, the [feature request](feature_request.md) for a
-specific proposed behavior, and the [real-failure pilot](real_failure.md) when
-you can share a sanitized CI or dependency failure and its reduction evidence.
+<!--
+Use this for experience feedback, not a reproducible product defect. Choose the
+bug report for incorrect behavior and the real-failure pilot when you want a
+maintainer to evaluate or reduce a sanitized failure.
+-->
 
-Before posting, remove credentials, private URLs, proprietary source, customer
-data, and raw logs. The host backend executes commands directly and is not a
-security sandbox.
+## Requested outcome
 
-## Workflow
+<!-- Say what response would help: acknowledgement, documentation change, or compatibility investigation. -->
 
-- What were you trying to reduce or make easier?
+## Context and impact
+
+- Goal and workflow:
+- Outcome (`useful`, `inconclusive`, or `could not run`):
+- What became easier, smaller, or more reproducible:
+- Main confusing, slow, or incompatible step:
 - Language, build/test system, and runner OS:
-- Repository shape (optional):
-- How did you find ReproMin (optional)?
-
-## Run
-
-- Outcome (`useful`, `inconclusive`, or `could not run`), and where you stopped:
-- Did `repomin demo WORKSPACE` complete successfully (optional)?
 - ReproMin version and install source:
-- Optional evidence: backend, adapter/reducer, sanitized oracle type, aggregate
-  before/after sizes, or reviewed scalar fields from `repomin doctor`, `report
-  validate`, and `report replay` results:
 
-For a path-free validation summary to paste here, pass `--format markdown` to
-`repomin report validate`. The JSON forms are useful for automation but include
-local report, payload, source, output, or metadata paths depending on the
-command; review and redact them before sharing. Validation output omits the
-reproduction command, match expression, logs, and environment values. Review
-the payload separately before sharing it.
+## Evidence and validation
 
-## Value and friction
+<!--
+Share aggregate, sanitized evidence only. `repomin report validate --format
+markdown` creates a path-free summary. JSON output can contain local report,
+payload, source, output, or metadata paths; review and redact it before sharing.
+Review the payload separately. Validation output omits commands, match
+expressions, logs, and environment values.
+-->
 
-- What became easier, smaller, or more reproducible, if anything?
-- What was the main confusing, slow, or incompatible step?
-- What one change would make you try ReproMin again?
+- Sanitized command shape (optional):
+- Backend, adapter, or reducer:
+- Before/after files or bytes:
+- Relevant `repomin doctor`, `report validate`, or `report replay` result:
+- What you already tried:
 
-## Privacy and redistribution
+## Done when
 
-- [ ] Secrets, credentials, private URLs, customer data, proprietary source, and
-      confidential logs were removed.
-- [ ] The remaining description may be used to improve documentation,
-      compatibility notes, or a public benchmark.
-- [ ] I understand that replay and holdout results are current-environment
-      oracle evidence, not correctness or production-reliability guarantees.
+- One change that would make you try ReproMin again:
+- Follow-up you want from maintainers:
 
-## Additional context
+## Safety and reuse
+
+- [ ] I removed secrets, credentials, private URLs, customer data, proprietary
+      source, and confidential logs.
+- [ ] The remaining description may be used to improve public documentation,
+      compatibility notes, or benchmarks.
+- [ ] I understand replay and holdout results are current-environment oracle
+      evidence, not correctness or production-reliability guarantees.
+
+## Other decision-relevant context (optional)

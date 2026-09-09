@@ -240,8 +240,8 @@ reference and maintainer material. Common paths are:
 | Understand guarantees or contribute | [Documentation index](docs/README.md) |
 
 Support routes are listed in [SUPPORT.md](SUPPORT.md). Not sure whether your
-failure fits? Post a sanitized question in [GitHub
-Discussions](https://github.com/fly1d/repomin/discussions).
+failure fits? Post a sanitized question with the structured [Q&A Discussion
+form](https://github.com/fly1d/repomin/discussions/new?category=q-a).
 
 ## Contributing
 
