@@ -1,28 +1,24 @@
 # Support
 
-Use GitHub Discussions for general usage questions. Use the repository issue
-templates for reproducible bug reports and benchmark proposals:
+Choose the route that matches the response you need:
 
-https://github.com/fly1d/repomin/discussions
+| Need | Route |
+| --- | --- |
+| Help using ReproMin or understanding a result | [Q&A Discussion](https://github.com/fly1d/repomin/discussions/new?category=q-a) |
+| Reproducible behavior that appears incorrect | [Bug report](https://github.com/fly1d/repomin/issues/new?template=bug_report.md) |
+| A focused capability or usability change | [Improvement proposal](https://github.com/fly1d/repomin/issues/new?template=feature_request.md) |
+| Share value or friction from a real trial | [Workflow feedback](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md) |
+| Offer a public failure or reviewed reduction | [Real-failure pilot](https://github.com/fly1d/repomin/issues/new?template=real_failure.md) |
+| Add a deterministic regression fixture | [Offline benchmark proposal](https://github.com/fly1d/repomin/issues/new?template=benchmark_proposal.md) |
+| Report a vulnerability | [Private security process](SECURITY.md) |
 
-https://github.com/fly1d/repomin/issues/new/choose
+Search existing conversations first. For usage help, check the [quick
+start](docs/QUICKSTART.md) and [examples](docs/EXAMPLES.md). For a real failure,
+read the [pilot guide](docs/REAL_FAILURE_PILOT.md).
 
-Before opening an issue:
+Lead with the requested outcome, then include context and impact, evidence and
+validation, and an observable completion condition. Write `N/A` and why when a
+detail is unavailable. Link long evidence instead of pasting it.
 
-- Check the [quick start](docs/QUICKSTART.md),
-  [Chinese quick start](docs/QUICKSTART.zh-CN.md),
-  [examples](docs/EXAMPLES.md), and [report schema](docs/REPORT_SCHEMA.md).
-- Search existing issues for the command, adapter, or error message.
-- For a sanitized real CI workflow, follow the [real failure pilot
-  guide](docs/REAL_FAILURE_PILOT.md), then use the [real CI or dependency
-  failure template](https://github.com/fly1d/repomin/issues/new?template=real_failure.md)
-  or share the summary in issue #11.
-- If you tried ReproMin and want to report value, friction, or an
-  incompatibility without sharing a public failure, use the [user workflow
-  feedback template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md).
-- Include the operating system, Python and ReproMin versions, backend, exact
-  command, and a redacted report or output when available.
-
-Do not post credentials, proprietary source, or security vulnerabilities in a
-public issue. Follow [SECURITY.md](SECURITY.md) for private vulnerability
-reports.
+Never post secrets, credentials, private URLs, proprietary source, customer
+data, confidential logs, or security vulnerabilities in a public conversation.

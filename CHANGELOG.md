@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Community conversations now use one decision-ready structure: requested
+  outcome, context and impact, evidence and validation, and an observable
+  completion condition. Issue and pull request prompts hide drafting guidance
+  after submission, Q&A uses a structured Discussion form, and maintainer
+  replies name the decision, reason, next step, and owner. The contributor guide
+  is now a short entry path with detailed subsystem rules preserved in a linked
+  engineering-contract reference.
 - The GitHub Action now delegates reduction setup, path confinement, report
   validation, and output emission to a tested Python runtime instead of
   maintaining a second CLI implementation inside `action.yml`; its public

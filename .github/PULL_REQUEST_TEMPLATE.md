@@ -1,38 +1,37 @@
-## Summary
+## Review request
 
-What does this change do and why is it needed?
+<!-- Lead with the decision or feedback you need from the reviewer. -->
 
-## Related context
+- Requested review:
+- Suggested review order (optional):
 
-- Issue or discussion:
-- User workflow or failure being addressed:
+## Context and impact
 
-## Scope
+<!-- Explain the user workflow, why this matters, and link the issue/discussion. -->
 
-- [ ] Bug fix
-- [ ] User-facing feature or adapter
-- [ ] Documentation or example
-- [ ] Benchmark or fixture
-- [ ] Maintenance / tooling
+- Related issue or discussion:
+- User impact:
+
+## Change
+
+<!-- State observable before/after behavior, important boundaries, and risks. -->
+
+- Before:
+- After:
+- Intentionally unchanged:
+- Compatibility or risk:
 
 ## Validation
 
-- [ ] Ran `python3 scripts/check_contribution.py`.
-- [ ] For a fixture or benchmark change, also ran
-      `python3 scripts/check_contribution.py --with-benchmarks`.
-- [ ] Added or updated focused tests covering the change (or explained why
-      they are not applicable).
-- [ ] Updated relevant documentation and the changelog.
+<!-- Give exact commands and observed results. Write N/A and why when skipped. -->
 
-If a check was skipped because it does not apply or a local toolchain is
-unavailable, explain that here and include the checks that did run.
+- Commands and results:
+- Not run or not applicable:
 
-## Safety and compatibility
+## Safety and authorship
 
-- [ ] No secrets, credentials, or private source are included.
-- [ ] Changes preserve the documented report/artifact and security boundaries.
-
-## Authorship and automation
-
+- [ ] No secrets, credentials, private URLs, proprietary source, or confidential
+      logs are included.
+- [ ] Relevant documentation and changelog entries are updated, or are not
+      applicable.
 - Material LLM or agent involvement (or `none`):
-- [ ] Any material automation or agent involvement is disclosed accurately.

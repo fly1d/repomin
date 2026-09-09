@@ -1,50 +1,45 @@
 ---
 name: Real CI or dependency failure
-about: Share a sanitized workflow that ReproMin could reduce
+about: Offer a public failure or reviewed run evidence for a bounded pilot
 title: "[Pilot] "
 labels: documentation,help wanted
 assignees: ""
 ---
 
-Before posting, read the [real failure pilot
-guide](https://github.com/fly1d/repomin/blob/main/docs/REAL_FAILURE_PILOT.md).
-Never include credentials, proprietary source, or confidential logs.
-Fill in what you can and write `N/A` for details that are unavailable.
+<!--
+Read docs/REAL_FAILURE_PILOT.md first. Write N/A and why when a detail is not
+available. Supply either (a) a public, licensed repository/fixture that a
+maintainer can run, or (b) enough reviewed evidence from your own ReproMin run.
+No installation is required for path (a).
+-->
 
-For a public repository, you may stop after **Workflow** and **Failure
-contract**. No ReproMin installation or completed run is required; a maintainer
-can check fit and perform the first bounded run. The repository must have an
-explicit open-source license, and the command must not require credentials,
-private services, special hardware, or production data.
+## Requested outcome
 
-## Workflow
+<!-- Ask for a fit check, a bounded first reduction, or review of existing evidence. -->
 
-- Public repository or fixture (optional):
+## Context and impact
+
+- Failure's effect on the real workflow:
+- Public repository/fixture, revision, and license; or `unavailable` and why:
 - Language and build/test system:
-- Runner OS and architecture:
-- Relevant tool versions:
+- Runner OS, architecture, and relevant tool versions:
 
-## Failure contract
+## Evidence and validation
+
+<!-- The first three failure-contract fields are required for either evidence path. -->
 
 - Sanitized command:
-- Exit code or failure signature shape:
-- What should count as a different failure:
+- Target exit code or failure-signature shape:
+- Different failure that must be rejected:
+- ReproMin version and install source (or `not run`):
+- Backend, adapter/reducer, and relevant options (or `not run`):
+- Baseline, reduction result, and approximate duration (or `not run`):
+- Payload before/after and what was retained or removed (or `not run`):
+- `report validate` result or reviewed artifact link (or `not run`):
 
-## ReproMin run
+## Done when
 
-- ReproMin version and install source:
-- Backend (`host` or `docker`):
-- Adapter and source reducer:
-- Relevant options (sampling, limits, or signature mode):
-- Baseline and reduction result:
-- Approximate duration:
-
-## Artifact evidence
-
-- Payload size before and after (files/bytes):
-- What the minimized payload retained or removed:
-- `report validate` result:
-- Sanitized report or public artifact link (optional):
+<!-- State the observable result that would make this pilot useful. -->
 
 ## Authorship and automation
 
@@ -53,16 +48,18 @@ private services, special hardware, or production data.
 - Material LLM or agent involvement (or `none`):
 - Semantic reducer (`none` or provider/type, without credentials):
 
-## Privacy and redistribution
+## Safety and redistribution
 
-- [ ] Secrets, credentials, tokens, and private URLs were removed.
-- [ ] Proprietary source and confidential logs were removed.
+- [ ] I removed secrets, credentials, tokens, private URLs, production/customer
+      data, proprietary source, and confidential logs.
+- [ ] Public material has an open-source license, and the command needs no
+      private service, special hardware, or credentials.
 - [ ] The remaining description and artifacts may be shared for compatibility
       and regression analysis.
-- [ ] I understand that the host backend executes the supplied command directly
-      and is not a security sandbox.
-- [ ] If this artifact will be shared with another project, I checked its
-      contribution and AI-assistance policies and will disclose material agent
-      involvement in the first message.
+- [ ] I understand the host backend runs the command directly and is not a
+      security sandbox.
+- [ ] I will contact another project only after it opts into the pilot. I will
+      check its contribution and AI-assistance policies and disclose material
+      agent involvement in the first message.
 
-## Additional context
+## Other decision-relevant context (optional)
