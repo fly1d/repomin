@@ -32,8 +32,8 @@ You do not need a publishable failure to help. A successful, inconclusive, or
 blocked trial is useful when it records the workflow goal, ReproMin version,
 runner, attempted command, and resulting value or friction.
 
-- Use the [workflow feedback template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md)
-  for a sanitized trial.
+- Use [Show and tell](https://github.com/fly1d/repomin/discussions/new?category=show-and-tell)
+  for a sanitized trial or workflow feedback.
 - Use the [real-failure pilot](https://github.com/fly1d/repomin/issues/11) when
   you can share a suitable Maven, Gradle, or Python reproduction.
 

@@ -20,7 +20,12 @@ assignees: ""
 
 ## Evidence and validation
 
-<!-- Show current behavior, alternatives tried, and how the outcome can be verified. -->
+<!--
+Show current behavior, alternatives tried, and how the outcome can be verified.
+For an offline benchmark, include the target failure, a near-match that must be
+rejected, required tools, expected minimal payload, and why it can run without
+network access.
+-->
 
 - Current behavior or example:
 - Alternatives considered:
@@ -37,5 +42,3 @@ assignees: ""
 
 - [ ] I removed secrets, credentials, private URLs, proprietary source, customer
       data, and confidential logs from examples and links.
-
-## Other decision-relevant context (optional)

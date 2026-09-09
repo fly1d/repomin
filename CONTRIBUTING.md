@@ -11,8 +11,9 @@ vulnerabilities. Follow [SECURITY.md](SECURITY.md) for private reports.
 ## Choose the right place
 
 - Ask usage and troubleshooting questions in [GitHub Discussions][discussions].
-- Use an issue template for reproducible bugs, feature proposals, real failure
-  reports, adoption feedback, and benchmark proposals.
+- Share results and workflow feedback in [Show and tell][show-and-tell].
+- Use an issue template for reproducible bugs, focused improvements, and real
+  failure pilots. Benchmark proposals use the improvement template.
 - Start from a scoped task in [good first issues](docs/GOOD_FIRST_ISSUES.md) when
   making a first contribution. Comment before starting so overlapping work is
   visible.
@@ -38,6 +39,9 @@ Contributor messages cover:
 - **Evidence and validation:** a minimal reproduction, relevant output, and the
   checks already run.
 - **Done when:** observable acceptance criteria and any remaining boundary.
+
+These are questions to answer, not headings that every message must repeat.
+Combine them when one concise paragraph carries the same decision context.
 
 Use `N/A` and explain why when a detail is unavailable or does not apply. Do not
 guess or leave a required field ambiguous.
@@ -152,3 +156,4 @@ are in the
 [cross-project outreach contract](docs/ENGINEERING_CONTRACTS.md#cross-project-outreach).
 
 [discussions]: https://github.com/fly1d/repomin/discussions/new?category=q-a
+[show-and-tell]: https://github.com/fly1d/repomin/discussions/new?category=show-and-tell

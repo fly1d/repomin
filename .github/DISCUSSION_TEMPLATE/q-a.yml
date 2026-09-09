@@ -3,38 +3,29 @@ body:
   - type: markdown
     attributes:
       value: |
-        Lead with the answer or decision you need. Include only context needed to
-        reproduce, explain, or decide the next step. Use `N/A` when a field does
-        not apply. Report security vulnerabilities through SECURITY.md instead.
+        Ask one clear question, then add only the context needed to answer it.
+        Conceptual questions do not need commands or logs. Report security
+        vulnerabilities through SECURITY.md instead.
   - type: textarea
-    id: requested-outcome
+    id: question
     attributes:
-      label: Requested outcome
-      description: What exact question should the community answer?
-      placeholder: I need help deciding whether...
+      label: Question
+      description: >-
+        What answer or decision do you need? Put it in the first sentence.
+      placeholder: How can I preserve this failure without also accepting...?
     validations:
       required: true
   - type: textarea
-    id: context-impact
+    id: relevant-context
     attributes:
-      label: Context and impact
-      description: What are you trying to do, and what is currently blocked or unclear?
-      placeholder: Goal, workflow, affected users, and why this matters.
-    validations:
-      required: true
-  - type: textarea
-    id: evidence-validation
-    attributes:
-      label: Evidence and validation
-      description: Include versions, backend, sanitized commands or output, and what you already tried.
-      placeholder: ReproMin/Python versions, OS, exact command, observed result, attempted fixes.
-    validations:
-      required: true
-  - type: textarea
-    id: done-when
-    attributes:
-      label: Done when
-      description: What answer or observable result would resolve this question?
+      label: Relevant context
+      description: >-
+        Explain the goal, current result, and impact. For a run, include
+        versions, OS/backend, working directory, sanitized command or output,
+        and what you tried.
+      placeholder: >-
+        Goal and current result first; add runtime details only when they
+        affect the answer.
     validations:
       required: true
   - type: checkboxes
@@ -42,5 +33,7 @@ body:
     attributes:
       label: Safety
       options:
-        - label: I removed secrets, credentials, private URLs, proprietary source, customer data, and confidential logs.
+        - label: >-
+            I removed secrets, credentials, private URLs, proprietary source,
+            customer data, and confidential logs.
           required: true

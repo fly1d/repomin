@@ -42,7 +42,7 @@ SHA-256 校验值；需要供应链校验时，请先核对
 
 如果你在真实工作流中试用了 ReproMin，即使结果是成功、无法判断或无法运行，也欢迎反馈：
 有可脱敏的 CI/依赖失败时使用 [pilot Issue #11](https://github.com/fly1d/repomin/issues/11)，
-只有体验、兼容性或文档意见时使用[用户工作流反馈模板](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md)。
+只有体验、兼容性或文档意见时使用 [Show and tell](https://github.com/fly1d/repomin/discussions/new?category=show-and-tell)。
 提交前请检查 payload 和 report，勿上传凭据、私有 URL、专有源码、原始日志、命令或环境变量值。
 
 如果你正在开发 ReproMin，也可以在仓库根目录创建虚拟环境后运行

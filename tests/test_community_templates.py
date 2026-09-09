@@ -55,27 +55,60 @@ class CommunityTemplateTest(unittest.TestCase):
             for key in ("name", "about"):
                 self.assertTrue(fields[key], msg=key + " is empty in " + str(path))
 
-    def test_submission_templates_are_decision_ready(self) -> None:
-        issue_sections = {
-            "Requested outcome",
-            "Context and impact",
-            "Evidence and validation",
-            "Done when",
+    def test_issue_intake_has_three_distinct_routes(self) -> None:
+        paths = sorted(_ISSUE_TEMPLATE_DIR.glob("*.md"))
+        self.assertEqual(
+            {path.name for path in paths},
+            {"bug_report.md", "feature_request.md", "real_failure.md"},
+        )
+
+        expected_sections = {
+            "bug_report.md": {
+                "Requested outcome",
+                "Context and impact",
+                "Evidence and validation",
+                "Done when",
+                "Safety",
+            },
+            "feature_request.md": {
+                "Requested outcome",
+                "Context and impact",
+                "Evidence and validation",
+                "Done when",
+                "Safety",
+            },
+            "real_failure.md": {
+                "Requested outcome",
+                "Context and impact",
+                "Evidence and validation",
+                "Done when",
+                "Authorship and automation",
+                "Safety and redistribution",
+            },
         }
-        for path in sorted(_ISSUE_TEMPLATE_DIR.glob("*.md")):
-            headings = _level_two_headings(path)
+        for path in paths:
             self.assertTrue(
-                issue_sections.issubset(headings),
+                expected_sections[path.name].issubset(_level_two_headings(path)),
                 msg="issue template is missing decision context: " + str(path),
             )
 
-        pr_sections = {
-            "Review request",
-            "Context and impact",
-            "Change",
-            "Validation",
-        }
-        self.assertTrue(pr_sections.issubset(_level_two_headings(_PR_TEMPLATE)))
+    def test_pull_request_template_is_short_and_review_ready(self) -> None:
+        self.assertEqual(
+            _level_two_headings(_PR_TEMPLATE),
+            ["Why", "What changed", "Verification", "Disclosure"],
+        )
+        text = _PR_TEMPLATE.read_text(encoding="utf-8").lower()
+        for required in (
+            "issue or discussion",
+            "user problem",
+            "exact command",
+            "observed result",
+            "not run",
+            "secrets",
+            "documentation and changelog",
+            "llm, agent, or automation involvement",
+        ):
+            self.assertIn(required, text)
 
     def test_public_submission_templates_state_privacy_boundary(self) -> None:
         paths = sorted(_ISSUE_TEMPLATE_DIR.glob("*.md")) + [
@@ -91,20 +124,12 @@ class CommunityTemplateTest(unittest.TestCase):
                 msg=str(path),
             )
 
-    def test_q_and_a_discussion_form_collects_decision_context(self) -> None:
+    def test_q_and_a_discussion_form_asks_two_questions(self) -> None:
         text = _Q_AND_A_TEMPLATE.read_text(encoding="utf-8")
-        labels = set(
-            re.findall(r"^[ \t]+label: ([^\n]+)$", text, flags=re.MULTILINE)
+        labels = re.findall(
+            r"^[ \t]+label: ([^\n]+)$", text, flags=re.MULTILINE
         )
-        self.assertTrue(
-            {
-                "Requested outcome",
-                "Context and impact",
-                "Evidence and validation",
-                "Done when",
-                "Safety",
-            }.issubset(labels)
-        )
+        self.assertEqual(labels, ["Question", "Relevant context", "Safety"])
         ids = re.findall(
             r"^[ \t]+- type: (?:textarea|checkboxes)\n[ \t]+id: ([^\n]+)$",
             text,
@@ -115,21 +140,22 @@ class CommunityTemplateTest(unittest.TestCase):
             len(set(ids)),
             msg="discussion form IDs must be unique",
         )
-        self.assertGreaterEqual(text.count("required: true"), 5)
+        self.assertEqual(text.count("- type: textarea"), 2)
+        self.assertEqual(text.count("required: true"), 3)
 
-    def test_show_and_tell_collects_shareable_result_context(self) -> None:
+    def test_show_and_tell_has_two_required_questions_and_one_optional(self) -> None:
         text = _SHOW_AND_TELL_TEMPLATE.read_text(encoding="utf-8")
-        labels = set(
-            re.findall(r"^[ \t]+label: ([^\n]+)$", text, flags=re.MULTILINE)
+        labels = re.findall(
+            r"^[ \t]+label: ([^\n]+)$", text, flags=re.MULTILINE
         )
-        self.assertTrue(
-            {
+        self.assertEqual(
+            labels,
+            [
                 "Result and value",
-                "Workflow context",
-                "Evidence and validation",
-                "Limits and next step",
+                "Workflow and evidence",
+                "Limits or requested next step",
                 "Safety",
-            }.issubset(labels)
+            ],
         )
         ids = re.findall(
             r"^[ \t]+- type: (?:textarea|checkboxes)\n[ \t]+id: ([^\n]+)$",
@@ -137,7 +163,8 @@ class CommunityTemplateTest(unittest.TestCase):
             flags=re.MULTILINE,
         )
         self.assertEqual(len(ids), len(set(ids)))
-        self.assertGreaterEqual(text.count("required: true"), 5)
+        self.assertEqual(text.count("- type: textarea"), 3)
+        self.assertEqual(text.count("required: true"), 3)
 
     def test_community_contract_defines_both_sides_of_a_reply(self) -> None:
         section = _markdown_section(_ROOT / "CONTRIBUTING.md", "Community communication")
@@ -151,6 +178,7 @@ class CommunityTemplateTest(unittest.TestCase):
             "Next step",
             "Owner / done when",
             "N/A",
+            "not headings",
         ):
             self.assertIn(required, section)
 
@@ -160,6 +188,7 @@ class CommunityTemplateTest(unittest.TestCase):
             headings = _level_two_headings(path)
             self.assertEqual(len(headings), len(set(headings)), msg=str(path))
             self.assertNotIn("Additional context", headings, msg=str(path))
+            self.assertNotIn("Other decision-relevant context", headings, msg=str(path))
 
     def test_real_failure_template_collects_runnable_or_reviewed_evidence(self) -> None:
         text = (_ISSUE_TEMPLATE_DIR / "real_failure.md").read_text(
@@ -178,21 +207,20 @@ class CommunityTemplateTest(unittest.TestCase):
         ):
             self.assertIn(required, text)
 
-    def test_adoption_feedback_preserves_evidence_and_claim_boundaries(self) -> None:
-        text = (_ISSUE_TEMPLATE_DIR / "adoption_feedback.md").read_text(
+    def test_improvement_template_keeps_benchmark_decision_context(self) -> None:
+        text = (_ISSUE_TEMPLATE_DIR / "feature_request.md").read_text(
             encoding="utf-8"
         ).lower()
+        normalized = " ".join(text.split())
         for required in (
-            "repomin doctor",
-            "report validate",
-            "report replay",
-            "current-environment",
-            "--format",
-            "markdown",
-            "local report",
-            "review and redact",
+            "offline benchmark",
+            "target failure",
+            "near-match that must be rejected",
+            "required tools",
+            "expected minimal payload",
+            "without network access",
         ):
-            self.assertIn(required, text)
+            self.assertIn(required, normalized)
 
     def test_issue_chooser_routes_questions_to_structured_discussions(self) -> None:
         config = (_ISSUE_TEMPLATE_DIR / "config.yml").read_text(encoding="utf-8")
@@ -205,6 +233,9 @@ class CommunityTemplateTest(unittest.TestCase):
 
     def test_support_routes_each_public_request_once(self) -> None:
         support = (_ROOT / "SUPPORT.md").read_text(encoding="utf-8")
+        links = re.findall(r"\| \[[^]]+\]\(([^)]+)\) \|", support)
+        self.assertEqual(len(links), 6)
+        self.assertEqual(len(links), len(set(links)))
         self.assertEqual(support.count("discussions/new?category=q-a"), 1)
         self.assertEqual(
             support.count("discussions/new?category=show-and-tell"), 1
@@ -215,14 +246,8 @@ class CommunityTemplateTest(unittest.TestCase):
                 1,
                 msg="support route is missing or duplicated: " + path.name,
             )
-
-    def test_benchmark_proposals_are_not_automatically_starter_tasks(self) -> None:
-        fields = _frontmatter(_ISSUE_TEMPLATE_DIR / "benchmark_proposal.md")
-        labels = {
-            label.strip() for label in fields["labels"].split(",") if label.strip()
-        }
-        self.assertIn("enhancement", labels)
-        self.assertNotIn("good first issue", labels)
+        self.assertNotIn("adoption_feedback.md", support)
+        self.assertNotIn("benchmark_proposal.md", support)
 
 
 if __name__ == "__main__":
