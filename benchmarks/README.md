@@ -114,5 +114,5 @@ python3 benchmarks/run_offline.py --only NAME
 python3 scripts/check_contribution.py --with-benchmarks
 ```
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md#adding-a-benchmark) for the proposal and
-review workflow.
+See [CONTRIBUTING.md](../CONTRIBUTING.md#benchmarks-and-external-projects) for
+the proposal and review workflow.

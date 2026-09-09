@@ -57,85 +57,57 @@ These are feasibility results, not independent adoption or a promise that
 every repository will shrink by the same amount. The current milestone is
 [five non-maintainer workflows](https://github.com/fly1d/repomin/issues/11).
 
-## What you get
+## When to use it
 
-- A reduced repository in the output directory you choose.
-- A human-readable receipt and machine-readable `report.json` in a separate
-  `OUTPUT.repomin` directory.
-- Validation and fresh-copy replay tools for checking the exported result.
-
-ReproMin is useful when a bug already repeats but the repository is too large
-to share, review, or keep as a regression fixture.
-
-## Is it the right tool?
+Use ReproMin when a bug already repeats but the repository is too large to
+share, review, or keep as a regression fixture. It produces a smaller payload,
+a human-readable receipt, and a machine-readable report that can be validated
+or replayed.
 
 | Your goal | Start with |
 | --- | --- |
 | Find the commit that introduced a regression | `git bisect` |
 | Capture the runtime environment and dependencies | A container or ReproZip |
-| Minimize one source or compiler input | C-Reduce or Shrink Ray |
-| Reduce compiler test cases across files | C-Vise or Perses |
+| Minimize source or compiler inputs | C-Reduce, C-Vise, Perses, or Shrink Ray |
 | Shrink a build or application repository and retain evidence | ReproMin |
-| Remove one obvious file from a tiny example | Manual editing |
 
 ReproMin treats your build, test, or reproduction command as the authority. It
 does not diagnose the root cause or prove that the remaining code is correct.
 
 ## Use it on a real failure
 
-A first run has three steps: check the failure, run a bounded reduction, then
-validate the exported evidence.
-
-### 1. Check readiness
+A first run has three steps. ReproMin requires Python 3.9+ and has no runtime
+dependencies. From a virtual environment, install the current pre-alpha
+release, then check readiness, run a bounded reduction, and validate the
+exported evidence:
 
 ```sh
+python -m pip install \
+  "https://github.com/fly1d/repomin/releases/download/v0.1.0.dev11/repomin-0.1.0.dev11-py3-none-any.whl"
+
 repomin doctor . \
   --command 'python -m pytest -q tests/test_checkout.py' \
   --match 'FAILED tests/test_checkout.py' \
   --output ../checkout-repro
-```
 
-Doctor checks paths, reducer and toolchain availability, and two fresh baseline
-runs without modifying the source repository or creating the output. See the
-[Doctor guide](docs/DOCTOR.md) when a check is skipped or fails.
-
-### 2. Run a bounded reduction
-
-```sh
 repomin . \
   --command 'python -m pytest -q tests/test_checkout.py' \
   --match 'FAILED tests/test_checkout.py' \
   --max-attempts 25 \
   --max-duration 300 \
   --output ../checkout-repro
-```
 
-ReproMin works in temporary copies, never changes the source repository, and
-refuses to overwrite an existing output path. Choose a signal that identifies
-the target failure rather than any failing command:
-
-| Signal | Option |
-| --- | --- |
-| Stable output text | `--match REGEX` |
-| Stable process status | `--exit-code CODE` |
-| Java or Python exception identity | `--java-exception` / `--python-exception` |
-| Native crash or exact termination | `--process-failure` |
-
-The [real-failure pilot guide](docs/REAL_FAILURE_PILOT.md) explains how to
-design a reliable failure contract. A weak signal can preserve the wrong
-failure.
-
-### 3. Validate before sharing
-
-```sh
 repomin report validate ../checkout-repro.repomin/report.json \
   --payload ../checkout-repro \
   --format markdown
 ```
 
-Validation checks the report and exact payload fingerprint without executing
-the recorded command. Replay is a separate, explicit action; inspect the
-payload and report first, then follow the [replay guide](docs/REPLAY.md).
+ReproMin works in temporary copies and never changes the source repository.
+Use a signal that identifies the target failure: stable output (`--match`), an
+exact exit code, an exception identity, or a process-failure signature. The
+[quick start](docs/QUICKSTART.md) explains the complete workflow; use the
+[Doctor guide](docs/DOCTOR.md) for failed checks and the
+[replay guide](docs/REPLAY.md) before executing an exported command.
 
 ## Local CLI or GitHub Action
 
@@ -167,24 +139,6 @@ Pin a reviewed release tag or full commit SHA in real workflows.
 Other languages still benefit from repository, manifest, and explicit text
 reduction. Start with the nearest [ecosystem example](docs/EXAMPLES.md).
 
-## Install
-
-ReproMin requires Python 3.9 or newer and has no runtime dependencies. The
-current pre-alpha release is on GitHub Releases, not PyPI:
-
-```sh
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install \
-  "https://github.com/fly1d/repomin/releases/download/v0.1.0.dev11/repomin-0.1.0.dev11-py3-none-any.whl"
-repomin --version
-```
-
-The command should print `repomin 0.1.0.dev11`. See the
-[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev11) for
-source archives and SHA-256 checksums. Shell completion and platform-specific
-installation are covered by the quick-start guides.
-
 ## Safety and privacy
 
 The host backend runs the supplied command with your user account. It is not a
@@ -199,23 +153,17 @@ safe to publish.
 
 ## Documentation and community
 
-- [Quick start](docs/QUICKSTART.md) for the first complete reduction.
-- [Examples](docs/EXAMPLES.md) for ecosystem-specific workflows.
-- [Documentation index](docs/README.md) for configuration, reports, and design.
-- [Q&A](https://github.com/fly1d/repomin/discussions/new?category=q-a) when you
-  are unsure whether a failure fits.
-- [Show your reduction](https://github.com/fly1d/repomin/discussions/new?category=show-and-tell)
-  when a result or lesson could help another user.
+- **Start:** [quick start](docs/QUICKSTART.md), [Windows](docs/QUICKSTART.windows.md),
+  [Chinese](docs/QUICKSTART.zh-CN.md), and [ecosystem examples](docs/EXAMPLES.md).
+- **Try a real failure:** offer a sanitized public case in
+  [pilot issue #11](https://github.com/fly1d/repomin/issues/11).
+- **Ask or share:** use [Q&A](https://github.com/fly1d/repomin/discussions/new?category=q-a)
+  or [Show and tell](https://github.com/fly1d/repomin/discussions/new?category=show-and-tell).
+- **Contribute:** read [CONTRIBUTING.md](CONTRIBUTING.md) and choose an
+  [open starter task](https://github.com/fly1d/repomin/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22).
 
-Real workflow feedback is the most valuable contribution at this stage. Share
-a useful, inconclusive, or blocked trial with the
-[workflow feedback template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md),
-offer a sanitized failure in [pilot issue #11](https://github.com/fly1d/repomin/issues/11),
-or choose an [open starter task](docs/GOOD_FIRST_ISSUES.md).
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing code. Community support
-routes are in [SUPPORT.md](SUPPORT.md), conduct expectations are in
-[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and security reports use the private
-route in [SECURITY.md](SECURITY.md).
+The [documentation index](docs/README.md) covers configuration, reports, and
+design. Use [SUPPORT.md](SUPPORT.md) for other help and [SECURITY.md](SECURITY.md)
+for private vulnerability reports.
 
 Apache-2.0 licensed. See [LICENSE](LICENSE).
