@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The README first-run section now routes failing-CI workflows directly to the
+  GitHub Action, and the Show and tell form uses a version-neutral example.
+
 ## [0.1.0.dev11] - 2026-09-09
 
 ### Added

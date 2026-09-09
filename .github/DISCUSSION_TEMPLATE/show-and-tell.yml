@@ -20,7 +20,7 @@ body:
     attributes:
       label: Workflow context
       description: Which ecosystem, failure shape, ReproMin version, and backend did you use?
-      placeholder: Gradle test failure, ReproMin 0.1.0.dev11, host backend.
+      placeholder: Gradle test failure, ReproMin <version>, host backend.
     validations:
       required: true
   - type: textarea
