@@ -7,8 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0.dev11] - 2026-09-09
+
+### Added
+
+- A structured Show and tell Discussion form now lets users share a useful,
+  blocked, or inconclusive reduction with its workflow context, validation
+  evidence, limits, and next step without opening a product issue.
+- A custom social preview image presents the strongest maintainer-run reduction
+  result and its evidence boundary when repository links are shared.
+
 ### Changed
 
+- The README and package metadata now lead with the repository-scale test-case
+  reduction outcome, strongest measured pilot, one-command demo, and expected
+  output, while keeping detailed safety, capability, installation, and
+  community routes available below.
 - Community conversations now use one decision-ready structure: requested
   outcome, context and impact, evidence and validation, and an observable
   completion condition. Issue and pull request prompts hide drafting guidance

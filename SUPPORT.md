@@ -5,6 +5,7 @@ Choose the route that matches the response you need:
 | Need | Route |
 | --- | --- |
 | Help using ReproMin or understanding a result | [Q&A Discussion](https://github.com/fly1d/repomin/discussions/new?category=q-a) |
+| Show a useful result, blocker, or lesson | [Show and tell](https://github.com/fly1d/repomin/discussions/new?category=show-and-tell) |
 | Reproducible behavior that appears incorrect | [Bug report](https://github.com/fly1d/repomin/issues/new?template=bug_report.md) |
 | A focused capability or usability change | [Improvement proposal](https://github.com/fly1d/repomin/issues/new?template=feature_request.md) |
 | Share value or friction from a real trial | [Workflow feedback](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md) |

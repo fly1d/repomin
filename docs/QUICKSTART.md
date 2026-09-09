@@ -15,7 +15,7 @@ available, run the published release without installing it into your project
 or system Python:
 
 ```sh
-uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev10/repomin-0.1.0.dev10-py3-none-any.whl \
+uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev11/repomin-0.1.0.dev11-py3-none-any.whl \
   repomin demo ./repomin-demo
 ```
 
@@ -31,15 +31,15 @@ python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 
-REPOMIN_VERSION=0.1.0.dev10
+REPOMIN_VERSION=0.1.0.dev11
 python -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 
 repomin --version
 ```
 
-The final command should print `repomin 0.1.0.dev10`. The
-[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev10)
+The final command should print `repomin 0.1.0.dev11`. The
+[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev11)
 publishes SHA-256 digests for users who need to verify the downloaded wheel.
 
 For the shortest tour, run `repomin demo ./repomin-demo`. It creates a new

@@ -6,7 +6,9 @@ import unittest
 _ROOT = Path(__file__).resolve().parents[1]
 _ISSUE_TEMPLATE_DIR = _ROOT / ".github" / "ISSUE_TEMPLATE"
 _PR_TEMPLATE = _ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md"
-_DISCUSSION_TEMPLATE = _ROOT / ".github" / "DISCUSSION_TEMPLATE" / "q-a.yml"
+_DISCUSSION_TEMPLATE_DIR = _ROOT / ".github" / "DISCUSSION_TEMPLATE"
+_Q_AND_A_TEMPLATE = _DISCUSSION_TEMPLATE_DIR / "q-a.yml"
+_SHOW_AND_TELL_TEMPLATE = _DISCUSSION_TEMPLATE_DIR / "show-and-tell.yml"
 
 
 def _frontmatter(path: Path) -> dict[str, str]:
@@ -78,7 +80,7 @@ class CommunityTemplateTest(unittest.TestCase):
     def test_public_submission_templates_state_privacy_boundary(self) -> None:
         paths = sorted(_ISSUE_TEMPLATE_DIR.glob("*.md")) + [
             _PR_TEMPLATE,
-            _DISCUSSION_TEMPLATE,
+            *sorted(_DISCUSSION_TEMPLATE_DIR.glob("*.yml")),
         ]
         for path in paths:
             text = path.read_text(encoding="utf-8").lower()
@@ -90,7 +92,7 @@ class CommunityTemplateTest(unittest.TestCase):
             )
 
     def test_q_and_a_discussion_form_collects_decision_context(self) -> None:
-        text = _DISCUSSION_TEMPLATE.read_text(encoding="utf-8")
+        text = _Q_AND_A_TEMPLATE.read_text(encoding="utf-8")
         labels = set(
             re.findall(r"^[ \t]+label: ([^\n]+)$", text, flags=re.MULTILINE)
         )
@@ -113,6 +115,28 @@ class CommunityTemplateTest(unittest.TestCase):
             len(set(ids)),
             msg="discussion form IDs must be unique",
         )
+        self.assertGreaterEqual(text.count("required: true"), 5)
+
+    def test_show_and_tell_collects_shareable_result_context(self) -> None:
+        text = _SHOW_AND_TELL_TEMPLATE.read_text(encoding="utf-8")
+        labels = set(
+            re.findall(r"^[ \t]+label: ([^\n]+)$", text, flags=re.MULTILINE)
+        )
+        self.assertTrue(
+            {
+                "Result and value",
+                "Workflow context",
+                "Evidence and validation",
+                "Limits and next step",
+                "Safety",
+            }.issubset(labels)
+        )
+        ids = re.findall(
+            r"^[ \t]+- type: (?:textarea|checkboxes)\n[ \t]+id: ([^\n]+)$",
+            text,
+            flags=re.MULTILINE,
+        )
+        self.assertEqual(len(ids), len(set(ids)))
         self.assertGreaterEqual(text.count("required: true"), 5)
 
     def test_community_contract_defines_both_sides_of_a_reply(self) -> None:
@@ -174,12 +198,17 @@ class CommunityTemplateTest(unittest.TestCase):
         config = (_ISSUE_TEMPLATE_DIR / "config.yml").read_text(encoding="utf-8")
         self.assertIn("name: Usage questions", config)
         self.assertIn("discussions/new?category=q-a", config)
+        self.assertIn("name: Share a result", config)
+        self.assertIn("discussions/new?category=show-and-tell", config)
         self.assertNotIn("issues/new?template=", config)
         self.assertFalse((_ISSUE_TEMPLATE_DIR / "question.md").exists())
 
     def test_support_routes_each_public_request_once(self) -> None:
         support = (_ROOT / "SUPPORT.md").read_text(encoding="utf-8")
         self.assertEqual(support.count("discussions/new?category=q-a"), 1)
+        self.assertEqual(
+            support.count("discussions/new?category=show-and-tell"), 1
+        )
         for path in sorted(_ISSUE_TEMPLATE_DIR.glob("*.md")):
             self.assertEqual(
                 support.count("template=" + path.name),
