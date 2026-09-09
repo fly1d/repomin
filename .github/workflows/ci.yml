@@ -207,7 +207,7 @@ jobs:
             find action-smoke-download -print >&2
             exit 1
           fi
-          python -m repomin report validate "$report" --payload "$payload" --json
+          PYTHONPATH=src python -m repomin report validate "$report" --payload "$payload" --json
           [[ -f "$payload/keep-me.txt" ]]
           [[ -f "$payload/exit-sentinel.txt" ]]
           [[ ! -s "$payload/exit-sentinel.txt" ]]
@@ -292,7 +292,7 @@ jobs:
           [[ -f "$PAYLOAD_PATH/reproduce.py" ]]
           [[ -f "$PAYLOAD_PATH/required.txt" ]]
           [[ ! -e "$PAYLOAD_PATH/unused.txt" ]]
-          python -m repomin report validate "$REPORT_PATH" --payload "$PAYLOAD_PATH" --json
+          PYTHONPATH=src python -m repomin report validate "$REPORT_PATH" --payload "$PAYLOAD_PATH" --json
           grep -F '| `oracle_mode` | `python_exception` |' "$SUMMARY_PATH"
           ! grep -F 'ValueError' "$SUMMARY_PATH"
           ! grep -F 'payment failed' "$SUMMARY_PATH"
@@ -358,7 +358,7 @@ jobs:
           [[ -f "$PAYLOAD_PATH/reproduce.py" ]]
           [[ -f "$PAYLOAD_PATH/required.txt" ]]
           [[ ! -e "$PAYLOAD_PATH/unused.txt" ]]
-          python -m repomin report validate "$REPORT_PATH" --payload "$PAYLOAD_PATH" --json
+          PYTHONPATH=src python -m repomin report validate "$REPORT_PATH" --payload "$PAYLOAD_PATH" --json
           python -c 'import sys; assert sys.version_info[:2] == (3, 13), sys.version'
           python - "$REPORT_PATH" <<'PY'
           import json

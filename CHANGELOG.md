@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The GitHub Action now delegates reduction setup, path confinement, report
+  validation, and output emission to a tested Python runtime instead of
+  maintaining a second CLI implementation inside `action.yml`; its public
+  inputs and outputs are unchanged. The Action installs into its own temporary
+  virtual environment and uses isolated Python mode, avoiding caller repository
+  import shadowing, user-site differences, and system-package modification.
 - Bash, Zsh, Fish, and PowerShell completion now derive option names, value
   arity, choices, repeatability, and descriptions from the real command
   parsers, leaving only file-versus-directory hints as completion metadata.

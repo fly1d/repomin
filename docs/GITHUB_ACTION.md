@@ -22,7 +22,8 @@ job's failure-handling step:
 ```
 
 The checkout must happen before this step. The action installs ReproMin from
-the selected ref and uses `GITHUB_WORKSPACE` as the repository boundary. Keep
+the selected ref into a private temporary virtual environment and uses
+`GITHUB_WORKSPACE` as the repository boundary. Keep
 the action ref pinned to a reviewed release or full commit SHA for production
 CI; the version above is the current pre-release. That release still delegates
 to `actions/setup-python@v6` when `python-version` is set and always delegates
@@ -117,12 +118,15 @@ that reaches a budget still validates and exports its best accepted payload;
 the report and step summary mark `budget_exhausted` instead of presenting it as
 a fixed point.
 
-`python-version` is empty by default, so the Action installs ReproMin with the
-`python` already first on the job's `PATH`. This preserves the interpreter
-selected by an earlier setup step and avoids silently changing the runtime
-between the failing command and reduction. Shell-local activation from an
-earlier step is not automatically preserved; write the environment's binary
-directory to `GITHUB_PATH` or invoke an explicit interpreter when that matters.
+`python-version` is empty by default, so the Action creates its private runtime
+from the `python` already first on the job's `PATH`. This preserves the
+interpreter selected by an earlier setup step without modifying its installed
+packages. Reproduction commands continue to use the job's original `PATH`.
+The private ReproMin environment is not added to `PATH`; install the CLI in a
+separate step when later workflow steps need to invoke it directly.
+Shell-local activation from an earlier step is not automatically preserved;
+write the environment's binary directory to `GITHUB_PATH` or invoke an explicit
+interpreter when that matters.
 
 Set `python-version` only when the Action should call `actions/setup-python`
 itself. The selected interpreter is then prepended to `PATH` for both ReproMin
