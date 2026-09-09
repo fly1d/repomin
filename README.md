@@ -11,6 +11,9 @@ ReproMin is a repository-scale test-case reducer for repeatable Maven, Gradle,
 and Python failures. It removes files, manifest entries, source structure, and
 selected text only while the same failure still occurs.
 
+[Maintainer-run Gradle pilot](docs/CASE_STUDY_GRADLE_38843.md): **854 -> 11
+files**, with the same failure reproduced in **5/5 fresh copies**.
+
 ## Try a real reduction
 
 With [`uv`](https://docs.astral.sh/uv/getting-started/installation/), run the

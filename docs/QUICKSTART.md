@@ -172,8 +172,8 @@ proprietary source, customer data, raw logs, or environment values.
 - Read the [tsdown technical pilot](CASE_STUDY_TSDOWN_979.md), the
   [Gradle composite-build pilot](CASE_STUDY_GRADLE_38843.md), and the
   [pydoctor outreach postmortem](CASE_STUDY_PYDOCTOR_728.md).
-- Share a useful, inconclusive, or blocked trial with the
-  [user workflow feedback template](https://github.com/fly1d/repomin/issues/new?template=adoption_feedback.md).
+- Share a useful, inconclusive, or blocked trial in
+  [Show and tell](https://github.com/fly1d/repomin/discussions/new?category=show-and-tell).
 
 For a Chinese version of the same first-run workflow, see the
 [Chinese quick start](QUICKSTART.zh-CN.md).

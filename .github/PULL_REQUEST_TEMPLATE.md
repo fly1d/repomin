@@ -1,37 +1,17 @@
-## Review request
+## Why
 
-<!-- Lead with the decision or feedback you need from the reviewer. -->
+<!-- Link the issue or discussion, explain the user problem, and say what you need reviewers to decide. -->
 
-- Requested review:
-- Suggested review order (optional):
+## What changed
 
-## Context and impact
+<!-- Describe observable behavior, important boundaries, and material compatibility or safety risks. -->
 
-<!-- Explain the user workflow, why this matters, and link the issue/discussion. -->
+## Verification
 
-- Related issue or discussion:
-- User impact:
+<!-- List each exact command and observed result. State what was not run and why. -->
 
-## Change
+## Disclosure
 
-<!-- State observable before/after behavior, important boundaries, and risks. -->
-
-- Before:
-- After:
-- Intentionally unchanged:
-- Compatibility or risk:
-
-## Validation
-
-<!-- Give exact commands and observed results. Write N/A and why when skipped. -->
-
-- Commands and results:
-- Not run or not applicable:
-
-## Safety and authorship
-
-- [ ] No secrets, credentials, private URLs, proprietary source, or confidential
-      logs are included.
-- [ ] Relevant documentation and changelog entries are updated, or are not
-      applicable.
-- Material LLM or agent involvement (or `none`):
+- [ ] No secrets, credentials, private URLs, proprietary source, or confidential logs are included.
+- [ ] Documentation and changelog entries are updated, or I explained why they do not apply.
+- Material LLM, agent, or automation involvement (or `none`):

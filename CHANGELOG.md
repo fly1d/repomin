@@ -9,8 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The README first-run section now routes failing-CI workflows directly to the
-  GitHub Action, and the Show and tell form uses a version-neutral example.
+- Community intake now has six distinct routes instead of eight: workflow
+  feedback shares the Show and tell path, benchmark proposals use the general
+  improvement path, and Q&A, results, and pull requests ask fewer but more
+  decision-relevant questions.
+- The README now presents the strongest measured reduction before installation,
+  routes failing-CI workflows directly to the GitHub Action, and keeps the Show
+  and tell example version-neutral.
 - The README now keeps installation, Doctor, reduction, and validation in one
   compact path, with four clear community routes instead of overlapping link
   lists; the benchmark guide also points to the correct contributor section.

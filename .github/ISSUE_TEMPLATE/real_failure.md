@@ -61,5 +61,3 @@ No installation is required for path (a).
 - [ ] I will contact another project only after it opts into the pilot. I will
       check its contribution and AI-assistance policies and disclose material
       agent involvement in the first message.
-
-## Other decision-relevant context (optional)

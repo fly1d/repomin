@@ -70,8 +70,9 @@ comparison.
 ## Adding a benchmark
 
 Benchmarks are the most useful way to contribute a reproducible user workflow.
-Start with the [benchmark proposal template](../.github/ISSUE_TEMPLATE/benchmark_proposal.md)
-and get agreement on the oracle contract before writing the fixture. Keep the
+Start with the [improvement proposal](https://github.com/fly1d/repomin/issues/new?template=feature_request.md),
+prefix the title with `[Benchmark]`, and get agreement on the oracle contract
+before writing the fixture. Keep the
 fixture self-contained, deterministic, network-free, and small enough to run
 in CI. Add a fixture `README.md`, an expected minimized payload, and an
 integration assertion in `tests/test_offline_benchmarks.py`. Run the focused

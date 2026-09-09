@@ -48,5 +48,3 @@ the failure; link longer evidence.
 - [ ] I removed secrets, credentials, private URLs, proprietary source, customer
       data, and confidential logs. I reviewed reports for local paths before
       sharing them.
-
-## Other decision-relevant context (optional)
