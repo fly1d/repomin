@@ -105,6 +105,7 @@ DEFAULT_DOCKER_PIDS_LIMIT = 512
 DEFAULT_DOCKER_TMPFS_BYTES = 1024 * 1024 * 1024
 HOST_WORKING_DIRECTORY_POLICY = "host-output-basename-v1"
 DOCKER_WORKING_DIRECTORY_POLICY = "docker-workspace-v1"
+_SUPPORT_URL = "https://github.com/fly1d/repomin/blob/main/SUPPORT.md"
 _BYTE_SIZE = re.compile(r"^(?P<number>[1-9][0-9]*)(?P<suffix>[kmgt]i?b?|b)?$")
 _BYTE_MULTIPLIERS = {
     "": 1,
@@ -369,11 +370,12 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
         ),
         epilog=(
             "Try a self-contained reduction with `repomin demo WORKSPACE`. "
-            "Preflight with `repomin doctor --help`; inspect evidence with "
+            "Preflight your repository with `repomin doctor SOURCE`; inspect "
+            "evidence with "
             "`repomin report --help`. Generate shell completion with "
             "`repomin completion bash`, "
             "`repomin completion zsh`, `repomin completion fish`, or "
-            "`repomin completion powershell`."
+            "`repomin completion powershell`. Help or feedback: %s" % _SUPPORT_URL
         ),
     )
     failure_options = parser.add_argument_group("failure to preserve")
@@ -925,7 +927,11 @@ def _demo_command(argv: Sequence[str]) -> int:
         print("Report: %s" % report_path)
         print("Repeat validation:")
         print("  %s" % _validation_command(report_path, payload))
-        print("Next: run `repomin doctor --help` before trying your own repository.")
+        print(
+            "Next: run `repomin doctor %s` for a read-only readiness check."
+            % _quote_cli_argument(source)
+        )
+        print("Help or feedback: %s" % _SUPPORT_URL)
         return 0
     except KeyboardInterrupt:
         print("repomin demo: interrupted", file=sys.stderr)
@@ -2170,8 +2176,22 @@ def format_validation_markdown(summary: dict) -> str:
     and environment metadata are intentionally excluded even when present in
     the source summary dictionary.
     """
+    result_parts = ["Result: report valid"]
+    if summary.get("payload_fingerprint_verified") is True:
+        result_parts.append("payload fingerprint verified")
+    elif summary.get("payload_checked") is True:
+        result_parts.append("payload checked, fingerprint unavailable")
+    else:
+        result_parts.append("payload not checked")
+    source_files = summary.get("source_files")
+    output_files = summary.get("output_files")
+    if type(source_files) is int and type(output_files) is int:
+        result_parts.append("%d -> %d files" % (source_files, output_files))
+
     lines = [
         "# ReproMin validation summary",
+        "",
+        "; ".join(result_parts) + ".",
         "",
         (
             "This is privacy-safe evidence for one configured failure oracle in "

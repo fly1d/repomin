@@ -33,7 +33,8 @@ ReproMin demo completed.
 Reduced: 3 files / 855 bytes -> 2 files / 276 bytes in 14 attempts.
 Removed: unused.txt and two unrelated input lines.
 Validated: exact payload fingerprint.
-Next: run `repomin doctor --help` before trying your own repository.
+Next: run `repomin doctor /path/to/repository` for a read-only readiness check.
+Help or feedback: https://github.com/fly1d/repomin/blob/main/SUPPORT.md
 ```
 
 Have a public, licensed repository with a repeatable failure? [Offer it for a
