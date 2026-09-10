@@ -36,6 +36,11 @@ Validated: exact payload fingerprint.
 Next: run `repomin doctor --help` before trying your own repository.
 ```
 
+Have a public, licensed repository with a repeatable failure? [Offer it for a
+bounded pilot](https://github.com/fly1d/repomin/issues/11) with the revision,
+exact reproduction command, target exit code or failure signature, and the
+help you want. No ReproMin installation is required.
+
 The demo leaves the reduced payload and evidence report available for
 inspection and prints a copyable validation command. Continue with the
 [five-minute quick start](docs/QUICKSTART.md), the
