@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The demo now ends with a copyable read-only readiness check for its generated
+  source, CLI help and demo output link directly to support, and Markdown report
+  validation leads with a plain-language result before the evidence table.
 - Community intake now has six distinct routes instead of eight: workflow
   feedback shares the Show and tell path, benchmark proposals use the general
   improvement path, and Q&A, results, and pull requests ask fewer but more

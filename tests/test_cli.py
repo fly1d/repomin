@@ -29,6 +29,7 @@ from repomin.cli import (
     _parse_ignore_path,
     _load_gitignore,
     _parse_rate,
+    _quote_cli_argument,
     _run_fixed_point,
     _working_directory_configuration,
     build_parser,
@@ -447,7 +448,17 @@ class CliTest(unittest.TestCase):
             self.assertIn("only NEEDLE remains", stdout.getvalue())
             self.assertIn("Repeat validation:", stdout.getvalue())
             self.assertIn("--format markdown", stdout.getvalue())
-            self.assertIn("repomin doctor --help", stdout.getvalue())
+            self.assertIn(
+                "repomin doctor %s"
+                % _quote_cli_argument((workspace / "source").resolve()),
+                stdout.getvalue(),
+            )
+            self.assertIn("for a read-only readiness check", stdout.getvalue())
+            self.assertIn(
+                "Help or feedback: "
+                "https://github.com/fly1d/repomin/blob/main/SUPPORT.md",
+                stdout.getvalue(),
+            )
 
     def test_demo_refuses_to_overwrite_an_existing_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -477,6 +488,10 @@ class CliTest(unittest.TestCase):
         self.assertIn("existing paths are never overwritten", help_text)
         self.assertIn("repomin demo WORKSPACE", build_parser().format_help())
         root_help = build_parser().format_help()
+        self.assertIn("repomin doctor SOURCE", root_help)
+        self.assertIn(
+            "https://github.com/fly1d/repomin/blob/main/SUPPORT.md", root_help
+        )
         self.assertLess(
             root_help.index("New here?"),
             root_help.index("failure to preserve:"),

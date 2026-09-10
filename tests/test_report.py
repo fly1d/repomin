@@ -770,6 +770,9 @@ class ReportValidationTest(unittest.TestCase):
         self.assertEqual(rendered, second.getvalue())
         self.assertTrue(rendered.startswith("# ReproMin validation summary\n"))
         self.assertTrue(rendered.endswith("\n"))
+        self.assertIn(
+            "Result: report valid; payload not checked; 2 -> 1 files.", rendered
+        )
         self.assertIn("| `oracle_mode` | `match` |", rendered)
         self.assertNotIn("PRIVATE_VERSION_SENTINEL", rendered)
         self.assertNotIn("COMMAND_SENTINEL", rendered)
@@ -809,7 +812,24 @@ class ReportValidationTest(unittest.TestCase):
         self.assertNotIn("DO_NOT_RENDER", rendered)
         self.assertNotIn("/private", rendered)
         self.assertNotIn("environment_names_count", rendered)
+        self.assertIn(
+            "Result: report valid; payload not checked; 1 -> 1 files.", rendered
+        )
         self.assertIn("| `payload_fingerprint_mode` | `n/a` |", rendered)
+
+    def test_markdown_renderer_leads_with_verified_payload_result(self) -> None:
+        rendered = format_validation_markdown(
+            {
+                "source_files": 3,
+                "output_files": 2,
+                "payload_checked": True,
+                "payload_fingerprint_verified": True,
+            }
+        )
+        self.assertIn(
+            "Result: report valid; payload fingerprint verified; 3 -> 2 files.",
+            rendered,
+        )
 
     def test_markdown_cell_escapes_delimiters_and_uses_linear_fence_selection(
         self,
