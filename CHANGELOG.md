@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compact path, with four clear community routes instead of overlapping link
   lists; the benchmark guide also points to the correct contributor section.
 
+### Fixed
+
+- README links now resolve from package indexes as well as GitHub, and the
+  examples guide points to the current first-run section.
+
 ## [0.1.0.dev11] - 2026-09-09
 
 ### Added
