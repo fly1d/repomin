@@ -21,7 +21,7 @@ published release without installing anything into your project or system
 Python:
 
 ```sh
-uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev11/repomin-0.1.0.dev11-py3-none-any.whl \
+uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev12/repomin-0.1.0.dev12-py3-none-any.whl \
   repomin demo ./repomin-demo
 ```
 
@@ -33,7 +33,7 @@ ReproMin demo completed.
 Reduced: 3 files / 855 bytes -> 2 files / 276 bytes in 14 attempts.
 Removed: unused.txt and two unrelated input lines.
 Validated: exact payload fingerprint.
-Next: run `repomin doctor --help` before trying your own repository.
+Next: install ReproMin persistently, then check your repository with `repomin doctor SOURCE`.
 ```
 
 Have a public, licensed repository with a repeatable failure? [Offer it for a
@@ -41,8 +41,8 @@ bounded pilot](https://github.com/fly1d/repomin/issues/11) with the revision,
 exact reproduction command, target exit code or failure signature, and the
 help you want. No ReproMin installation is required.
 
-The demo leaves the reduced payload and evidence report available for
-inspection and prints a copyable validation command. Continue with the
+The demo validates the reduced payload and leaves it with an evidence report
+for inspection. Continue with the
 [five-minute quick start](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.md),
 the [PowerShell guide](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.windows.md),
 or the [Chinese guide](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.zh-CN.md).
@@ -92,7 +92,7 @@ exported evidence:
 
 ```sh
 python -m pip install \
-  "https://github.com/fly1d/repomin/releases/download/v0.1.0.dev11/repomin-0.1.0.dev11-py3-none-any.whl"
+  "https://github.com/fly1d/repomin/releases/download/v0.1.0.dev12/repomin-0.1.0.dev12-py3-none-any.whl"
 
 repomin doctor . \
   --command 'python -m pytest -q tests/test_checkout.py' \
@@ -129,7 +129,7 @@ can reduce a repeatable CI failure and
 upload the payload and validated report as an artifact:
 
 ```yaml
-- uses: fly1d/repomin@v0.1.0.dev11
+- uses: fly1d/repomin@v0.1.0.dev12
   with:
     command: python -m pytest -q tests/test_checkout.py
     match: FAILED tests/test_checkout.py

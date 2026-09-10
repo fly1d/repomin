@@ -5,7 +5,7 @@ ReproMin 会在每次候选修改后重新执行失败命令，只保留仍能�
 如果已经安装了 [`uv`](https://docs.astral.sh/uv/getting-started/installation/)，可以用一条命令体验发布版本，无需把 ReproMin 安装到项目或系统 Python：
 
 ```sh
-uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev11/repomin-0.1.0.dev11-py3-none-any.whl \
+uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev12/repomin-0.1.0.dev12-py3-none-any.whl \
   repomin demo ./repomin-demo
 ```
 
@@ -20,19 +20,19 @@ PyPI。建议先使用虚拟环境，避免修改系统 Python：
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-REPOMIN_VERSION=0.1.0.dev11
+REPOMIN_VERSION=0.1.0.dev12
 python -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 python -m repomin --version
 ```
 
-当前版本应显示 `repomin 0.1.0.dev11`。发布页同时提供 wheel 和源码归档，以及对应的
+当前版本应显示 `repomin 0.1.0.dev12`。发布页同时提供 wheel 和源码归档，以及对应的
 SHA-256 校验值；需要供应链校验时，请先核对
-[发布页](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev11)再安装。wheel 不需要
+[发布页](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev12)再安装。wheel 不需要
 本地构建，首次使用更快。
 
 本页后面的 `report replay`、传输 fingerprint 和 Markdown 摘要功能已包含在
-`v0.1.0.dev11` 发布包中。
+`v0.1.0.dev12` 发布包中。
 参与 pilot 前仍请阅读[真实失败 pilot 指南](REAL_FAILURE_PILOT.md)，并按其中的隐私和
 安全边界检查报告与 payload。
 
