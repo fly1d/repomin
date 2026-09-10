@@ -57,6 +57,17 @@ def _setup_config() -> configparser.ConfigParser:
     return config
 
 
+def _markdown_link_targets(text: str) -> list[str]:
+    inline = re.findall(r"\]\(\s*<?([^\s>)]+)>?", text)
+    references = []
+    for match in re.finditer(
+        r"(?m)^[ ]{0,3}\[[^\]\n]+\]:[ \t]*(?:\n[ \t]+)?(?:<([^>\n]+)>|([^\s\n]+))",
+        text,
+    ):
+        references.append(match.group(1) or match.group(2))
+    return inline + references
+
+
 class PackagingContractTests(unittest.TestCase):
     def test_explicit_manifest_entries_exist_in_a_clean_checkout(self) -> None:
         manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
@@ -112,6 +123,28 @@ class PackagingContractTests(unittest.TestCase):
         self.assertIn("Programming Language :: Python :: 3.9", metadata["classifiers"])
         self.assertIn("Programming Language :: Python :: 3.13", metadata["classifiers"])
         self.assertIn("Programming Language :: Python :: 3.14", metadata["classifiers"])
+
+    def test_package_long_description_has_portable_links(self) -> None:
+        config = _setup_config()
+        long_description = config["metadata"]["long_description"].strip()
+        self.assertEqual("file: README.md", long_description)
+
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        link_targets = _markdown_link_targets(readme)
+        relative_targets = [
+            target
+            for target in link_targets
+            if not target.startswith(("https://", "http://", "mailto:", "#"))
+        ]
+        self.assertEqual(
+            [],
+            relative_targets,
+            "README links must resolve when rendered as the PyPI long description",
+        )
+
+    def test_package_link_scan_covers_reference_style_links(self) -> None:
+        readme = "[Quick start][guide]\n\n[guide]: docs/QUICKSTART.md\n"
+        self.assertEqual(["docs/QUICKSTART.md"], _markdown_link_targets(readme))
 
     def test_development_extra_contains_release_and_test_tools(self) -> None:
         config = _setup_config()

@@ -11,7 +11,7 @@ ReproMin is a repository-scale test-case reducer for repeatable Maven, Gradle,
 and Python failures. It removes files, manifest entries, source structure, and
 selected text only while the same failure still occurs.
 
-[Maintainer-run Gradle pilot](docs/CASE_STUDY_GRADLE_38843.md): **854 -> 11
+[Maintainer-run Gradle pilot](https://github.com/fly1d/repomin/blob/main/docs/CASE_STUDY_GRADLE_38843.md): **854 -> 11
 files**, with the same failure reproduced in **5/5 fresh copies**.
 
 ## Try a real reduction
@@ -43,10 +43,11 @@ help you want. No ReproMin installation is required.
 
 The demo leaves the reduced payload and evidence report available for
 inspection and prints a copyable validation command. Continue with the
-[five-minute quick start](docs/QUICKSTART.md), the
-[PowerShell guide](docs/QUICKSTART.windows.md), or the
-[Chinese guide](docs/QUICKSTART.zh-CN.md). For a failing CI job, start with the
-[GitHub Action](docs/GITHUB_ACTION.md).
+[five-minute quick start](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.md),
+the [PowerShell guide](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.windows.md),
+or the [Chinese guide](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.zh-CN.md).
+For a failing CI job, start with the
+[GitHub Action](https://github.com/fly1d/repomin/blob/main/docs/GITHUB_ACTION.md).
 
 > **Project status:** ReproMin is a pre-alpha feasibility build. Use it on a
 > reproducible failure in a repository you trust. The default host backend runs
@@ -58,8 +59,8 @@ Two maintainer-run pilots demonstrate the current technical scope:
 
 | Pilot | Before | After | Fresh-copy evidence |
 | --- | ---: | ---: | ---: |
-| [Gradle #38843](docs/CASE_STUDY_GRADLE_38843.md) | 854 files, 3.8 MB | 11 files, 87.9 KB | 5/5 replays + cold start |
-| [tsdown #979](docs/CASE_STUDY_TSDOWN_979.md) | 14 files | 8 files | 3/3 replays |
+| [Gradle #38843](https://github.com/fly1d/repomin/blob/main/docs/CASE_STUDY_GRADLE_38843.md) | 854 files, 3.8 MB | 11 files, 87.9 KB | 5/5 replays + cold start |
+| [tsdown #979](https://github.com/fly1d/repomin/blob/main/docs/CASE_STUDY_TSDOWN_979.md) | 14 files | 8 files | 3/3 replays |
 
 These are feasibility results, not independent adoption or a promise that
 every repository will shrink by the same amount. The current milestone is
@@ -113,14 +114,18 @@ repomin report validate ../checkout-repro.repomin/report.json \
 ReproMin works in temporary copies and never changes the source repository.
 Use a signal that identifies the target failure: stable output (`--match`), an
 exact exit code, an exception identity, or a process-failure signature. The
-[quick start](docs/QUICKSTART.md) explains the complete workflow; use the
-[Doctor guide](docs/DOCTOR.md) for failed checks and the
-[replay guide](docs/REPLAY.md) before executing an exported command.
+[quick start](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.md)
+explains the complete workflow; use the
+[Doctor guide](https://github.com/fly1d/repomin/blob/main/docs/DOCTOR.md) for
+failed checks and the
+[replay guide](https://github.com/fly1d/repomin/blob/main/docs/REPLAY.md) before
+executing an exported command.
 
 ## Local CLI or GitHub Action
 
 The CLI is best for interactive reduction. The reusable
-[GitHub Action](docs/GITHUB_ACTION.md) can reduce a repeatable CI failure and
+[GitHub Action](https://github.com/fly1d/repomin/blob/main/docs/GITHUB_ACTION.md)
+can reduce a repeatable CI failure and
 upload the payload and validated report as an artifact:
 
 ```yaml
@@ -145,14 +150,16 @@ Pin a reviewed release tag or full commit SHA in real workflows.
 | Custom semantic edits | Optional OpenAI-compatible HTTP integration; every edit still passes the oracle |
 
 Other languages still benefit from repository, manifest, and explicit text
-reduction. Start with the nearest [ecosystem example](docs/EXAMPLES.md).
+reduction. Start with the nearest
+[ecosystem example](https://github.com/fly1d/repomin/blob/main/docs/EXAMPLES.md).
 
 ## Safety and privacy
 
 The host backend runs the supplied command with your user account. It is not a
 sandbox. Only run repositories and commands you trust. Docker can reduce
 access when configured carefully, but it is not a complete security boundary.
-Read [SECURITY.md](SECURITY.md) before handling third-party code.
+Read [SECURITY.md](https://github.com/fly1d/repomin/blob/main/SECURITY.md)
+before handling third-party code.
 
 Do not publish credentials, private URLs, proprietary source, customer data,
 raw logs, commands, or environment values. The Markdown validation summary is
@@ -161,17 +168,24 @@ safe to publish.
 
 ## Documentation and community
 
-- **Start:** [quick start](docs/QUICKSTART.md), [Windows](docs/QUICKSTART.windows.md),
-  [Chinese](docs/QUICKSTART.zh-CN.md), and [ecosystem examples](docs/EXAMPLES.md).
+- **Start:** [quick start](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.md),
+  [Windows](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.windows.md),
+  [Chinese](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.zh-CN.md),
+  and [ecosystem examples](https://github.com/fly1d/repomin/blob/main/docs/EXAMPLES.md).
 - **Try a real failure:** offer a sanitized public case in
   [pilot issue #11](https://github.com/fly1d/repomin/issues/11).
 - **Ask or share:** use [Q&A](https://github.com/fly1d/repomin/discussions/new?category=q-a)
   or [Show and tell](https://github.com/fly1d/repomin/discussions/new?category=show-and-tell).
-- **Contribute:** read [CONTRIBUTING.md](CONTRIBUTING.md) and choose an
+- **Contribute:** read
+  [CONTRIBUTING.md](https://github.com/fly1d/repomin/blob/main/CONTRIBUTING.md)
+  and choose an
   [open starter task](https://github.com/fly1d/repomin/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22).
 
-The [documentation index](docs/README.md) covers configuration, reports, and
-design. Use [SUPPORT.md](SUPPORT.md) for other help and [SECURITY.md](SECURITY.md)
+The [documentation index](https://github.com/fly1d/repomin/blob/main/docs/README.md)
+covers configuration, reports, and design. Use
+[SUPPORT.md](https://github.com/fly1d/repomin/blob/main/SUPPORT.md) for other
+help and [SECURITY.md](https://github.com/fly1d/repomin/blob/main/SECURITY.md)
 for private vulnerability reports.
 
-Apache-2.0 licensed. See [LICENSE](LICENSE).
+Apache-2.0 licensed. See
+[LICENSE](https://github.com/fly1d/repomin/blob/main/LICENSE).

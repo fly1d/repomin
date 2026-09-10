@@ -28,10 +28,10 @@ the shortest network-free demonstration of structured manifest reduction.
 
 The host-backend examples are self-contained and use only Python. Run them from
 a scratch directory after installing ReproMin from the GitHub Release wheel as
-described in the [README](../README.md#install), or from an editable checkout
-when contributing to the project. The Docker and semantic examples near the
-end use the repository fixtures so their trust boundaries and provider
-contract are explicit.
+described in the [README](../README.md#try-a-real-reduction), or from an
+editable checkout when contributing to the project. The Docker and semantic
+examples near the end use the repository fixtures so their trust boundaries
+and provider contract are explicit.
 
 ## Shrink a Python failure to its required files
 
