@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0.dev12] - 2026-09-10
+
 ### Changed
 
-- The demo now ends with a copyable read-only readiness check for its generated
-  source, CLI help and demo output link directly to support, and Markdown report
-  validation leads with a plain-language result before the evidence table.
+- The one-off `uvx` demo no longer prints follow-up commands that disappear
+  with its temporary environment. It directs users to the persistent-install
+  quick start and support, while Markdown report validation leads with a
+  plain-language result before the evidence table.
 - Community intake now has six distinct routes instead of eight: workflow
   feedback shares the Show and tell path, benchmark proposals use the general
   improvement path, and Q&A, results, and pull requests ask fewer but more

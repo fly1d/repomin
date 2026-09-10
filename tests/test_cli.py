@@ -29,7 +29,6 @@ from repomin.cli import (
     _parse_ignore_path,
     _load_gitignore,
     _parse_rate,
-    _quote_cli_argument,
     _run_fixed_point,
     _working_directory_configuration,
     build_parser,
@@ -446,14 +445,15 @@ class CliTest(unittest.TestCase):
             self.assertIn("Removed: unused.txt", stdout.getvalue())
             self.assertIn("Validated: exact payload fingerprint.", stdout.getvalue())
             self.assertIn("only NEEDLE remains", stdout.getvalue())
-            self.assertIn("Repeat validation:", stdout.getvalue())
-            self.assertIn("--format markdown", stdout.getvalue())
+            self.assertNotIn("Repeat validation:", stdout.getvalue())
+            self.assertNotIn("repomin report validate", stdout.getvalue())
+            self.assertIn("install ReproMin persistently", stdout.getvalue())
+            self.assertIn("repomin doctor SOURCE", stdout.getvalue())
             self.assertIn(
-                "repomin doctor %s"
-                % _quote_cli_argument((workspace / "source").resolve()),
+                "Quick start: "
+                "https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.md",
                 stdout.getvalue(),
             )
-            self.assertIn("for a read-only readiness check", stdout.getvalue())
             self.assertIn(
                 "Help or feedback: "
                 "https://github.com/fly1d/repomin/blob/main/SUPPORT.md",

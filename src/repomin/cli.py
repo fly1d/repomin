@@ -106,6 +106,7 @@ DEFAULT_DOCKER_TMPFS_BYTES = 1024 * 1024 * 1024
 HOST_WORKING_DIRECTORY_POLICY = "host-output-basename-v1"
 DOCKER_WORKING_DIRECTORY_POLICY = "docker-workspace-v1"
 _SUPPORT_URL = "https://github.com/fly1d/repomin/blob/main/SUPPORT.md"
+_QUICKSTART_URL = "https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.md"
 _BYTE_SIZE = re.compile(r"^(?P<number>[1-9][0-9]*)(?P<suffix>[kmgt]i?b?|b)?$")
 _BYTE_MULTIPLIERS = {
     "": 1,
@@ -925,12 +926,11 @@ def _demo_command(argv: Sequence[str]) -> int:
         print("Workspace: %s" % workspace)
         print("Payload: %s" % payload)
         print("Report: %s" % report_path)
-        print("Repeat validation:")
-        print("  %s" % _validation_command(report_path, payload))
         print(
-            "Next: run `repomin doctor %s` for a read-only readiness check."
-            % _quote_cli_argument(source)
+            "Next: install ReproMin persistently, then check your repository "
+            "with `repomin doctor SOURCE`."
         )
+        print("Quick start: %s" % _QUICKSTART_URL)
         print("Help or feedback: %s" % _SUPPORT_URL)
         return 0
     except KeyboardInterrupt:
