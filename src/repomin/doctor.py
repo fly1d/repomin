@@ -959,10 +959,29 @@ def run_doctor(
     return ok, result
 
 
+def _doctor_readiness(result: Mapping[str, object]) -> str:
+    if result.get("ok") is not True:
+        return "needs_attention"
+    baseline = result.get("baseline")
+    if not isinstance(baseline, Mapping):
+        return "needs_attention"
+    if baseline.get("status") == "pass":
+        return "ready_to_reduce"
+    if baseline.get("status") == "not_run":
+        return "static_checks_passed"
+    return "needs_attention"
+
+
 def format_doctor(result: Mapping[str, object]) -> str:
     """Render a compact human-readable diagnostic without command output."""
+    readiness = _doctor_readiness(result)
+    status = {
+        "needs_attention": "needs attention",
+        "ready_to_reduce": "ready to reduce",
+        "static_checks_passed": "static checks passed; failure not verified",
+    }[readiness]
     lines = [
-        "ReproMin doctor: %s" % ("ready" if result.get("ok") else "needs attention"),
+        "ReproMin doctor: %s" % status,
         "Source: %s" % result.get("source", ""),
     ]
     for check in result.get("checks", []):
@@ -982,11 +1001,12 @@ def format_doctor(result: Mapping[str, object]) -> str:
             "Baseline: %(passes)s/%(runs)s passes, exit code %(exit_code)s"
             % baseline
         )
+    if readiness == "ready_to_reduce":
         lines.append(
             "Next: rerun the same failure options with `repomin` instead of "
             "`repomin doctor`."
         )
-    elif result.get("ok"):
+    elif readiness == "static_checks_passed":
         lines.append(
             "Next: add --command and a failure signal to verify a baseline "
             "before reducing."
@@ -1148,7 +1168,7 @@ def format_doctor_markdown(
         else None
     )
     fields = (
-        ("status", "ready" if result.get("ok") is True else "needs_attention"),
+        ("status", _doctor_readiness(result)),
         ("repomin_version", version),
         ("backend", _safe_doctor_enum(backend, ("host", "docker"))),
         ("oracle_mode", _safe_doctor_enum(oracle_mode, _DOCTOR_ORACLE_MODES)),

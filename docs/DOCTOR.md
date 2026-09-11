@@ -11,6 +11,11 @@ Start with a read-only project scan:
 repomin doctor .
 ```
 
+A scan without a reproduction command reports `static checks passed; failure
+not verified`. Doctor reports `ready to reduce` only after the configured
+failure passes its fresh-copy baseline. This distinction prevents a successful
+repository scan from being mistaken for proof that the failure reproduces.
+
 Without `--output`, Doctor checks the normal `SOURCE-minimal` default. An
 existing payload, an existing `OUTPUT.repomin` sidecar, a symbolic link, or an
 output inside the source is reported as a failure because a new reduction would
@@ -114,6 +119,9 @@ feedback, use Markdown:
 ```sh
 repomin doctor . --format markdown
 ```
+
+The Markdown `status` field uses the same distinction in machine-friendly
+form: `static_checks_passed`, `ready_to_reduce`, or `needs_attention`.
 
 The Markdown renderer uses a strict whitelist rather than redacting the full
 diagnostic result. It can report ReproMin version and readiness, sanitized

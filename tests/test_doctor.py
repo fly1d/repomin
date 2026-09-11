@@ -75,9 +75,19 @@ class DoctorTest(unittest.TestCase):
         self.assertTrue(ok)
         self.assertTrue(result["adapters"]["python"]["detected"])
         self.assertEqual("not_run", result["baseline"]["status"])
+        rendered = format_doctor(result)
+        self.assertTrue(
+            rendered.startswith(
+                "ReproMin doctor: static checks passed; failure not verified\n"
+            )
+        )
         self.assertIn(
             "Next: add --command and a failure signal",
-            format_doctor(result),
+            rendered,
+        )
+        self.assertIn(
+            "| `status` | `static_checks_passed` |",
+            format_doctor_markdown(result),
         )
         after = sorted(path.relative_to(source).as_posix() for path in source.rglob("*"))
         self.assertEqual(before, after)
@@ -101,6 +111,9 @@ class DoctorTest(unittest.TestCase):
         self.assertEqual(2, result["baseline"]["minimum_passes"])
         self.assertEqual(0.95, result["baseline"]["confidence"])
         self.assertFalse((source / "doctor").exists())
+        self.assertTrue(
+            format_doctor(result).startswith("ReproMin doctor: ready to reduce\n")
+        )
         self.assertIn(
             "Next: rerun the same failure options with `repomin`",
             format_doctor(result),
@@ -956,7 +969,7 @@ raise SystemExit(7)
         self.assertEqual(first, second)
         self.assertTrue(first.startswith("# ReproMin Doctor summary\n"))
         self.assertTrue(first.endswith("\n"))
-        self.assertIn("| `status` | `ready` |", first)
+        self.assertIn("| `status` | `ready_to_reduce` |", first)
         self.assertIn("| `oracle_mode` | `match_and_exit_code` |", first)
         self.assertIn("| `source_files` | `3` |", first)
         self.assertIn("| `baseline_runs` | `2` |", first)
@@ -1118,6 +1131,40 @@ raise SystemExit(7)
         self.assertIn("| `baseline_status` | `unknown` |", rendered)
         self.assertIn("| `baseline_rate` | `n/a` |", rendered)
         self.assertIn("| `source` | `not_run` |", rendered)
+
+    def test_doctor_readiness_fails_closed_for_inconsistent_baseline(self) -> None:
+        result = {"ok": True, "checks": [], "baseline": {"status": "fail"}}
+
+        self.assertTrue(
+            format_doctor(result).startswith("ReproMin doctor: needs attention\n")
+        )
+        self.assertIn(
+            "| `status` | `needs_attention` |",
+            format_doctor_markdown(result),
+        )
+
+    def test_doctor_does_not_recommend_reduction_when_another_check_failed(
+        self,
+    ) -> None:
+        result = {
+            "ok": False,
+            "source": "/private/source",
+            "checks": [
+                {"name": "output", "status": "fail", "message": "already exists"}
+            ],
+            "baseline": {
+                "status": "pass",
+                "runs": 2,
+                "passes": 2,
+                "exit_code": 1,
+            },
+        }
+
+        rendered = format_doctor(result)
+        self.assertTrue(rendered.startswith("ReproMin doctor: needs attention\n"))
+        self.assertIn("Baseline: 2/2 passes, exit code 1", rendered)
+        self.assertIn("Next: fix failed checks", rendered)
+        self.assertNotIn("rerun the same failure options", rendered)
 
     def test_failing_doctor_markdown_does_not_render_private_source_path(
         self,
