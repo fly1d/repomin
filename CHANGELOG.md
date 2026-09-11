@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Doctor now distinguishes a successful static scan from a verified failure
+  baseline: text and Markdown report `ready to reduce` only after fresh-copy
+  baseline runs pass, instead of labeling every check-only scan as ready. The
+  Markdown `status` value is now `static_checks_passed`, `ready_to_reduce`, or
+  `needs_attention` instead of the previous two-state value.
+
 ## [0.1.0.dev12] - 2026-09-10
 
 ### Changed
