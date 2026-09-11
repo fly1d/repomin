@@ -5,8 +5,8 @@ maintainer material is kept out of the first-run path.
 
 ## Getting started
 
-- [Five-minute quick start](QUICKSTART.md)
-- [PowerShell quick start](QUICKSTART.windows.md)
+- [Real-failure quick start](QUICKSTART.md)
+- [PowerShell self-contained walkthrough](QUICKSTART.windows.md)
 - [Chinese quick start](QUICKSTART.zh-CN.md)
 - [Examples by ecosystem](EXAMPLES.md)
 

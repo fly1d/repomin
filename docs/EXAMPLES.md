@@ -66,7 +66,7 @@ unused-b.txt
 Run:
 
 ```sh
-repomin . \
+repomin reduce . \
   --command 'python3 reproduce.py' \
   --match 'ORIGINAL_FAILURE' \
   --source-reducer none \
@@ -95,7 +95,7 @@ inspect how its evidence changed. The source tree is not modified by either
 export, and the comparison itself never runs the recorded reproduction command:
 
 ```sh
-repomin . \
+repomin reduce . \
   --command 'python3 reproduce.py' \
   --match 'ORIGINAL_FAILURE' \
   --source-reducer none \
@@ -187,7 +187,7 @@ For a network-free reproduction that only needs one package declaration, run
 the dedicated Pipenv adapter:
 
 ```sh
-repomin . \
+repomin reduce . \
   --command 'python3 reproduce.py' \
   --match 'ORIGINAL_FAILURE' \
   --adapter pipenv \
@@ -437,7 +437,7 @@ printf 'alpha\nbeta\nNEEDLE\ngamma\ndelta\n' > data.txt
 Run with the text reducer:
 
 ```sh
-repomin . \
+repomin reduce . \
   --command 'python3 read_data.py' \
   --match 'ORIGINAL_FAILURE' \
   --source-reducer none \
@@ -455,7 +455,7 @@ Use `--keep` to preserve a file such as a license even though deleting it would
 not change the failure:
 
 ```sh
-repomin . \
+repomin reduce . \
   --command 'python3 reproduce.py' \
   --match 'ORIGINAL_FAILURE' \
   --keep LICENSE \

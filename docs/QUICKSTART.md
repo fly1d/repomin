@@ -1,179 +1,203 @@
-# ReproMin quick start
+# ReproMin quick start: reduce a real failure
 
-This guide installs the current development release, creates a three-file
-failing project, reduces it, and validates the exported evidence. The example
-is self-contained and does not access the network after installation.
+This guide applies ReproMin to an existing, trusted repository with a
+repeatable failure. It takes you from the original command to a bounded
+reduction, verified evidence, and a result another developer can actually use.
+If you only want to check that ReproMin runs on your machine, use the
+one-command demo in the [README](../README.md#30-second-demo).
 
 ReproMin requires Python 3.9 or newer. The commands below use Bash or Zsh on
-macOS or Linux. Windows users can follow the complete
-[PowerShell quick start](QUICKSTART.windows.md), including the isolated
-installation, fixture creation, Doctor preflight, reduction, validation, and
-replay steps.
+macOS or Linux. Windows users can consult the
+[PowerShell guide](QUICKSTART.windows.md) for installation and command syntax.
 
-If [`uv`](https://docs.astral.sh/uv/getting-started/installation/) is already
-available, run the published release without installing it into your project
-or system Python:
+## Before you start
 
-```sh
-uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev12/repomin-0.1.0.dev12-py3-none-any.whl \
-  repomin demo ./repomin-demo
-```
+The best first case has all of these properties:
 
-This is the shortest tour. It creates a disposable tool environment, performs
-and validates a real network-free `3 -> 2` reduction, and leaves the demo
-workspace for inspection. Continue below when you want a persistent,
-versioned installation and the complete workflow.
+- one local command consistently reaches the target failure;
+- the repository is too large or noisy to share or keep as a regression case;
+- the command needs no credentials, private service, production data, or
+  special hardware; and
+- you trust the repository and every command it runs.
 
-## 1. Install in an isolated environment
+ReproMin minimizes what your failure contract accepts. It does not diagnose the
+root cause, and a weak contract can produce a small but unusable result.
+
+## 1. Install the published release
+
+Create and activate an isolated environment, then install the current
+development release from its reviewed GitHub Release artifact:
 
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 
-REPOMIN_VERSION=0.1.0.dev12
+REPOMIN_VERSION=0.1.0.dev13
 python -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 
 repomin --version
 ```
 
-The final command should print `repomin 0.1.0.dev12`. The
-[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev12)
-publishes SHA-256 digests for users who need to verify the downloaded wheel.
+The final command should print `repomin 0.1.0.dev13`. The
+[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev13)
+publishes SHA-256 digests for users who need to verify the wheel.
 
-For the shortest tour, run `repomin demo ./repomin-demo`. It creates a new
-workspace, performs and validates a real network-free `3 -> 2` reduction, and
-refuses to overwrite an existing path. Continue below to build the same kind
-of workflow step by step and inspect its replay evidence.
+## 2. Confirm the command and strict failure contract
 
-## 2. Create a small failing project
+Run the exact reproduction command from the repository root before involving
+ReproMin. Replace this example with your real command:
 
 ```sh
-demo_dir="$(mktemp -d)"
-mkdir "$demo_dir/case"
-
-cat > "$demo_dir/case/reproduce.py" <<'PY'
-from pathlib import Path
-import sys
-
-text = Path("input.txt").read_text(encoding="utf-8")
-if "keep-me" not in text:
-    print("DIFFERENT_FAILURE", file=sys.stderr)
-    raise SystemExit(2)
-
-print("ORIGINAL_FAILURE", file=sys.stderr)
-raise SystemExit(1)
-PY
-
-printf 'keep-me\nremove-me\n' > "$demo_dir/case/input.txt"
-printf 'unrelated file\n' > "$demo_dir/case/unused.txt"
+cd /absolute/path/to/your/repository
+python -m pytest -q tests/test_checkout.py
 ```
 
-Confirm the failure contract before reducing anything:
-
-```sh
-cd "$demo_dir/case"
-python reproduce.py
-```
-
-The command prints `ORIGINAL_FAILURE` and exits with status `1`. This marker is
-the oracle: ReproMin accepts a candidate only while the command still fails and
-its combined output still matches that text.
-
-## 3. Reduce the project
-
-```sh
-repomin "$demo_dir/case" \
-  --command 'python reproduce.py' \
-  --match 'ORIGINAL_FAILURE' \
-  --adapter none \
-  --source-reducer none \
-  --text-file input.txt \
-  --output "$demo_dir/reduced"
-```
-
-The output must be outside the source directory. ReproMin works in temporary
-copies and never overwrites an existing output path.
-
-The reduced payload keeps the command entry point and the required input, but
-removes `unused.txt` and the unrelated line from `input.txt`:
-
-```sh
-find "$demo_dir/reduced" -type f -print | sort
-cat "$demo_dir/reduced/input.txt"
-```
-
-Expected payload files:
+Run it at least twice. Record a message specific to the target failure and its
+exact exit code. This guide uses the following example contract:
 
 ```text
-input.txt
-reproduce.py
+command:   python -m pytest -q tests/test_checkout.py
+match:     AssertionError: checkout total mismatch
+exit code: 1
 ```
 
-The exact temporary path printed by `find` will differ. The remaining input
-line is:
+Avoid a generic expression such as `FAILED`, `error`, or only a test filename.
+An installation error or a different assertion could then pass the oracle.
+Check that ordinary setup failures and unrelated test failures do not produce
+your chosen marker. When the command generates build output, make cleanup part
+of the command so stale files cannot satisfy a candidate.
+
+Use both `--match` and `--exit-code` when both are stable. If output text is
+unstable, ReproMin can instead learn a Java exception, Python exception, or
+exact process-failure signature; see the [Doctor guide](DOCTOR.md) before
+choosing one of those modes.
+
+## 3. Check readiness with Doctor
+
+Set the real source path. The suggested output is a new sibling directory, so
+it is outside the source repository as required:
+
+```sh
+source_dir="/absolute/path/to/your/repository"
+output_dir="/absolute/path/to/your/repository-repro"
+failure_command='python -m pytest -q tests/test_checkout.py'
+failure_match='AssertionError: checkout total mismatch'
+failure_exit_code=1
+
+repomin doctor "$source_dir" \
+  --command "$failure_command" \
+  --match "$failure_match" \
+  --exit-code "$failure_exit_code" \
+  --output "$output_dir"
+```
+
+Doctor checks the source, selected reducers, output path, and backend without
+exporting to the configured output path. ReproMin prepares each baseline in a
+fresh copy, but the failure command itself can still modify anything its
+backend permits. On the host backend, that includes resources available to
+your user account. Continue only when Doctor exits with status `0` and reports
+a passing baseline. If it reports a failed check, fix that check and rerun it;
+the
+[Doctor guide](DOCTOR.md) explains each result.
+
+The output path and its `<output>.repomin` sidecar must not already exist. The
+reducer refuses to export either one inside the source repository.
+
+## 4. Run a bounded reduction
+
+Run the same contract with an attempt and wall-clock limit for the first trial:
+
+```sh
+repomin reduce "$source_dir" \
+  --command "$failure_command" \
+  --match "$failure_match" \
+  --exit-code "$failure_exit_code" \
+  --max-attempts 25 \
+  --max-duration 300 \
+  --output "$output_dir"
+```
+
+The command runs in temporary copies. It exports the smallest verified state
+reached within the limits, even when a larger case needs another, deliberately
+configured run to reach a fixed point. Start with the bounded result before
+raising either limit.
+
+Automatic reducer selection covers common Maven, Gradle, Python, Pipenv, Node,
+Composer, MSBuild, Bundler, Cargo, and Go manifests plus Java and Python source.
+Use `--keep RELATIVE_PATH` for an oracle script, license, lock file, or other
+file that must survive whole-file reduction. Use `--text-file RELATIVE_PATH`
+only when the contract rejects malformed or unusable content in that file. See
+the [ecosystem examples](EXAMPLES.md) for reducer-specific choices.
+
+## 5. Validate and replay the result
+
+The payload and evidence sidecar are separate:
 
 ```text
-keep-me
+<output>/                         reduced repository
+<output>.repomin/report.json     machine-readable evidence
+<output>.repomin/REPOMIN.md      human-readable receipt
 ```
 
-## 4. Validate the exported evidence
-
-The payload and its evidence sidecar are separate:
-
-```text
-reduced/                         reduced repository
-reduced.repomin/report.json     machine-readable evidence
-reduced.repomin/REPOMIN.md      human-readable receipt
-```
-
-Validate the report structure and the recorded payload fingerprint without
-rerunning the failure command:
+Validate the report structure and recorded payload fingerprint without
+executing the command:
 
 ```sh
 repomin report validate \
-  "$demo_dir/reduced.repomin/report.json" \
-  --payload "$demo_dir/reduced" \
-  --json
+  "${output_dir}.repomin/report.json" \
+  --payload "$output_dir" \
+  --format markdown
 ```
 
-A successful result has `"payload_fingerprint_verified": true`. The JSON
-omits the command, match expression, logs, and environment data, but includes
-the resolved report and payload paths for CI diagnostics. Redact those paths
-before sharing the JSON, or use `--format markdown` for the path-free
-shareable summary. Inspect the payload and full report separately before
-sharing either one.
-
-To execute the recorded oracle again in fresh copies, first review the command
-inside `report.json`, then explicitly allow replay:
+Inspect the payload, `REPOMIN.md`, and the full `report.json`. Before replaying,
+review the recorded command, then explicitly allow two fresh-copy runs:
 
 ```sh
 repomin report replay \
-  "$demo_dir/reduced.repomin/report.json" \
-  --payload "$demo_dir/reduced" \
+  "${output_dir}.repomin/report.json" \
+  --payload "$output_dir" \
   --runs 2 \
   --yes
 ```
 
+A successful summary reports `payload_fingerprint_verified: true`. Also inspect
+`payload_fingerprint_mode`: `exact` includes the recorded filesystem metadata.
+`content` means paths, entry types, file contents, and symbolic-link targets
+match, but metadata equality was not established; artifact transport is one
+common reason. Replay shows whether the configured failure still occurs in the
+current environment. Neither validation nor replay proves correctness or root
+cause.
+
+## 6. Put the reduced result to work
+
+A reduction creates value only when it helps the next task. After human review:
+
+- attach or link a sanitized copy to the relevant bug report;
+- add the reproduction to a regression suite; or
+- keep it as a small fixture for debugging and dependency upgrades.
+
+Keep the validated payload and sidecar unchanged as the evidence copy. If you
+add a README, restore presentation files, or otherwise edit a copy for an
+issue, say that it differs from the fingerprinted payload and rerun its failure
+command. Never publish credentials, private URLs, proprietary source, customer
+data, raw logs, commands containing secrets, or environment values.
+
+Share a useful, blocked, or inconclusive trial in
+[Show and tell](https://github.com/fly1d/repomin/discussions/new?category=show-and-tell).
+For a public, licensed repository, you can instead offer the command, revision,
+and failure signature for a maintainer-assisted
+[bounded pilot](https://github.com/fly1d/repomin/issues/11); no ReproMin
+installation is required for that path.
+
 ## Safety boundary
 
 The default host backend runs the supplied command with your user account. It
-is not a sandbox. Only use it with repositories and commands you trust. The
-Docker backend reduces access when configured carefully, but it is not a
-complete security boundary either. Do not publish credentials, private URLs,
-proprietary source, customer data, raw logs, or environment values.
+is not a sandbox. Only use it with repositories and commands you trust. Docker
+can reduce access when configured carefully, but it is not a complete security
+boundary. Read [SECURITY.md](../SECURITY.md) before handling third-party code
+or sharing any result.
 
-## Next steps
-
-- Run the read-only [doctor preflight](DOCTOR.md) before a larger reduction.
-- Choose a language or build-tool workflow from the [examples](EXAMPLES.md).
-- Add a minimized artifact to CI with the [GitHub Action guide](GITHUB_ACTION.md).
-- Read the [tsdown technical pilot](CASE_STUDY_TSDOWN_979.md), the
-  [Gradle composite-build pilot](CASE_STUDY_GRADLE_38843.md), and the
-  [pydoctor outreach postmortem](CASE_STUDY_PYDOCTOR_728.md).
-- Share a useful, inconclusive, or blocked trial in
-  [Show and tell](https://github.com/fly1d/repomin/discussions/new?category=show-and-tell).
-
-For a Chinese version of the same first-run workflow, see the
-[Chinese quick start](QUICKSTART.zh-CN.md).
+For versioned configuration, GitHub Actions, and report details, continue from
+the [documentation index](README.md).

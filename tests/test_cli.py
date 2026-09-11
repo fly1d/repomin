@@ -248,6 +248,7 @@ class CliTest(unittest.TestCase):
             with contextlib.redirect_stderr(stderr):
                 exit_code = main(
                     [
+                        "reduce",
                         str(source),
                         "--command",
                         "false",
@@ -497,6 +498,134 @@ class CliTest(unittest.TestCase):
             root_help.index("failure to preserve:"),
         )
 
+    def test_root_help_is_short_and_points_to_task_commands(self) -> None:
+        for arguments in ([], ["--help"], ["-h"]):
+            with self.subTest(arguments=arguments):
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(
+                    stderr
+                ):
+                    exit_code = main(arguments)
+
+                self.assertEqual(0, exit_code)
+                self.assertEqual("", stderr.getvalue())
+                help_text = stdout.getvalue()
+                self.assertIn("repomin demo WORKSPACE", help_text)
+                self.assertIn("repomin doctor SOURCE", help_text)
+                self.assertIn("repomin reduce SOURCE", help_text)
+                self.assertIn("repomin reduce --help", help_text)
+                self.assertIn("`./reduce` as SOURCE", help_text)
+                self.assertLessEqual(len(help_text.splitlines()), 24)
+
+    def test_reduce_subcommand_is_an_alias_for_existing_syntax(self) -> None:
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            with self.assertRaises(SystemExit) as raised:
+                main(["reduce", "--help"])
+
+        self.assertEqual(0, raised.exception.code)
+        self.assertIn(
+            "usage: repomin reduce SOURCE --command COMMAND --match REGEX",
+            stdout.getvalue(),
+        )
+
+    def test_reduce_alias_does_not_redispatch_source_directory_names(self) -> None:
+        for source_name in ("demo", "doctor", "reduce", "report", "completion"):
+            with self.subTest(source_name=source_name):
+                stderr = io.StringIO()
+                with patch(
+                    "repomin.cli._resolve_paths",
+                    side_effect=ValueError("reduction parser reached"),
+                ) as resolve_paths:
+                    with contextlib.redirect_stderr(stderr):
+                        exit_code = main(
+                            [
+                                "reduce",
+                                source_name,
+                                "--command",
+                                "false",
+                                "--match",
+                                "failure",
+                            ]
+                        )
+
+                self.assertEqual(2, exit_code)
+                self.assertIn("reduction parser reached", stderr.getvalue())
+                self.assertEqual(source_name, resolve_paths.call_args.args[0])
+
+    def test_reduce_alias_accepts_options_before_source(self) -> None:
+        stderr = io.StringIO()
+        with patch(
+            "repomin.cli._resolve_paths",
+            side_effect=ValueError("reduction parser reached"),
+        ) as resolve_paths:
+            with contextlib.redirect_stderr(stderr):
+                exit_code = main(
+                    [
+                        "reduce",
+                        "--command",
+                        "false",
+                        "--match",
+                        "failure",
+                        "source",
+                    ]
+                )
+
+        self.assertEqual(2, exit_code)
+        self.assertIn("reduction parser reached", stderr.getvalue())
+        self.assertEqual("source", resolve_paths.call_args.args[0])
+
+    def test_reduce_alias_expands_a_versioned_config(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            source.mkdir()
+            config = root / "repomin.json"
+            config.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "failure": {"command": "false", "match": "failure"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            stderr = io.StringIO()
+            with patch(
+                "repomin.cli._resolve_paths",
+                side_effect=ValueError("configured reduction reached"),
+            ) as resolve_paths:
+                with contextlib.redirect_stderr(stderr):
+                    exit_code = main(
+                        ["reduce", "--config", str(config), str(source)]
+                    )
+
+            self.assertEqual(2, exit_code)
+            self.assertIn("configured reduction reached", stderr.getvalue())
+            self.assertEqual(str(source), resolve_paths.call_args.args[0])
+
+    def test_legacy_syntax_escapes_a_source_directory_named_reduce(self) -> None:
+        stderr = io.StringIO()
+        with patch(
+            "repomin.cli._resolve_paths",
+            side_effect=ValueError("legacy source reached"),
+        ) as resolve_paths:
+            with contextlib.redirect_stderr(stderr):
+                exit_code = main(
+                    [
+                        "./reduce",
+                        "--command",
+                        "false",
+                        "--match",
+                        "failure",
+                    ]
+                )
+
+        self.assertEqual(2, exit_code)
+        self.assertIn("legacy source reached", stderr.getvalue())
+        self.assertEqual("./reduce", resolve_paths.call_args.args[0])
+
     def test_reduction_help_groups_advanced_options(self) -> None:
         help_text = build_parser().format_help()
         self.assertIn(
@@ -508,7 +637,7 @@ class CliTest(unittest.TestCase):
             help_text,
         )
         self.assertIn("repomin SOURCE --config PATH [options]", help_text)
-        self.assertIn("repomin {demo,doctor,report,completion} ...", help_text)
+        self.assertIn("repomin {demo,doctor,reduce,report,completion} ...", help_text)
         headings = (
             "failure to preserve:",
             "execution and limits:",
@@ -1557,6 +1686,7 @@ class CliTest(unittest.TestCase):
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 exit_code = main(
                     [
+                        "reduce",
                         str(source),
                         "--command",
                         "python3 reproduce.py",

@@ -83,6 +83,7 @@ try {
     & $Python -m repomin doctor $Case `
         --command $Oracle `
         --match "ORIGINAL_FAILURE" `
+        --exit-code 1 `
         --adapter none `
         --source-reducer none `
         --output $DoctorOutput
@@ -90,12 +91,15 @@ try {
         throw "Doctor preflight failed"
     }
 
-    & $Python -m repomin $Case `
+    & $Python -m repomin reduce $Case `
         --command $Oracle `
         --match "ORIGINAL_FAILURE" `
+        --exit-code 1 `
         --adapter none `
         --source-reducer none `
         --text-file input.txt `
+        --max-attempts 25 `
+        --max-duration 300 `
         --output $Reduced
     if ($LASTEXITCODE -ne 0) {
         throw "Reduction failed"

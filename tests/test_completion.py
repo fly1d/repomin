@@ -149,8 +149,33 @@ class CompletionSpecTests(unittest.TestCase):
             "$reportCommand = if ($elements.Count -gt 2)",
             powershell,
         )
+        self.assertIn("$subcommand -ne 'reduce'", powershell)
         self.assertIn("Get-ChildItem -LiteralPath $parentPath", powershell)
         self.assertNotIn("Get-ChildItem -Path $pathPattern", powershell)
+
+    def test_renderers_route_the_explicit_reduce_command(self) -> None:
+        bash = completion_script("bash")
+        self.assertIn(
+            'demo|doctor|reduce|completion) context="${COMP_WORDS[1]}"',
+            bash,
+        )
+
+        zsh = completion_script("zsh")
+        self.assertIn('if [[ "$words[2]" == "reduce" ]]; then', zsh)
+
+        fish = completion_script("fish")
+        self.assertIn("if test $tokens[2] = reduce", fish)
+        self.assertIn(
+            "-n '__repomin_using_command reduce' -l adapter -r",
+            fish,
+        )
+
+        powershell = completion_script("powershell")
+        self.assertIn("'reduce' { 'reduce'; break }", powershell)
+        self.assertIn(
+            "$context -eq 'reduce' -and $subcommand -ne 'reduce'",
+            powershell,
+        )
 
     def test_unknown_shell_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "unsupported shell"):
@@ -228,9 +253,17 @@ class NativeCompletionTests(unittest.TestCase):
 
             targets = self._bash_complete(["repomin", ""], directory)
             self.assertTrue(
-                {"demo", "doctor", "report", "completion"}.issubset(targets)
+                {"demo", "doctor", "reduce", "report", "completion"}.issubset(
+                    targets
+                )
             )
             self.assertIn("source dir/", targets)
+            self.assertIn(
+                "source dir/",
+                self._bash_complete(
+                    ["repomin", "reduce", "source"], directory
+                ),
+            )
 
     @unittest.skipUnless(bash, "Bash is unavailable")
     def test_bash_command_contexts_are_isolated(self) -> None:
@@ -246,6 +279,16 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertEqual(
                 ["--adapter"],
                 self._bash_complete(["repomin", "doctor", "--ada"], directory),
+            )
+            self.assertEqual(
+                ["--adapter"],
+                self._bash_complete(["repomin", "reduce", "--ada"], directory),
+            )
+            self.assertEqual(
+                ["--adapter"],
+                self._bash_complete(
+                    ["repomin", "reduce", "doctor", "--ada"], directory
+                ),
             )
             self.assertEqual(
                 [],

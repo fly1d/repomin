@@ -354,17 +354,23 @@ def _environment_digest(environment: dict) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.ArgumentParser:
+def build_parser(
+    *,
+    semantic_environment_defaults: bool = True,
+    prog: str = "repomin",
+) -> argparse.ArgumentParser:
     semantic_environment = os.environ if semantic_environment_defaults else {}
+    usage = (
+        "%(prog)s SOURCE --command COMMAND --match REGEX [options]\n"
+        "       %(prog)s SOURCE --command COMMAND --exit-code CODE [options]\n"
+        "       %(prog)s SOURCE --command COMMAND --process-failure [options]\n"
+        "       %(prog)s SOURCE --config PATH [options]"
+    )
+    if prog == "repomin":
+        usage += "\n       %(prog)s {demo,doctor,reduce,report,completion} ..."
     parser = argparse.ArgumentParser(
-        prog="repomin",
-        usage=(
-            "%(prog)s SOURCE --command COMMAND --match REGEX [options]\n"
-            "       %(prog)s SOURCE --command COMMAND --exit-code CODE [options]\n"
-            "       %(prog)s SOURCE --command COMMAND --process-failure [options]\n"
-            "       %(prog)s SOURCE --config PATH [options]\n"
-            "       %(prog)s {demo,doctor,report,completion} ..."
-        ),
+        prog=prog,
+        usage=usage,
         description=(
             "Reduce a repository while preserving a command failure. New here? "
             "Run `repomin demo WORKSPACE` for a self-contained first reduction."
@@ -772,6 +778,31 @@ def build_parser(*, semantic_environment_defaults: bool = True) -> argparse.Argu
     return parser
 
 
+def _print_root_help() -> None:
+    """Show the short task-oriented entry point before advanced options."""
+    print("ReproMin - shrink a failing repository into a verified reproduction.")
+    print()
+    print("usage:")
+    print("  repomin demo WORKSPACE")
+    print("  repomin doctor SOURCE --command COMMAND --match REGEX")
+    print("  repomin reduce SOURCE --command COMMAND --match REGEX [options]")
+    print("  repomin report {validate,replay,compare} ...")
+    print()
+    print("commands:")
+    print("  demo        run a trusted, self-contained first reduction")
+    print("  doctor      check readiness and optionally verify the failure")
+    print("  reduce      shrink a repository while preserving its failure")
+    print("  report      validate, replay, or compare reduction evidence")
+    print("  completion  generate shell completion")
+    print()
+    print("Start with `repomin demo ./repomin-demo`.")
+    print("Use `repomin reduce --help` for all reduction options.")
+    print("The existing `repomin SOURCE ...` syntax remains supported.")
+    print("For a source directory named `reduce`, use `./reduce` as SOURCE.")
+    print("Quick start: %s" % _QUICKSTART_URL)
+    print("Help or feedback: %s" % _SUPPORT_URL)
+
+
 def _demo_reproducer() -> Tuple[str, str, str]:
     if os.name == "nt":
         return "reproduce.ps1", _DEMO_WINDOWS_SCRIPT, _DEMO_WINDOWS_COMMAND
@@ -951,13 +982,19 @@ def main(
     semantic_environment_defaults: bool = True,
 ) -> int:
     raw_argv = list(sys.argv[1:] if argv is None else argv)
-    if raw_argv and raw_argv[0] == "demo":
+    if not raw_argv or raw_argv[0] in {"-h", "--help"}:
+        _print_root_help()
+        return 0
+    explicit_reduce = raw_argv[0] == "reduce"
+    if explicit_reduce:
+        raw_argv = raw_argv[1:]
+    if not explicit_reduce and raw_argv and raw_argv[0] == "demo":
         return _demo_command(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "doctor":
+    if not explicit_reduce and raw_argv and raw_argv[0] == "doctor":
         return _doctor_command(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "report":
+    if not explicit_reduce and raw_argv and raw_argv[0] == "report":
         return _report_command(raw_argv[1:])
-    if raw_argv and raw_argv[0] == "completion":
+    if not explicit_reduce and raw_argv and raw_argv[0] == "completion":
         from repomin.completion import SUPPORTED_SHELLS, completion_script
 
         if len(raw_argv) == 2 and raw_argv[1] in SUPPORTED_SHELLS:
@@ -988,7 +1025,8 @@ def main(
     args = build_parser(
         semantic_environment_defaults=(
             semantic_environment_defaults and not using_config
-        )
+        ),
+        prog="repomin reduce" if explicit_reduce else "repomin",
     ).parse_args(raw_argv)
 
     def inform(message: str) -> None:

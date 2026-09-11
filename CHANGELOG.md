@@ -7,8 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0.dev13] - 2026-09-11
+
+### Added
+
+- `repomin reduce` is now an explicit, discoverable alias for the original
+  `repomin SOURCE ...` reduction syntax. Both forms remain supported; use
+  `./reduce` when a legacy SOURCE directory itself is named `reduce`.
+
 ### Changed
 
+- The README is shorter and now separates the 30-second demo from the path for
+  a real repository. The main and Chinese quick starts no longer repeat the
+  synthetic demo; they cover a strict failure contract, Doctor, bounded
+  reduction, validation, replay, and putting the result into an issue or
+  regression suite. The PowerShell walkthrough remains a runnable platform
+  fixture and is labeled accordingly.
+- Running `repomin`, `repomin --help`, or `repomin -h` now shows a short
+  task-oriented entry page. The complete reduction option reference remains at
+  `repomin reduce --help`.
+- User guides now distinguish ReproMin's temporary-copy behavior from side
+  effects caused by the reproduction command, and define exactly what
+  `exact` and `content` payload fingerprints establish.
 - Doctor now distinguishes a successful static scan from a verified failure
   baseline: text and Markdown report `ready to reduce` only after fresh-copy
   baseline runs pass, instead of labeling every check-only scan as ready. The

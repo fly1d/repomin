@@ -14,6 +14,7 @@ SUPPORTED_SHELLS: Final = ("bash", "zsh", "fish", "powershell")
 _ROOT_COMMANDS: Final = (
     ("demo", "run a self-contained first reduction"),
     ("doctor", "check reducers, toolchains, and an optional baseline"),
+    ("reduce", "shrink a repository while preserving its failure"),
     ("report", "inspect, replay, or compare report evidence"),
     ("completion", "print a shell completion script"),
 )
@@ -267,7 +268,7 @@ def _render_bash(commands: Sequence[CompletionCommand]) -> str:
         "    fi",
         '    context="reduce"',
         '    case "${COMP_WORDS[1]}" in',
-        '        demo|doctor|completion) context="${COMP_WORDS[1]}" ;;',
+        '        demo|doctor|reduce|completion) context="${COMP_WORDS[1]}" ;;',
         "        report)",
         '            context="report"',
         '            case "${COMP_WORDS[2]}" in',
@@ -429,7 +430,7 @@ def _render_zsh(commands: Sequence[CompletionCommand]) -> str:
     lines.extend(['            words=("${words[@]:1}")', "            (( CURRENT-- ))"])
     lines.extend(_zsh_arguments(specs["report"], "            "))
     lines.extend(["        fi", "        return", "    fi"])
-    for name in ("doctor", "demo"):
+    for name in ("doctor", "demo", "reduce"):
         lines.append('    if [[ "$words[2]" == "%s" ]]; then' % name)
         lines.extend(['        words=("${words[@]:1}")', "        (( CURRENT-- ))"])
         lines.extend(_zsh_arguments(specs[name], "        "))
@@ -467,6 +468,9 @@ def _render_fish(commands: Sequence[CompletionCommand]) -> str:
         "    switch $argv[1]",
         "        case reduce",
         "            if test (count $tokens) -lt 2",
+        "                return 0",
+        "            end",
+        "            if test $tokens[2] = reduce",
         "                return 0",
         "            end",
         "            not contains -- $tokens[2] %s"
@@ -669,6 +673,7 @@ def _render_powershell(commands: Sequence[CompletionCommand]) -> str:
             "        ''",
             "    }",
             "    $context = switch ($subcommand) {",
+            "        'reduce' { 'reduce'; break }",
             "        'demo' { 'demo'; break }",
             "        'doctor' { 'doctor'; break }",
             "        'completion' { 'completion'; break }",
@@ -716,7 +721,7 @@ def _render_powershell(commands: Sequence[CompletionCommand]) -> str:
             "        return",
             "    }",
             "",
-            "    if ($context -eq 'reduce' -and $elements.Count -le 2) {",
+            "    if ($context -eq 'reduce' -and $subcommand -ne 'reduce' -and $elements.Count -le 2) {",
             "        Complete-ReproMinValues -Values %s -ResultType 'Command'"
             % _powershell_array(tuple(name for name, _ in _ROOT_COMMANDS)),
             "    }",
