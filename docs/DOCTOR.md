@@ -1,11 +1,13 @@
 # Doctor preflight
 
-`repomin doctor` checks whether a repository is ready for a reduction without
-changing the source tree or creating an output directory. It detects supported
-manifest and source reducers, checks the selected toolchain, and validates the
-output and sibling metadata paths that a normal run would use.
+`repomin doctor` checks whether a repository is ready for reduction without
+exporting to the configured output directory. It detects supported manifest
+and source reducers, checks the selected toolchain, and validates the output
+and sibling metadata paths that a normal run would use. When a failure command
+is supplied, ReproMin prepares fresh copies but the command can still modify
+anything its backend permits.
 
-Start with a read-only project scan:
+Start with a static project scan that does not run a project command:
 
 ```sh
 repomin doctor .
@@ -82,8 +84,9 @@ failure oracle twice in fresh copies before spending time on reduction:
 
 ```sh
 repomin doctor . \
-  --command 'python -m pytest -q' \
-  --match 'FAILED tests/test_regression.py' \
+  --command 'python -m pytest -q tests/test_checkout.py' \
+  --match 'AssertionError: checkout total mismatch' \
+  --exit-code 1 \
   --adapter python \
   --source-reducer python \
   --output /tmp/project-repro

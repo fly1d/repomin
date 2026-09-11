@@ -15,7 +15,7 @@ Set an endpoint and model explicitly:
 ```sh
 export REPOMIN_SEMANTIC_TOKEN=optional-bearer-token
 
-repomin . \
+repomin reduce . \
   --command 'python3 reproduce.py' \
   --match 'ORIGINAL_FAILURE' \
   --semantic-reducer http \

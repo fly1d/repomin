@@ -51,7 +51,7 @@ repomin doctor . \
   --output /tmp/checkout-repro \
   --format markdown
 
-repomin . \
+repomin reduce . \
   --config .repomin.json \
   --output /tmp/checkout-repro
 ```
@@ -77,7 +77,7 @@ closed instead of silently changing a reviewed failure contract:
 
 ```sh
 # Invalid: jobs is owned by the configuration file.
-repomin . --config .repomin.json --jobs 4
+repomin reduce . --config .repomin.json --jobs 4
 ```
 
 Runtime placement, checkpoint, and output controls remain CLI-owned. A

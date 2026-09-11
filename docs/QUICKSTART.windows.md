@@ -1,9 +1,11 @@
-# ReproMin quick start for Windows PowerShell
+# ReproMin self-contained walkthrough for Windows PowerShell
 
-This guide installs the current development release in an isolated virtual
-environment, creates a three-file failing project, checks it, reduces it, and
-validates the exported evidence. Installation downloads the release wheel;
-the example itself does not access the network.
+This runnable platform tour installs the current development release in an
+isolated virtual environment, creates a three-file failing project, checks it,
+reduces it, and validates the exported evidence. For an existing repository,
+follow the [real-failure quick start](QUICKSTART.md) and translate its shell
+variables and quoting to the PowerShell forms shown here. Installation
+downloads the release wheel; the example itself does not access the network.
 
 ReproMin requires Python 3.9 or newer. Run these commands in PowerShell. Direct
 ReproMin commands use the virtual environment's explicit Python path. Its
@@ -27,13 +29,13 @@ $env:PATH = (Split-Path -Parent $Python) + `
   [System.IO.Path]::PathSeparator + $env:PATH
 
 & $Python -m pip install --upgrade pip
-$env:REPOMIN_VERSION = "0.1.0.dev12"
+$env:REPOMIN_VERSION = "0.1.0.dev13"
 & $Python -m pip install "https://github.com/fly1d/repomin/releases/download/v${env:REPOMIN_VERSION}/repomin-${env:REPOMIN_VERSION}-py3-none-any.whl"
 & $Python -m repomin --version
 ```
 
-The final command should print `repomin 0.1.0.dev12`. The
-[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev12)
+The final command should print `repomin 0.1.0.dev13`. The
+[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev13)
 publishes SHA-256 digests for users who need to verify the downloaded wheel.
 
 For the shortest tour, run `repomin demo .\repomin-demo`. It creates a new
@@ -100,8 +102,9 @@ its combined output still matches that text.
 
 The virtual environment directory added to this process's `PATH` lets the
 recorded command use a portable interpreter name even when the environment's
-absolute path contains spaces. Doctor runs the failure oracle twice in fresh
-copies without creating the configured output:
+absolute path contains spaces. Doctor prepares two fresh copies without
+exporting the configured output, then runs the failure oracle in each one. The
+oracle command can still modify anything permitted by its backend:
 
 ```powershell
 $Oracle = "python reproduce.py"
@@ -109,6 +112,7 @@ $Oracle = "python reproduce.py"
 & $Python -m repomin doctor $Case `
   --command $Oracle `
   --match "ORIGINAL_FAILURE" `
+  --exit-code 1 `
   --adapter none `
   --source-reducer none `
   --output $DoctorOutput
@@ -119,12 +123,15 @@ A successful preflight reports `2/2 fresh runs reproduced the failure`. Run
 the reduction with the same failure contract:
 
 ```powershell
-& $Python -m repomin $Case `
+& $Python -m repomin reduce $Case `
   --command $Oracle `
   --match "ORIGINAL_FAILURE" `
+  --exit-code 1 `
   --adapter none `
   --source-reducer none `
   --text-file input.txt `
+  --max-attempts 25 `
+  --max-duration 300 `
   --output $Reduced
 if ($LASTEXITCODE -ne 0) { throw "Reduction failed" }
 ```

@@ -33,13 +33,13 @@ project until a human has reviewed the artifact and that project's policies.
 ## Install the pilot build
 
 The replay and transport-fingerprint workflow described below is included in
-the `v0.1.0.dev12` pre-release. Install that wheel in an isolated environment
+the `v0.1.0.dev13` pre-release. Install that wheel in an isolated environment
 when you want a reproducible versioned pilot run:
 
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-REPOMIN_VERSION=0.1.0.dev12
+REPOMIN_VERSION=0.1.0.dev13
 python -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 python -m repomin --version
@@ -93,7 +93,7 @@ so make recipient-facing quality part of the oracle when it matters:
 For example, a public Node fixture can keep an explicit evidence boundary:
 
 ```sh
-repomin /path/to/public-fixture \
+repomin reduce /path/to/public-fixture \
   --command 'pnpm install --offline --frozen-lockfile && node reproduce.mjs' \
   --match 'STABLE_FAILURE_MARKER' \
   --exit-code 23 \
@@ -117,7 +117,7 @@ Run ReproMin against the sanitized checkout and use the failure signal that is
 stable for the project:
 
 ```sh
-repomin /path/to/sanitized-project \
+repomin reduce /path/to/sanitized-project \
   --command './run-failing-test.sh' \
   --match 'STABLE_FAILURE_MARKER' \
   --adapter auto \
@@ -127,7 +127,7 @@ repomin /path/to/sanitized-project \
 When output text is unstable, use an exact exit code instead:
 
 ```sh
-repomin /path/to/sanitized-project \
+repomin reduce /path/to/sanitized-project \
   --command './run-failing-test.sh' \
   --exit-code 1 \
   --adapter auto \

@@ -1,192 +1,159 @@
-# ReproMin 中文快速开始
+# ReproMin 中文快速开始：缩减真实失败
 
-ReproMin 会在每次候选修改后重新执行失败命令，只保留仍能复现原始失败的修改。它适合把一个过大的失败仓库缩减成便于提交 issue 或制作回归测试的最小复现目录。
+本指南把一个现有仓库中的可重复失败，缩减成便于提交 issue、调试或加入
+回归测试的较小复现目录。如果只想确认 ReproMin 能运行，请先执行 README 中的
+[30 秒 demo](../README.md#30-second-demo)。
 
-如果已经安装了 [`uv`](https://docs.astral.sh/uv/getting-started/installation/)，可以用一条命令体验发布版本，无需把 ReproMin 安装到项目或系统 Python：
+ReproMin 需要 Python 3.9 或更高版本。下面的命令适用于 macOS 或 Linux 的
+Bash/Zsh；Windows 用户可参考 [PowerShell 演练](QUICKSTART.windows.md)中的安装、
+变量和引号写法。
 
-```sh
-uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev12/repomin-0.1.0.dev12-py3-none-any.whl \
-  repomin demo ./repomin-demo
-```
+## 开始前
 
-这条命令会使用临时隔离环境，离线完成并验证一次真实的 `3 -> 2` 文件缩减，并保留 demo 工作目录供检查。需要长期安装和完整流程时再继续下面的步骤。
+适合作为首次尝试的失败通常满足以下条件：
 
-## 安装
+- 一条本地命令可以稳定触发目标失败；
+- 原仓库太大，不适合提交 issue 或长期保留为回归样例；
+- 命令不依赖凭据、私有服务、生产数据或特殊硬件；
+- 你信任仓库以及它会执行的全部命令。
 
-ReproMin 需要 Python 3.9 或更高版本，目前从 GitHub Release 安装，还没有发布到
-PyPI。建议先使用虚拟环境，避免修改系统 Python：
+ReproMin 只会保留仍被失败契约接受的修改，不会诊断根因。失败契约过宽时，
+结果可能很小，却不是你真正需要的复现。
+
+## 1. 安装发布版本
+
+创建隔离环境，并从经过发布检查的 GitHub Release 安装当前开发版本：
 
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-REPOMIN_VERSION=0.1.0.dev12
+
+REPOMIN_VERSION=0.1.0.dev13
 python -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
-python -m repomin --version
+
+repomin --version
 ```
 
-当前版本应显示 `repomin 0.1.0.dev12`。发布页同时提供 wheel 和源码归档，以及对应的
-SHA-256 校验值；需要供应链校验时，请先核对
-[发布页](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev12)再安装。wheel 不需要
-本地构建，首次使用更快。
+最后一条命令应输出 `repomin 0.1.0.dev13`。发布页提供 wheel、源码归档和
+SHA-256 校验值。ReproMin 目前尚未发布到 PyPI。
 
-本页后面的 `report replay`、传输 fingerprint 和 Markdown 摘要功能已包含在
-`v0.1.0.dev12` 发布包中。
-参与 pilot 前仍请阅读[真实失败 pilot 指南](REAL_FAILURE_PILOT.md)，并按其中的隐私和
-安全边界检查报告与 payload。
+## 2. 确认命令和严格失败契约
 
-如果只想最快看到一次真实缩减，运行 `repomin demo ./repomin-demo`。它会新建
-一个工作目录，离线完成并验证 `3 -> 2` 文件的缩减，且不会覆盖
-已存在的路径。继续阅读下文可以逐步构建同样的流程并检查 replay 证据。
-
-如果你在真实工作流中试用了 ReproMin，即使结果是成功、无法判断或无法运行，也欢迎反馈：
-有可脱敏的 CI/依赖失败时使用 [pilot Issue #11](https://github.com/fly1d/repomin/issues/11)，
-只有体验、兼容性或文档意见时使用 [Show and tell](https://github.com/fly1d/repomin/discussions/new?category=show-and-tell)。
-提交前请检查 payload 和 report，勿上传凭据、私有 URL、专有源码、原始日志、命令或环境变量值。
-
-如果你正在开发 ReproMin，也可以在仓库根目录创建虚拟环境后运行
-`python -m pip install -e ".[dev]"`，这样会同时安装测试、检查和发布工具；只需要
-包本身时，`python -m pip install -e .` 即可。
-
-## 最小示例
-
-下面的命令从一个干净的临时目录创建失败复现，然后只缩减 `input.txt`。整段示例可直接在 Bash 或 Zsh 中运行：
+先在仓库根目录直接运行真实复现命令，至少成功复现两次：
 
 ```sh
-demo_dir="$(mktemp -d)"
-cd "$demo_dir"
-
-mkdir case
-cat > case/reproduce.py <<'PY'
-from pathlib import Path
-
-text = Path("input.txt").read_text(encoding="utf-8")
-if "keep-me" not in text:
-    print("DIFFERENT_FAILURE")
-    raise SystemExit(2)
-print("ORIGINAL_FAILURE")
-raise SystemExit(1)
-PY
-
-printf 'keep-me\nremove-me\n' > case/input.txt
-
-repomin case \
-  --command 'python3 reproduce.py' \
-  --match 'ORIGINAL_FAILURE' \
-  --adapter none \
-  --source-reducer none \
-  --text-file input.txt \
-  --output "$demo_dir/reduced"
+cd /absolute/path/to/your/repository
+python -m pytest -q tests/test_checkout.py
 ```
 
-完成后，`reduced/input.txt` 仍包含 `keep-me`，无关的 `remove-me` 可以被删除。缩减后的仓库在 `reduced/`，证据报告在旁边的 `reduced.repomin/`：
+记录能唯一识别目标失败的消息和准确退出码。本指南使用以下示例：
 
-- `report.json`：机器可读的运行统计、oracle 规则和环境信息；
-- `REPOMIN.md`：面向人的缩减摘要。
-
-可以用下面的命令查看结果：
-
-```sh
-grep -n 'keep-me' "$demo_dir/reduced/input.txt"
-cat "$demo_dir/reduced.repomin/REPOMIN.md"
+```text
+command:   python -m pytest -q tests/test_checkout.py
+match:     AssertionError: checkout total mismatch
+exit code: 1
 ```
 
-## 验证证据报告
+不要只匹配 `FAILED`、`error` 或测试文件名，否则安装错误或其他断言也可能被
+误认为目标失败。如果输出文本不稳定，可以改用 Java/Python 异常身份或精确的
+进程失败签名；选择前请阅读 [Doctor 指南](DOCTOR.md)。
 
-可以在不重新执行失败命令的情况下，验证刚才生成的报告和缩减目录：
+## 3. 用 Doctor 检查准备状态
+
+设置真实源目录和一个尚不存在的同级输出目录：
 
 ```sh
-repomin report validate "$demo_dir/reduced.repomin/report.json" \
-  --payload "$demo_dir/reduced"
+source_dir="/absolute/path/to/your/repository"
+output_dir="/absolute/path/to/your/repository-repro"
+failure_command='python -m pytest -q tests/test_checkout.py'
+failure_match='AssertionError: checkout total mismatch'
+failure_exit_code=1
+
+repomin doctor "$source_dir" \
+  --command "$failure_command" \
+  --match "$failure_match" \
+  --exit-code "$failure_exit_code" \
+  --output "$output_dir"
 ```
 
-`--payload` 会在报告包含指纹时检查缩减目录是否仍与已记录的证据一致。脚本或 CI
-也可以使用机器可读的结果：
+Doctor 检查源目录、reducer、输出路径和 backend，并在两个全新副本中执行失败
+命令。ReproMin 不会向配置的输出目录导出结果，但失败命令本身仍可修改 backend
+允许访问的任何资源；在默认 host backend 下，它拥有当前用户的权限。
+
+只有 Doctor 以退出码 `0` 结束并显示 `2/2` baseline 通过时才继续。输出目录和
+`<output>.repomin` sidecar 都不能已存在，也不能位于源仓库内部。
+
+## 4. 执行有上限的缩减
+
+首次尝试使用相同失败契约，并限制尝试次数和总时间：
 
 ```sh
-repomin report validate "$demo_dir/reduced.repomin/report.json" \
-  --payload "$demo_dir/reduced" --json
+repomin reduce "$source_dir" \
+  --command "$failure_command" \
+  --match "$failure_match" \
+  --exit-code "$failure_exit_code" \
+  --max-attempts 25 \
+  --max-duration 300 \
+  --output "$output_dir"
 ```
 
-这个 JSON 摘要包含 oracle 类型、缩减前后文件/字节数、保留比例、holdout 计数和预算状态。
-它不会包含命令、匹配正则、日志或环境变量数据，但会包含解析后的 report 和 payload 路径，
-适合用于 CI 诊断；公开提交前请先删改这些路径，或改用下面不含路径的 Markdown 摘要。提交前
-仍要单独检查 payload 和 `report.json` 是否含有敏感信息。
+ReproMin 会导出预算内找到的最小已验证状态。大仓库第一次不必追求固定点；先看
+有限预算的结果，再决定是否增加限制。需要强制保留 oracle 脚本、许可证或锁文件
+时使用 `--keep RELATIVE_PATH`；只有当失败契约能拒绝无效内容时，才用
+`--text-file RELATIVE_PATH` 对指定 UTF-8 文件按行缩减。
 
-如果需要贴到 Issue 或 CI 摘要中，也可以生成确定性的 Markdown 摘要：
+## 5. 验证并重放结果
 
-```sh
-repomin report validate "$demo_dir/reduced.repomin/report.json" \
-  --payload "$demo_dir/reduced" --format markdown
+payload 和证据 sidecar 是两个独立目录：
+
+```text
+<output>/                         缩减后的仓库
+<output>.repomin/report.json     机器可读证据
+<output>.repomin/REPOMIN.md      面向人的摘要
 ```
 
-该表只包含经过转义的版本、后端、oracle 类型、大小、缩减计数、holdout 和指纹状态，
-不会输出命令、正则、日志、路径或环境变量信息。
-
-## 比较多次缩减证据
-
-如果同一个失败流程运行了多次，可以按命令行给出的顺序比较两个或更多已经验证过的
-`report.json`：
+先在不执行失败命令的情况下验证报告和 payload：
 
 ```sh
-repomin report compare \
-  /tmp/baseline.repomin/report.json \
-  /tmp/candidate.repomin/report.json \
-  --label baseline --label candidate \
+repomin report validate \
+  "${output_dir}.repomin/report.json" \
+  --payload "$output_dir" \
   --format markdown
 ```
 
-比较命令只读取并验证报告结构，不读取 payload、不执行报告中的 `command`，也不联网。
-输出有独立的 `comparison_schema_version`，并标记 `descriptive_only: true`；它只展示版本、
-后端、oracle 类型、缩减前后大小、保留比例、尝试/接受/缓存计数、预算、holdout、阶段覆盖率
-及相邻差值。若版本 provenance、输入选择/排除、后端、并发/超时、oracle 身份、源大小、抽样或
-holdout 配置发生变化，会列出上下文警告。路径、正则和签名只通过内部不可逆摘要比较，不会写入
-比较结果。
-标签只用于显示，必须是短且唯一的 ASCII 标识。这个结果不是性能趋势、正确性证明或因果结论；
-性能历史请使用离线 benchmark 工具。
+成功结果应包含 `payload_fingerprint_verified: true`。同时检查
+`payload_fingerprint_mode`：`exact` 包含已记录的文件系统元数据；`content`
+表示路径、条目类型、文件内容和符号链接目标一致，但没有证明元数据一致，artifact
+传输改写元数据是常见原因之一。
 
-验证器检查报告结构、阶段和 holdout 统计，以及可用的 payload 指纹；它不会重新运行
-`--command`，也不等于证明代码或失败根因的正确性。报告格式错误、统计不一致或指纹不匹配
-时，命令以退出码 `2` 结束。
-
-## 在全新副本中重放失败
-
-先检查报告中记录的命令，再显式允许执行：
+检查 `report.json` 中记录的命令后，再明确允许在两个全新副本中重放：
 
 ```sh
-repomin report replay "$demo_dir/reduced.repomin/report.json" \
-  --payload "$demo_dir/reduced" \
+repomin report replay \
+  "${output_dir}.repomin/report.json" \
+  --payload "$output_dir" \
   --runs 2 \
   --yes
 ```
 
-每次运行都会从原 payload 创建独立临时副本，命令不会直接在
-`reduced/` 中执行。现代报告会精确记录 oracle 配置、超时和 payload
-树指纹；旧报告若无法区分普通非零退出与精确退出码，会要求显式提供
-`--exit-code N`，而不是自行猜测。
+验证指纹不会执行命令；replay 只证明当前环境仍符合配置的失败契约。两者都不能
+证明代码正确或找到根因。
 
-报告本身没有签名，里面的 `command` 可能执行任意代码。`--yes` 只是确认你已
-审阅命令，并不提供沙箱。退出码 `0` 只表示当前环境下所有 replay 都匹配 oracle，
-不是正确性、根因或生产可靠性证明。详细边界见[重放指南](REPLAY.md)。
-从 CI artifact 下载后，如果存储系统改写了文件时间，结果可能标记为
-`content` fingerprint mode；这表示内容和路径一致，但不再声称文件系统元数据完全一致。
+## 6. 让结果真正产生价值
 
-## Oracle 是什么
+人工检查后，把脱敏副本链接到对应 bug，加入回归测试，或保留为调试和依赖升级
+样例。保留未经修改的 payload 和 sidecar 作为证据副本；如果为了 issue 增加
+README 或恢复展示文件，请说明它已不同于指纹对应的版本，并重新执行失败命令。
 
-`--command` 是失败复现命令，`--match` 是必须继续出现在 stdout 或 stderr 中的正则表达式。上面的示例要求命令继续输出 `ORIGINAL_FAILURE` 并以非零状态退出。
+不要公开凭据、私有 URL、专有源码、客户数据、原始日志、含密钥的命令或环境变量
+值。可以在 [Show and tell](https://github.com/fly1d/repomin/discussions/new?category=show-and-tell)
+分享成功、受阻或结论不明确的尝试。对于公开且许可证清晰的仓库，也可以在
+[pilot issue #11](https://github.com/fly1d/repomin/issues/11) 提供 revision、复现命令、
+失败签名和期望帮助，由维护者协助完成一次有限预算的试验。
 
-匹配成功只说明“在记录的环境和抽样规则下，失败现象仍被复现”。它不是代码正确性证明，也不能证明这个正则表达式一定识别了唯一的根因。对于不同类型的失败，可以使用 `--exit-code`、`--process-failure` 或 Java/Python 异常签名选项。
-
-## 安全边界
-
-默认的 `host` backend 会直接在当前主机执行 `--command`，不是沙箱。只对你信任的复现命令使用默认设置；不要把包含恶意脚本或不可信依赖的仓库交给 host backend。Docker backend 可以减少访问范围，但也不是完整的安全边界，仍需由使用者配置镜像和资源限制。
-
-## 下一步
-
-- 查看 `repomin --help` 了解 CLI 参数，并通过 [英文 README](../README.md)
-  选择常见工作流；
-- 查看 [示例目录](EXAMPLES.md) 了解 Python、Pipenv、Node、Cargo、Go、
-  FastAPI/Docker 和 Gradle 等已文档化流程；
-- 查看 [架构说明](ARCHITECTURE.md) 了解 oracle、checkpoint 和 reducer 的边界；
-- 贡献代码前阅读 [贡献指南](../CONTRIBUTING.md)。
+默认 host backend 不是沙箱。只对可信仓库和命令使用它；Docker 可以缩小访问
+范围，但也不是完整安全边界。处理第三方代码或分享结果前，请阅读
+[安全说明](../SECURITY.md)。其他生态示例、配置、GitHub Action 和报告文档见
+[文档索引](README.md)。
