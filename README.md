@@ -17,7 +17,12 @@ files**, with the same failure reproduced in **5/5 fresh copies**.
 ## Start here
 
 Run the self-contained demo to see a reduction complete in about 30 seconds.
-Already have a repeatable failure? Skip to [Reduce a real failure](#reduce-a-real-failure).
+Already have a repeatable failure? [Reduce it yourself](#reduce-a-real-failure).
+For a public, licensed Maven, Gradle, or Python case, [share its exact revision,
+reproduction command, and target failure
+signal](https://github.com/fly1d/repomin/issues/new?template=real_failure.md).
+A maintainer will check the fit and run a bounded first reduction; you do not
+need to install ReproMin.
 
 ### 30-second demo
 
