@@ -140,15 +140,32 @@ class ExecutionTest(unittest.TestCase):
             script = root / "no-shebang"
             script.write_text("exit 23\n", encoding="utf-8")
             script.chmod(0o700)
-            for argv, expected in (
-                ([str(root / "missing")], 127),
-                ([str(denied)], 126),
-                ([str(script)], 23),
-                (["/bin/sh", "-c", "kill -PIPE $$"], -signal.SIGPIPE),
+            for argv in (
+                [str(root / "missing")],
+                [str(denied)],
+                [str(script)],
+                ["/bin/sh", "-c", "kill -PIPE $$"],
             ):
                 with self.subTest(argv=argv):
+                    # /bin/sh differs by platform: macOS can return 126 for a
+                    # missing absolute command where dash returns 127. The
+                    # gate must preserve the native shell's complete result.
+                    expected = subprocess.run(
+                        ["/bin/sh", "-c", 'exec "$@"', "repomin-gate", *argv],
+                        cwd=root,
+                        env=os.environ.copy(),
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                    )
                     result = _run_process(argv, root, os.environ.copy(), timeout_seconds=5)
-                    self.assertEqual(expected, result.returncode, result.stderr)
+                    self.assertEqual(expected.returncode, result.returncode, result.stderr)
+                    self.assertEqual(expected.stdout, result.stdout)
+                    self.assertEqual(expected.stderr, result.stderr)
+                    if argv == [str(script)]:
+                        self.assertEqual(23, result.returncode)
+                    if argv[0] == "/bin/sh":
+                        self.assertEqual(-signal.SIGPIPE, result.returncode)
 
     @unittest.skipUnless(os.name == "posix", "process-group test requires POSIX")
     def test_interrupt_terminates_the_active_process_group(self) -> None:
