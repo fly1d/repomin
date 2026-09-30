@@ -19,13 +19,16 @@ from unittest.mock import patch
 from repomin.cli import main
 from repomin.gitignore import load_gitignore
 from repomin.report import validate_report_file
+from repomin.session import SessionError, _validate_repository_entries
 
 
 class InputPreflightTest(unittest.TestCase):
     def _source(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        root = Path(temporary.name)
+        # Match load_gitignore's canonical root on macOS (/var -> /private/var)
+        # and Windows (short temporary paths -> long paths).
+        root = Path(temporary.name).resolve()
         source = root / "source"
         source.mkdir()
         (source / "reproduce.py").write_text(
@@ -136,6 +139,32 @@ class InputPreflightTest(unittest.TestCase):
                         self.assertFalse((root / "output").exists())
                         self.assertFalse((root / "output.repomin").exists())
 
+    def test_preflight_refreshes_missing_directory_entry_link_counts(self):
+        root, source, _ = self._source()
+        unsafe = source / "unsafe"
+        self._unsafe_entry(unsafe, root, "hardlink")
+        original_scandir = os.scandir
+
+        def incomplete_scandir(directory):
+            with original_scandir(directory) as entries:
+                result = []
+                for entry in entries:
+                    status = entry.stat(follow_symlinks=False)
+                    result.append(SimpleNamespace(
+                        name=entry.name,
+                        path=entry.path,
+                        stat=lambda follow_symlinks=False, status=status: SimpleNamespace(
+                            st_mode=status.st_mode, st_nlink=0,
+                        ),
+                    ))
+                return result
+
+        with patch("repomin.session.os.scandir", incomplete_scandir):
+            # Ignored entries still do not enter the selected-tree boundary.
+            _validate_repository_entries(source, {"unsafe"})
+            with self.assertRaisesRegex(SessionError, "hard-linked regular file.*unsafe"):
+                _validate_repository_entries(source, set())
+
     def test_keep_reincludes_safe_file_without_including_unsafe_sibling(self):
         root, source, arguments = self._source()
         self._unsafe_entry(source / "generated" / "unsafe", root, "absolute-link")
@@ -186,7 +215,7 @@ class InputPreflightTest(unittest.TestCase):
             self.assertEqual((str(external),), labels)
             self.assertTrue(matcher.matches(Path("generated"), is_directory=True))
 
-    def test_rule_path_parent_segments_are_resolved_after_symlinks(self):
+    def test_rule_path_parent_segments_preserve_native_resolution(self):
         _, source, _ = self._source()
         (source / "real" / "nested").mkdir(parents=True)
         (source / "real" / "rules.ignore").write_text("correct/\n", encoding="utf-8")
@@ -195,10 +224,20 @@ class InputPreflightTest(unittest.TestCase):
             (source / "alias").symlink_to("real/nested", target_is_directory=True)
         except OSError as exc:
             self.skipTest("symlinks unavailable: %s" % exc)
+        # Win32 folds the parent component before following the link; POSIX
+        # resolves it after the link. Preserve the loader's native Path.resolve
+        # behavior, including rule scope and contents, on both platforms.
+        resolved = (source / "alias/../rules.ignore").resolve()
         matcher, labels, _, _ = load_gitignore(source, False, ("alias/../rules.ignore",))
-        self.assertEqual(("real/rules.ignore",), labels)
-        self.assertTrue(matcher.matches(Path("real/correct"), is_directory=True))
-        self.assertFalse(matcher.matches(Path("wrong"), is_directory=True))
+        self.assertEqual((resolved.relative_to(source).as_posix(),), labels)
+        self.assertEqual(
+            resolved == source / "real/rules.ignore",
+            matcher.matches(Path("real/correct"), is_directory=True),
+        )
+        self.assertEqual(
+            resolved == source / "rules.ignore",
+            matcher.matches(Path("wrong"), is_directory=True),
+        )
 
     def test_internal_rule_link_chain_rejects_absolute_hop_before_reading(self):
         _, source, _ = self._source()

@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reduction after Doctor succeeds; unsafe entries that remain selected are
   still rejected before execution. Gitignore rule files are checked before
   reading so exclusions cannot hide unsafe repository rule-file links.
+  Selected regular files with missing directory-entry link counts are inspected
+  directly, preserving hardlink rejection on Windows as well as POSIX.
 
 ## [0.1.0.dev13] - 2026-09-11
 
