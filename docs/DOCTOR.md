@@ -46,6 +46,14 @@ counts, adapter detection, source-reducer detection, and optional baseline use
 the same effective tree as a reduction. A missing or malformed rule file is a
 failed check rather than a silently ignored option.
 
+Doctor and reduction preflight validate filesystem entries in that effective
+tree. Excluded entries are omitted from candidate copies, while a
+`--keep` override makes its selected entries subject to the usual filesystem
+safety checks. Rule files must be readable regular files; repository rule
+files cannot be hard-linked or traverse absolute, escaping symbolic links or
+reparse points, even when a rule would exclude them. Explicit external regular
+rule files remain supported through `--gitignore-file`.
+
 Pass the same protected paths and explicit text-reduction targets that the
 reduction will use:
 
