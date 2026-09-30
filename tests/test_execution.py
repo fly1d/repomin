@@ -1,5 +1,6 @@
 import os
 import base64
+from contextlib import ExitStack
 import shlex
 import signal
 import stat
@@ -16,6 +17,7 @@ from repomin.execution import (
     CommandRunner,
     DockerRunner,
     RunnerError,
+    _POSIX_START_GATE,
     _run_process,
     _tree_size,
     _working_directory_identity,
@@ -33,6 +35,121 @@ def _python_command(script: str) -> str:
 
 
 class ExecutionTest(unittest.TestCase):
+    @unittest.skipUnless(os.name == "posix", "inherited-descriptor test requires POSIX")
+    def test_start_gate_handles_high_descriptors_and_preserves_command_io(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            root = Path(directory)
+            # Concurrent runners can allocate gate descriptors above 9; dash
+            # cannot read those with a plain <&N redirection.
+            occupied = [stack.enter_context(tempfile.TemporaryFile()) for _ in range(20)]
+            self.assertGreater(occupied[-1].fileno(), 9)
+            command_input = stack.enter_context(tempfile.TemporaryFile())
+            command_input.write(b"inherited input\n")
+            command_input.seek(0)
+            real_popen = subprocess.Popen
+
+            def launch(argv, **options):
+                options["stdin"] = command_input
+                return real_popen(argv, **options)
+
+            with mock.patch("repomin.execution.subprocess.Popen", side_effect=launch):
+                result = _run_process(
+                    [
+                        "/bin/sh", "-c",
+                        'IFS= read -r value; printf "%s|%s" "$value" "$1"; '
+                        'printf "command error" >&2; exit 7',
+                        "command", "spaces ; $(not a command)",
+                    ],
+                    root,
+                    os.environ.copy(),
+                    timeout_seconds=5,
+                )
+
+            self.assertEqual(7, result.returncode)
+            self.assertEqual("inherited input|spaces ; $(not a command)", result.stdout)
+            self.assertEqual("command error", result.stderr)
+
+    @unittest.skipUnless(os.name == "posix", "inherited-descriptor test requires POSIX")
+    def test_start_gate_refuses_eof_and_invalid_activation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            marker = root / "started"
+            for token in (b"", b"start", b"wrong\n"):
+                with self.subTest(token=token):
+                    gate_read, gate_write = os.pipe()
+                    try:
+                        os.write(gate_write, token)
+                        os.close(gate_write)
+                        gate_write = None
+                        result = subprocess.run(
+                            [
+                                sys.executable, "-I", "-S", "-c", _POSIX_START_GATE,
+                                str(gate_read), "0", "",
+                                "/bin/sh", "-c", 'printf started > "$1"',
+                                "command", str(marker),
+                            ],
+                            cwd=root,
+                            pass_fds=(gate_read,),
+                            capture_output=True,
+                            timeout=5,
+                        )
+                    finally:
+                        os.close(gate_read)
+                        if gate_write is not None:
+                            os.close(gate_write)
+                    self.assertEqual(125, result.returncode)
+                    self.assertFalse(marker.exists())
+
+    @unittest.skipUnless(os.name == "posix", "POSIX startup environment test")
+    def test_start_gate_isolates_python_startup_and_preserves_locale(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            marker = root / "startup-hook"
+            (root / "sitecustomize.py").write_text(
+                "from pathlib import Path; Path(%r).touch()" % str(marker),
+                encoding="utf-8",
+            )
+            environment = {
+                key: value for key, value in os.environ.items()
+                if not key.startswith("LC_")
+            }
+            environment.update(LANG="C", PYTHONPATH=str(root))
+            for locale_value in (None, "", "C"):
+                with self.subTest(locale_value=locale_value):
+                    if locale_value is None:
+                        environment.pop("LC_CTYPE", None)
+                    else:
+                        environment["LC_CTYPE"] = locale_value
+                    result = _run_process(
+                        ["/bin/sh", "-c", 'printf "%s|%s|%s" "$LANG" "${LC_CTYPE+x}" "${LC_CTYPE-}"'],
+                        root,
+                        environment,
+                        timeout_seconds=5,
+                    )
+                    expected = "C||" if locale_value is None else "C|x|" + locale_value
+                    self.assertEqual(0, result.returncode, result.stderr)
+                    self.assertEqual(expected, result.stdout)
+                    self.assertFalse(marker.exists())
+
+    @unittest.skipUnless(os.name == "posix", "POSIX shell exec contract")
+    def test_start_gate_preserves_shell_exec_errors_and_sigpipe(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            denied = root / "not-executable"
+            denied.write_text("exit 0\n", encoding="utf-8")
+            script = root / "no-shebang"
+            script.write_text("exit 23\n", encoding="utf-8")
+            script.chmod(0o700)
+            for argv, expected in (
+                ([str(root / "missing")], 127),
+                ([str(denied)], 126),
+                ([str(script)], 23),
+                (["/bin/sh", "-c", "kill -PIPE $$"], -signal.SIGPIPE),
+            ):
+                with self.subTest(argv=argv):
+                    result = _run_process(argv, root, os.environ.copy(), timeout_seconds=5)
+                    self.assertEqual(expected, result.returncode, result.stderr)
+
     @unittest.skipUnless(os.name == "posix", "process-group test requires POSIX")
     def test_interrupt_terminates_the_active_process_group(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

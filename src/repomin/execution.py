@@ -9,6 +9,7 @@ import shutil
 import signal
 import stat
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -25,6 +26,32 @@ _DOCKER_IMAGE_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
 _WINDOWS_CREATE_SUSPENDED = 0x00000004
 _MAX_CAPTURE_BYTES = 64 * 1024 * 1024
 _CAPTURE_PREVIEW_BYTES = 1024 * 1024
+
+# Read the inherited descriptor directly: /dev/fd is optional, and POSIX
+# shells such as dash reject redirections from multi-digit descriptors.
+# Isolated startup prevents repository code and site hooks from running
+# before the parent registers this process for cancellation.
+_POSIX_START_GATE = """\
+import os
+import signal
+import sys
+
+with os.fdopen(int(sys.argv[1]), "rb") as gate:
+    if gate.readline(6) != b"start\\n":
+        sys.exit(125)
+
+# Python can coerce the C locale during startup; preserve the command's env.
+if sys.argv[2] == "1":
+    os.environ["LC_CTYPE"] = sys.argv[3]
+else:
+    os.environ.pop("LC_CTYPE", None)
+# Match Popen's restore_signals behavior after Python's own startup.
+for name in ("SIGPIPE", "SIGXFZ", "SIGXFSZ"):
+    if hasattr(signal, name):
+        signal.signal(getattr(signal, name), signal.SIG_DFL)
+# Keep the existing shell exec behavior, including 126/127 and ENOEXEC.
+os.execv("/bin/sh", ["/bin/sh", "-c", 'exec "$@"', "repomin-gate"] + sys.argv[4:])
+"""
 
 
 class RunnerError(RuntimeError):
@@ -652,16 +679,15 @@ def _run_process(
             popen_options = {}
             if os.name == "posix":
                 gate_read, gate_write = os.pipe()
-                gate_script = (
-                    "IFS= read -r repomin_gate < /dev/fd/%d || exit 125\n"
-                    "exec \"$@\""
-                    % gate_read
-                )
                 command_argv = [
-                    "/bin/sh",
+                    sys.executable,
+                    "-I",
+                    "-S",
                     "-c",
-                    gate_script,
-                    "repomin-gate",
+                    _POSIX_START_GATE,
+                    str(gate_read),
+                    "1" if "LC_CTYPE" in environment else "0",
+                    environment.get("LC_CTYPE", ""),
                 ] + command_argv
                 popen_options["pass_fds"] = (gate_read,)
             process = subprocess.Popen(

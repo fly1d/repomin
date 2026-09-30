@@ -588,7 +588,12 @@ coverage partial. Missing legacy phase counters are never synthesized.
 ## Execution backends
 
 The host runner does not release a command until it is registered for
-cancellation. On POSIX, a gate pipe holds a new process group before `exec`; on
+cancellation. On POSIX, a gate pipe holds a new process group before `exec`. An
+isolated Python launcher reads the inherited descriptor directly, without
+`/dev/fd` or single-digit shell descriptor limits. It refuses EOF or an invalid
+activation token, closes the pipe, and restores the command's locale and signal
+defaults before the existing shell `exec`. This adds one Python startup per
+command; `-I -S` excludes repository imports and site hooks from the gate. On
 Windows, the process is created suspended, assigned to a fail-closed Job Object
 with `KILL_ON_JOB_CLOSE`, registered, and then resumed. Timeout, resource
 failure, interruption, or a parallel-worker exception first cancels every
