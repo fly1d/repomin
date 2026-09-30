@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Reduction preflight now applies the same effective ignore and protected-path
+  rules as Doctor. Explicitly excluded generated entries no longer block a
+  reduction after Doctor succeeds; unsafe entries that remain selected are
+  still rejected before execution. Gitignore rule files are checked before
+  reading so exclusions cannot hide unsafe repository rule-file links.
+
 ## [0.1.0.dev13] - 2026-09-11
 
 ### Added
