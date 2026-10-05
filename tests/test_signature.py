@@ -613,7 +613,7 @@ class PythonExceptionSignatureTest(unittest.TestCase):
         self.assertTrue(oracle.accepts(candidate))
         from dataclasses import replace
         self.assertFalse(oracle.accepts(replace(candidate, stdout=candidate.stdout.replace("payment failed", "refund failed"))))
-        self.assertFalse(oracle.accepts(replace(candidate, stdout=candidate.stdout.replace("/payments/", "/refunds/"))))
+        self.assertFalse(oracle.accepts(replace(candidate, stdout=candidate.stdout.replace("payments", "refunds"))))
         from repomin.session import _run_result_to_dict, _run_result_from_dict
         saved = _run_result_to_dict(candidate)
         self.assertEqual(candidate, _run_result_from_dict(saved))
@@ -663,7 +663,14 @@ class PythonExceptionSignatureTest(unittest.TestCase):
             oracle.verify_baseline(roots[0], repeat=2, prepare=lambda: next(baselines))
             self.assertTrue(oracle.accepts(runner.run(roots[2])))
             other = CommandRunner(subprocess.list2cmdline([sys.executable, "refunds/service.py"]), 5)
-            self.assertFalse(oracle.accepts(other.run(roots[3])))
+            other_result = other.run(roots[3])
+            self.assertFalse(oracle.accepts(other_result),
+                             "baseline=%r; candidate=%r; root=%r; output=%r" % (
+                                 oracle.python_exception_signature,
+                                 extract_run_python_exception(other_result),
+                                 other_result.python_execution_root,
+                                 other_result.output,
+                             ))
             self.assertEqual(PYTHON_FRAME_POLICY, oracle.python_exception_signature.normalization_policy)
 
     def test_extracts_exception_and_normalizes_paths_lines_and_whitespace(self) -> None:
