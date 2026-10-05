@@ -33,6 +33,17 @@ def _python_command(script: str) -> str:
 
 
 class ExecutionTest(unittest.TestCase):
+    def test_host_uses_canonical_cwd_for_execution_and_frame_context(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            spelling = root / "parent" / ".."
+            (root / "parent").mkdir()
+            canonical = root.resolve()
+            with mock.patch("repomin.execution._run_process", return_value=RunResult(1, "", "", 0.01)) as run:
+                result = CommandRunner("false", timeout_seconds=5).run(spelling)
+            self.assertEqual(canonical, run.call_args.args[1])
+            self.assertEqual(str(canonical), result.python_execution_root)
+
     def test_runners_attach_host_and_container_frame_roots_without_changing_output(self) -> None:
         from dataclasses import replace
         result = RunResult(1, "stdout", "stderr", 0.01)

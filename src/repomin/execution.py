@@ -365,18 +365,23 @@ class CommandRunner:
 
     def run(self, cwd: Path) -> RunResult:
         cwd_identity = _working_directory_identity(cwd)
+        # Use the same spelling for process cwd and traceback normalization.
+        # Windows temporary paths may use an 8.3 alias that resolve() expands.
+        execution_root = cwd.resolve()
+        _verify_working_directory_identity(execution_root, cwd_identity)
         env = os.environ.copy()
         env.update(self.environment)
         env["REPOMIN"] = "1"
         result = _run_process(
             _host_shell_command(self.command),
-            cwd,
+            execution_root,
             env,
             self.timeout_seconds,
             process_registry=self._process_registry,
         )
         _verify_working_directory_identity(cwd, cwd_identity)
-        result = replace(result, python_execution_root=str(cwd.resolve()))
+        _verify_working_directory_identity(execution_root, cwd_identity)
+        result = replace(result, python_execution_root=str(execution_root))
         return _attach_diagnostics(result, cwd, self.collect_java_diagnostics)
 
 

@@ -128,8 +128,11 @@ Tests must cover repeated baselines, a matching candidate, and a near-match
 with a different message or origin frame.
 
 Python frame policy `execution-root-relative-v1` uses the host runner's canonical
-execution directory or Docker's explicit `/workspace` mount root. Matching is
-lexical, on a directory boundary, and retains the complete relative module path
+execution directory or Docker's explicit `/workspace` mount root. Frame paths
+use the same canonical directory spelling passed to the host process, so
+Windows 8.3 aliases and macOS temporary-directory aliases cannot drift from the
+recorded root. The original and canonical directory identities are checked.
+Matching is lexical, on a directory boundary, and retains the complete relative module path
 and function; it never guesses a host root from a `/workspace` substring. External
 frames retain the existing site-packages/basename fallback. Custom runners can
 supply `RunResult.python_execution_root`; context-free extraction retains legacy
