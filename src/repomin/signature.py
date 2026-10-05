@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import posixpath
 import re
 import signal
 import xml.etree.ElementTree as ET
@@ -8,6 +9,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Pattern, Sequence
 
 from repomin.model import (
+    PYTHON_FRAME_POLICY,
     JavaExceptionSignature,
     ProcessFailureSignature,
     PythonExceptionSignature,
@@ -79,12 +81,13 @@ class _PythonExceptionBlock:
     header: str
     frames: List[str] = field(default_factory=list)
 
-    def signature(self) -> PythonExceptionSignature:
+    def signature(self, rooted: bool = False) -> PythonExceptionSignature:
         innermost = list(reversed(self.frames[-_MAX_FRAMES:]))
         return PythonExceptionSignature(
             class_name=self.class_name,
             message=self.message,
             frames=tuple(innermost),
+            normalization_policy=PYTHON_FRAME_POLICY if rooted else None,
         )
 
 
@@ -250,13 +253,19 @@ def _java_block_text(block: _ExceptionBlock) -> str:
 def extract_run_python_exception(
     result: RunResult,
     pattern: Optional[Pattern[str]] = None,
+    use_execution_root: bool = True,
 ) -> Optional[PythonExceptionSignature]:
-    return extract_python_exception(result.output, pattern)
+    return extract_python_exception(
+        result.output, pattern,
+        execution_root=result.python_execution_root if use_execution_root else None,
+    )
 
 
 def extract_python_exception(
     text: str,
     pattern: Optional[Pattern[str]] = None,
+    *,
+    execution_root: Optional[str] = None,
 ) -> Optional[PythonExceptionSignature]:
     blocks: List[_PythonExceptionBlock] = []
     active_frames: Optional[List[str]] = None
@@ -276,6 +285,7 @@ def extract_python_exception(
                     _python_frame(
                         frame_match.group("path"),
                         frame_match.group("function") or "<module>",
+                        execution_root,
                     )
                 )
                 continue
@@ -310,6 +320,7 @@ def extract_python_exception(
                 _python_frame(
                     location_match.group("path"),
                     location_match.group("function") or "<module>",
+                    execution_root,
                 )
             )
             pending_pytest = None
@@ -326,18 +337,18 @@ def extract_python_exception(
         for block in ordered:
             if pattern.search(_python_block_text(block)) is None:
                 continue
-            signature = block.signature()
+            signature = block.signature(execution_root is not None)
             if signature not in matching:
                 matching.append(signature)
         if matching:
             return matching[0] if len(matching) == 1 else None
         signatures = []
         for block in ordered:
-            signature = block.signature()
+            signature = block.signature(execution_root is not None)
             if signature not in signatures:
                 signatures.append(signature)
         return signatures[0] if len(signatures) == 1 else None
-    return ordered[0].signature() if ordered else None
+    return ordered[0].signature(execution_root is not None) if ordered else None
 
 
 def _python_block_text(block: _PythonExceptionBlock) -> str:
@@ -409,8 +420,26 @@ def _normalize_frame(method: str) -> str:
     return method.rsplit("/", 1)[-1]
 
 
-def _python_frame(path: str, function: str) -> str:
+def _python_frame(
+    path: str, function: str, execution_root: Optional[str] = None,
+) -> str:
     normalized = path.replace("\\", "/")
+    if execution_root is not None:
+        root = posixpath.normpath(execution_root.replace("\\", "/")).rstrip("/") + "/"
+        candidate = posixpath.normpath(normalized)
+        windows = re.match(r"^[A-Za-z]:/", root) is not None
+        compared = candidate.casefold() if windows else candidate
+        prefix = root.casefold() if windows else root
+        if compared.startswith(prefix):
+            normalized = candidate[len(root):]
+            return "%s:%s" % (normalized, function.strip() or "<module>")
+        # A host path containing /workspace is not a container-relative path.
+        # Keep the legacy site-packages and external-frame fallback below.
+        if "/site-packages/" in normalized:
+            normalized = normalized.rsplit("/site-packages/", 1)[-1]
+        elif normalized.startswith("/") or re.match(r"^[A-Za-z]:/", normalized):
+            normalized = normalized.rsplit("/", 1)[-1]
+        return "%s:%s" % (normalized or "<unknown>", function.strip() or "<module>")
     for marker in ("/workspace/", "/site-packages/"):
         if marker in normalized:
             normalized = normalized.rsplit(marker, 1)[-1]
