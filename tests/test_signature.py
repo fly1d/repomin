@@ -1,10 +1,12 @@
 import re
 import signal
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from repomin.model import FailureSpec, ProcessFailureSignature, RunResult
+from repomin.model import FailureSpec, ProcessFailureSignature, RunResult, PYTHON_FRAME_POLICY
 from repomin.oracle import (
     BASELINE_RATE_EVIDENCE_FIELDS,
     CommandRunner,
@@ -18,6 +20,7 @@ from repomin.signature import (
     extract_process_failure,
     extract_java_exception,
     extract_python_exception,
+    extract_run_python_exception,
     format_process_failure_signature,
 )
 
@@ -551,6 +554,118 @@ java.lang.NoSuchMethodError: demo.Target.missing()
 
 
 class PythonExceptionSignatureTest(unittest.TestCase):
+    def test_known_roots_preserve_module_identity_across_fresh_copies(self) -> None:
+        roots = (
+            "/workspace/demo/.repomin-session-a/baseline-0001",
+            "/workspace/demo/.repomin-session-b/baseline-0002",
+            "/tmp/fresh-copy",
+            "/workspace",
+            "C:/work/fresh-copy",
+        )
+        signatures = []
+        for root in roots:
+            for separator in ("/", "\\"):
+                path = (root + "/app/payments/service.py").replace("/", separator)
+                text = ('Traceback (most recent call last):\n'
+                        '  File "%s", line 42, in checkout\n'
+                        'ValueError: payment failed\n' % path)
+                signatures.append(extract_python_exception(text, execution_root=root))
+        self.assertTrue(all(s == signatures[0] for s in signatures))
+        self.assertEqual(("app/payments/service.py:checkout",), signatures[0].frames)
+        other = text.replace("payments", "refunds")
+        self.assertNotEqual(signatures[0], extract_python_exception(other, execution_root=root))
+
+    def test_root_matching_requires_a_component_boundary_and_normalizes_dot_segments(self) -> None:
+        def signature(path, root):
+            return extract_python_exception(
+                'Traceback (most recent call last):\n'
+                '  File "%s", line 1, in work\nValueError: failure\n' % path,
+                execution_root=root,
+            )
+        self.assertEqual(("app/service.py:work",), signature(
+            "/workspace/copy/app/../app/service.py", "/workspace/copy").frames)
+        self.assertEqual(("service.py:work",), signature(
+            "/workspace/copy-other/app/service.py", "/workspace/copy").frames)
+        self.assertEqual(("service.py:work",), signature(
+            "/workspace/copy/../external/app/service.py", "/workspace/copy").frames)
+        self.assertEqual(("app/service.py:work",), signature(
+            "c:/WORK/COPY/app/service.py", "C:/work/copy").frames)
+
+    def test_root_context_handles_absolute_and_relative_pytest_locations(self) -> None:
+        root = "/workspace/copy"
+        signatures = [extract_python_exception(
+            "E   ValueError: failure\n%s:10: ValueError\n" % path,
+            execution_root=root,
+        ) for path in (root + "/app/service.py", "app/service.py")]
+        self.assertEqual(signatures[0], signatures[1])
+        self.assertEqual(("app/service.py:<module>",), signatures[0].frames)
+
+    def test_fresh_copy_oracle_and_checkpoint_keep_context_and_reject_near_matches(self) -> None:
+        class RootRunner:
+            def run(self, cwd):
+                return RunResult(1, _python_stack("payment failed", root=str(cwd / "payments")), "", 0.01,
+                                 python_execution_root=str(cwd))
+        runner = RootRunner()
+        oracle = FailureOracle(runner, FailureSpec("ValueError", python_exception=True))
+        roots = iter([Path("/workspace/demo/session-a"), Path("/workspace/demo/session-b")])
+        oracle.verify_baseline(Path("."), repeat=2, prepare=lambda: next(roots))
+        candidate = runner.run(Path("/workspace/demo/candidate"))
+        self.assertTrue(oracle.accepts(candidate))
+        from dataclasses import replace
+        self.assertFalse(oracle.accepts(replace(candidate, stdout=candidate.stdout.replace("payment failed", "refund failed"))))
+        self.assertFalse(oracle.accepts(replace(candidate, stdout=candidate.stdout.replace("/payments/", "/refunds/"))))
+        from repomin.session import _run_result_to_dict, _run_result_from_dict
+        saved = _run_result_to_dict(candidate)
+        self.assertEqual(candidate, _run_result_from_dict(saved))
+        state = oracle.checkpoint_state()
+        self.assertEqual(PYTHON_FRAME_POLICY, state["python_frame_policy"])
+        restored = FailureOracle(runner, oracle.spec)
+        restored.restore_checkpoint_state(state)
+        self.assertTrue(restored.accepts(_run_result_from_dict(saved)))
+        for policy in (None, "unsupported-policy"):
+            broken = dict(state, python_frame_policy=policy)
+            with self.assertRaisesRegex(OracleError, "normalization policy changed"):
+                restored.restore_checkpoint_state(broken)
+        broken_signature = dict(state, python_exception_signature=dict(
+            state["python_exception_signature"], normalization_policy="unsupported-policy",
+        ))
+        with self.assertRaisesRegex(OracleError, "invalid Python frame normalization policy"):
+            restored.restore_checkpoint_state(broken_signature)
+        old = dict(state)
+        del old["python_frame_policy"]
+        with self.assertRaisesRegex(OracleError, "start a new session"):
+            restored.restore_checkpoint_state(old)
+
+    def test_legacy_oracle_retains_old_frame_contract_for_report_replay(self) -> None:
+        result = RunResult(1, _python_stack("payment failed", root="/tmp/copy/payments"), "", 0.01,
+                           python_execution_root="/tmp/copy")
+        legacy = FailureOracle(_SequenceRunner([]), FailureSpec("ValueError", python_exception=True),
+                               python_frame_policy=None)
+        legacy.pin_failure_signature(extract_run_python_exception(result, use_execution_root=False))
+        self.assertTrue(legacy.accepts(result))
+        modern = FailureOracle(_SequenceRunner([]), legacy.spec)
+        modern.pin_failure_signature(legacy.python_exception_signature)
+        self.assertFalse(modern.accepts(result))
+
+    def test_real_runner_matches_fresh_copies_and_rejects_same_basename_elsewhere(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            roots = [Path(directory) / name for name in ("baseline-a", "baseline-b", "candidate", "other")]
+            for root in roots:
+                folder = root / ("refunds" if root.name == "other" else "payments")
+                folder.mkdir(parents=True)
+                (folder / "service.py").write_text(
+                    "def checkout():\n    raise ValueError('payment failed')\ncheckout()\n",
+                    encoding="utf-8",
+                )
+            runner = CommandRunner(subprocess.list2cmdline([sys.executable, "payments/service.py"]), 5)
+            oracle = FailureOracle(runner, FailureSpec("ValueError", python_exception=True))
+            baselines = iter(roots[:2])
+            oracle.verify_baseline(roots[0], repeat=2, prepare=lambda: next(baselines))
+            self.assertTrue(oracle.accepts(runner.run(roots[2])))
+            other = CommandRunner(subprocess.list2cmdline([sys.executable, "refunds/service.py"]), 5)
+            self.assertFalse(oracle.accepts(other.run(roots[3])))
+            self.assertEqual(PYTHON_FRAME_POLICY, oracle.python_exception_signature.normalization_policy)
+
     def test_extracts_exception_and_normalizes_paths_lines_and_whitespace(self) -> None:
         first = extract_python_exception(
             _python_stack("payment   failed", line=42, root="/tmp/session-1")

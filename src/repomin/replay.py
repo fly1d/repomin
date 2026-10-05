@@ -107,7 +107,9 @@ def replay_report(
         docker_image,
         docker_network,
     )
-    oracle = FailureOracle(runner, spec)
+    python_signature = report.get("python_exception_signature", {})
+    policy = python_signature.get("normalization_policy") if isinstance(python_signature, dict) else None
+    oracle = FailureOracle(runner, spec, python_frame_policy=policy)
     if signature is not None:
         oracle.pin_failure_signature(signature)
 
@@ -442,11 +444,13 @@ def _exception_signature(
         or any(not isinstance(frame, str) or not frame for frame in frames)
     ):
         raise ReplayError("report contains an invalid %s" % name)
-    signature_type = JavaExceptionSignature if java else PythonExceptionSignature
-    return signature_type(
+    if java:
+        return JavaExceptionSignature(class_name, message, tuple(frames))
+    return PythonExceptionSignature(
         class_name,
         message,
         tuple(frames),
+        value.get("normalization_policy"),
     )
 
 

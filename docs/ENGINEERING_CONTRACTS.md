@@ -127,6 +127,27 @@ retain enough identity to reject a different failure of the same broad class.
 Tests must cover repeated baselines, a matching candidate, and a near-match
 with a different message or origin frame.
 
+Python frame policy `execution-root-relative-v1` uses the host runner's canonical
+execution directory or Docker's explicit `/workspace` mount root. Matching is
+lexical, on a directory boundary, and retains the complete relative module path
+and function; it never guesses a host root from a `/workspace` substring. External
+frames retain the existing site-packages/basename fallback. Custom runners can
+supply `RunResult.python_execution_root`; context-free extraction retains legacy
+normalization. Command output must remain unchanged.
+
+Root-aware Python signatures carry their actual normalization policy into
+`python_exception_signature.normalization_policy` without changing report schema
+version 1. Context-free/legacy signatures must omit the report field. Replay
+must select the recorded policy; absent
+policy means legacy normalization, and an unknown policy fails before execution.
+Never rewrite a legacy learned signature to make it match new observations.
+Private checkpoints retain each run's execution root and the oracle's
+`python_frame_policy`. A missing or different Python policy requires a new
+session; non-Python checkpoints remain compatible. Execution roots must not be
+added to shareable reports or summaries. Tests must cover fresh-copy baselines,
+same-basename modules in different directories, legacy/new replay, checkpoint
+round trips, and rejection of incompatible policies.
+
 Process failure signatures must come from the observed return code, never from
 localized shell output. Keep direct POSIX signals distinct from positive
 shell/container exit codes, normalize signed and unsigned Windows statuses to

@@ -8,7 +8,7 @@ from unittest import mock
 
 from repomin import __version__
 from repomin.cli import _markdown_cell, format_validation_markdown, main
-from repomin.model import FailureSpec, ReductionResult, ReductionStats, RunResult
+from repomin.model import PYTHON_FRAME_POLICY, FailureSpec, PythonExceptionSignature, ReductionResult, ReductionStats, RunResult
 from repomin.report import (
     ReportValidationError,
     _build_report,
@@ -95,6 +95,30 @@ class ReportValidationTest(unittest.TestCase):
                 report["output"]["tree_sha256"],
             )
             self.assertIs(validate_report_document(report), report)
+
+    def test_python_report_uses_actual_policy_without_private_execution_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "reduced"
+            output.mkdir()
+            (output / "service.py").write_text("failure\n", encoding="utf-8")
+            for policy in (None, PYTHON_FRAME_POLICY):
+                with self.subTest(policy=policy):
+                    run = RunResult(1, "", "", 0.0, python_execution_root="/private/transient-copy")
+                    result = ReductionResult(
+                        output, ReductionStats(source_files=1, source_bytes=8, output_files=1, output_bytes=8),
+                        run, run, python_exception_signature=PythonExceptionSignature(
+                            "ValueError", "failure", ("service.py:checkout",), policy,
+                        ),
+                    )
+                    report = _build_report(result, "python service.py", "ValueError",
+                                           failure_spec=FailureSpec("ValueError", python_exception=True))
+                    signature = report["python_exception_signature"]
+                    self.assertEqual(policy, signature.get("normalization_policy"))
+                    self.assertEqual(policy is not None, "normalization_policy" in signature)
+                    validate_report_document(report)
+                    for exported in (json.dumps(report), _reproduction_markdown(result, "python service.py", "ValueError")):
+                        self.assertNotIn("python_execution_root", exported)
+                        self.assertNotIn("/private/transient-copy", exported)
 
     def test_transport_content_fingerprint_survives_mtime_rewrite(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

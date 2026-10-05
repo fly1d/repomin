@@ -376,6 +376,7 @@ class CommandRunner:
             process_registry=self._process_registry,
         )
         _verify_working_directory_identity(cwd, cwd_identity)
+        result = replace(result, python_execution_root=str(cwd.resolve()))
         return _attach_diagnostics(result, cwd, self.collect_java_diagnostics)
 
 
@@ -597,6 +598,7 @@ class DockerRunner:
                 % (detail[0] if detail else "docker returned exit code 125")
             )
         _verify_working_directory_identity(cwd, cwd_identity)
+        result = replace(result, python_execution_root="/workspace")
         return _attach_diagnostics(result, cwd, self.collect_java_diagnostics)
 
     def _remove_container(self, cidfile: Path) -> bool:

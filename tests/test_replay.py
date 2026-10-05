@@ -18,13 +18,14 @@ from unittest import mock
 from repomin.cli import main
 from repomin.model import (
     FailureSpec,
+    PYTHON_FRAME_POLICY,
     ProcessFailureSignature,
     ReductionResult,
     ReductionStats,
     RunResult,
 )
 from repomin.replay import ReplayError, format_replay, replay_report
-from repomin.report import ReportValidationError, _build_report, measure_tree
+from repomin.report import ReportValidationError, _build_report, measure_tree, validate_report_document
 from repomin.session import _tree_digest
 
 
@@ -109,6 +110,38 @@ class ReplayTest(unittest.TestCase):
         report_path = metadata / "report.json"
         report_path.write_text(json.dumps(report), encoding="utf-8")
         return payload, report_path, report
+
+    def test_python_replay_selects_recorded_policy_and_rejects_unknown_policy(self) -> None:
+        for policy in (None, PYTHON_FRAME_POLICY):
+            with self.subTest(policy=policy):
+                payload, report_path, report = self._fixture(
+                    spec=FailureSpec("ValueError", python_exception=True))
+                value = {
+                    "class": "ValueError", "message": "payment failed",
+                    "frames": ["app/service.py:checkout" if policy else "service.py:checkout"],
+                }
+                if policy is not None:
+                    value["normalization_policy"] = policy
+                report["python_exception_signature"] = value
+                validate_report_document(report)
+                report_path.write_text(json.dumps(report), encoding="utf-8")
+
+                def run(_runner, _cwd):
+                    return RunResult(1,
+                        'Traceback (most recent call last):\n'
+                        '  File "/tmp/fresh-copy/app/service.py", line 9, in checkout\n'
+                        'ValueError: payment failed\n', "", 0.01,
+                        python_execution_root="/tmp/fresh-copy")
+                with mock.patch("repomin.replay.CommandRunner.run", run):
+                    reproduced, result = replay_report(report_path, payload, runs=2)
+                self.assertTrue(reproduced)
+                self.assertEqual(2, result["passes"])
+                report["python_exception_signature"]["normalization_policy"] = "future-policy"
+                report_path.write_text(json.dumps(report), encoding="utf-8")
+                with mock.patch("repomin.replay.CommandRunner.run") as command:
+                    with self.assertRaisesRegex(ReportValidationError, "normalization policy"):
+                        replay_report(report_path, payload, runs=1)
+                    command.assert_not_called()
 
     def test_replay_uses_fresh_copies_and_preserves_payload(self) -> None:
         payload, report_path, _report = self._fixture()
