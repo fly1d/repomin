@@ -60,6 +60,7 @@ from repomin.oracle import (
     clopper_pearson_lower_bound,
     exact_binomial_rate_gate,
 )
+from repomin.output_paths import validate_output_parent
 from repomin.pipenv_manifest import PipenvManifestReducer
 from repomin.python_manifest import PythonManifestReducer
 from repomin.python_source import PythonSourceReducer
@@ -1101,6 +1102,7 @@ def main(
             args.session,
             args.resume,
         )
+        validate_output_parent(output)
         baseline_min_passes = _sample_threshold(
             args.baseline_runs,
             args.min_baseline_passes,
@@ -2591,6 +2593,9 @@ def _reject_symbolic_link(path: Path, label: str) -> None:
         mode = path.lstat().st_mode
     except FileNotFoundError:
         return
+    except NotADirectoryError:
+        validate_output_parent(path)
+        raise
     if stat.S_ISLNK(mode):
         raise FileExistsError("%s must not be a symbolic link: %s" % (label, path))
 
