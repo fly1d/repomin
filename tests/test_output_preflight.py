@@ -59,7 +59,7 @@ class OutputPreflightTest(unittest.TestCase):
                 root, source, arguments = self._fixture()
                 parent = root / "parent"
                 if kind != "missing":
-                    parent.write_text("existing file\n", encoding="utf-8")
+                    parent.write_bytes(b"existing file\n")
                 output = parent / "result"
                 if kind == "file-ancestor":
                     output = parent / "nested" / "result"
