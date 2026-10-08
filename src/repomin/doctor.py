@@ -24,6 +24,7 @@ from repomin.input_paths import (
 )
 from repomin.model import FailureSpec
 from repomin.oracle import FailureOracle, OracleError
+from repomin.output_paths import validate_output_parent
 from repomin.sampling import sample_threshold, validate_rate_attainable
 from repomin.session import (
     DEFAULT_IGNORES,
@@ -587,6 +588,12 @@ def run_doctor(
     )
     if not configured_output.is_absolute():
         configured_output = Path.cwd() / configured_output
+    output_parent_valid = True
+    try:
+        validate_output_parent(configured_output)
+    except ValueError as exc:
+        output_parent_valid = False
+        _check(checks, "output", "fail", str(exc))
     working_directory_valid = backend != "host" or _valid_directory_basename(
         configured_output.name
     )
@@ -597,6 +604,8 @@ def run_doctor(
             "fail",
             "host output path must end in a single ordinary directory name",
         )
+        output_path = configured_output
+    elif not output_parent_valid:
         output_path = configured_output
     elif configured_output.is_symlink():
         _check(checks, "output", "fail", "output must not be a symbolic link")
@@ -845,6 +854,7 @@ def run_doctor(
         and oracle_valid
         and backend_valid
         and working_directory_valid
+        and output_parent_valid
         and baseline_configuration_valid
         and selection_valid
     ):

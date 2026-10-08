@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Doctor and reduction reject missing or non-directory output parents before
+  running the failure command. Create the parent directory explicitly instead
+  of completing a reduction that cannot publish its payload and report.
+
 ## [0.1.0.dev13] - 2026-09-11
 
 ### Added

@@ -28,6 +28,12 @@ working-directory basename:
 repomin doctor . --output /tmp/project-repro
 ```
 
+The output's parent directory must already exist. If a new parent is needed,
+create it with `mkdir` before running Doctor or reduction. A missing or
+non-directory parent fails the output check before any baseline command runs;
+Doctor does not create directories, and reduction does not create output
+ancestors implicitly.
+
 Use the same repository exclusion rules as the reduction command when generated
 files or nested projects would otherwise affect detection:
 
