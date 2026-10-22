@@ -101,38 +101,6 @@ exact process termination signature. `--baseline-runs N` changes the number
 of fresh checks; it defaults to two. Doctor never treats a command's output as
 an issue report and does not include stdout/stderr in its result.
 
-## When the original command works but the baseline fails
-
-Doctor runs the command in disposable repository copies. A command that depends
-on an ignored environment, a generated file, an absolute checkout path, or a
-working-directory name can behave differently there.
-
-For Python projects, `.venv` and `venv` are excluded by default. A relative
-command such as `.venv/bin/python -m pytest` therefore loses its interpreter in
-the copy. Use the absolute interpreter from the project's working environment,
-or keep that environment active and use `python`. Installing ReproMin in a new
-environment does not install pytest or the project's other dependencies there.
-The [Bash/Zsh quick start](QUICKSTART.md#1-install-the-published-release)
-keeps the project interpreter and environment while calling ReproMin from a
-separate tool environment. The
-[PowerShell tour](QUICKSTART.windows.md#3-preflight-and-reduce-the-project)
-shows how a process-local `PATH` keeps an environment available to fresh copies;
-for a real project, that interpreter must also contain its dependencies.
-
-| Observation | What to check |
-| --- | --- |
-| The baseline reports `0/2` passes | The complete failure contract was not observed in either run; this does not identify the cause. |
-| The last exit code differs from `--exit-code` | Check the executable, relative paths, selected environment, and setup command. A command-not-found exit can come from an excluded `.venv`. |
-| The last exit code agrees, but the baseline still fails | Check the actual error in the project environment, the exact marker or regex, and any requested exception/process signature. A missing dependency and the intended failure can share an exit code. |
-| The baseline reports a timeout or resource exhaustion | Check whether setup fits the selected timeout and backend limits before changing the failure contract. |
-
-Doctor deliberately omits raw stdout/stderr. Run the trusted command yourself
-to inspect its error; if you need to compare fresh-copy behavior, use a separate
-scratch checkout with the same exclusions. Do not run diagnostic commands in an
-exported payload while validation or replay is reading it. Keep the strict
-marker and exit code: broadening the oracle can accept a setup failure instead
-of the bug you want to reduce.
-
 ## Output formats
 
 Doctor writes its existing detailed text result by default. The equivalent
@@ -187,3 +155,35 @@ correctness claim.
 The baseline runs in disposable copies and inherits the normal host or Docker
 trust boundary. Do not run an untrusted command on the host backend, and review
 the repository and environment settings before sharing Doctor output.
+
+## When the original command works but the baseline fails
+
+Doctor runs the command in disposable repository copies. A command that depends
+on an ignored environment, a generated file, an absolute checkout path, or a
+working-directory name can behave differently there.
+
+For Python projects, `.venv` and `venv` are excluded by default. A relative
+command such as `.venv/bin/python -m pytest` therefore loses its interpreter in
+the copy. Use the absolute interpreter from the project's working environment,
+or keep that environment active and use `python`. Installing ReproMin in a new
+environment does not install pytest or the project's other dependencies there.
+The [Bash/Zsh quick start](QUICKSTART.md#1-install-the-published-release)
+keeps the project interpreter and environment while calling ReproMin from a
+separate tool environment. The
+[PowerShell tour](QUICKSTART.windows.md#3-preflight-and-reduce-the-project)
+shows how a process-local `PATH` keeps an environment available to fresh copies;
+for a real project, that interpreter must also contain its dependencies.
+
+| Observation | What to check |
+| --- | --- |
+| The baseline reports `0/2` passes | The complete failure contract was not observed in either run; this does not identify the cause. |
+| The last exit code differs from `--exit-code` | Check the executable, relative paths, selected environment, and setup command. A command-not-found exit can come from an excluded `.venv`. |
+| The last exit code agrees, but the baseline still fails | Check the actual error in the project environment, the exact marker or regex, and any requested exception/process signature. A missing dependency and the intended failure can share an exit code. |
+| The baseline reports a timeout or resource exhaustion | Check whether setup fits the selected timeout and backend limits before changing the failure contract. |
+
+Doctor deliberately omits raw stdout/stderr. Run the trusted command yourself
+to inspect its error; if you need to compare fresh-copy behavior, use a separate
+scratch checkout with the same exclusions. Do not run diagnostic commands in an
+exported payload while validation or replay is reading it. Keep the strict
+marker and exit code: broadening the oracle can accept a setup failure instead
+of the bug you want to reduce.
