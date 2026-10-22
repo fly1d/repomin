@@ -22,22 +22,37 @@ ReproMin 只会保留仍被失败契约接受的修改，不会诊断根因。�
 
 ## 1. 安装发布版本
 
-创建隔离环境，并从经过发布检查的 GitHub Release 安装当前开发版本：
+下面以 Python 测试为例。先按项目原有方式选择已有的环境，在创建 ReproMin
+环境前，记住那个已经安装项目测试依赖的解释器：
 
 ```sh
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install --upgrade pip
+project_python="$(python -c 'import sys; print(sys.executable)')"
+"$project_python" -m pytest --version
+```
+
+如果找不到 pytest，先选择或准备项目自己的环境。安装 ReproMin 不会安装项目依赖。
+
+在源仓库外创建独立环境，并从经过发布检查的 GitHub Release 安装当前开发版本。
+后续通过工具的绝对路径调用，保持项目当前的环境和 `PATH`：
+
+```sh
+repomin_env="$HOME/.venvs/repomin"
+python3 -m venv "$repomin_env"
+"$repomin_env/bin/python" -m pip install --upgrade pip
 
 REPOMIN_VERSION=0.1.0.dev13
-python -m pip install \
+"$repomin_env/bin/python" -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 
-repomin --version
+repomin_cli="$repomin_env/bin/repomin"
+"$repomin_cli" --version
 ```
 
 最后一条命令应输出 `repomin 0.1.0.dev13`。发布页提供 wheel、源码归档和
 SHA-256 校验值。ReproMin 目前尚未发布到 PyPI。
+
+其他指南用 `repomin` 表示工具命令。按这里单独安装后，请用 `"$repomin_cli"`
+替换它，并在同一终端中保持项目环境。
 
 ## 2. 确认命令和严格失败契约
 
@@ -45,13 +60,13 @@ SHA-256 校验值。ReproMin 目前尚未发布到 PyPI。
 
 ```sh
 cd /absolute/path/to/your/repository
-python -m pytest -q tests/test_checkout.py
+"$project_python" -m pytest -q tests/test_checkout.py
 ```
 
 记录能唯一识别目标失败的消息和准确退出码。本指南使用以下示例：
 
 ```text
-command:   python -m pytest -q tests/test_checkout.py
+command:   /absolute/path/to/project/.venv/bin/python -m pytest -q tests/test_checkout.py
 match:     AssertionError: checkout total mismatch
 exit code: 1
 ```
@@ -67,16 +82,24 @@ exit code: 1
 ```sh
 source_dir="/absolute/path/to/your/repository"
 output_dir="/absolute/path/to/your/repository-repro"
-failure_command='python -m pytest -q tests/test_checkout.py'
+failure_command="$("$project_python" -c 'import shlex, sys; print(shlex.join([sys.executable, "-m", "pytest", "-q", "tests/test_checkout.py"]))')"
 failure_match='AssertionError: checkout total mismatch'
 failure_exit_code=1
 
-repomin doctor "$source_dir" \
+"$repomin_cli" doctor "$source_dir" \
   --command "$failure_command" \
   --match "$failure_match" \
   --exit-code "$failure_exit_code" \
   --output "$output_dir"
 ```
+
+这里沿用前面记住的项目解释器，并处理 Bash/Zsh 下路径含空格时的引号。
+Doctor 会在新的仓库副本中运行命令；默认排除 `.venv` 和 `venv`，所以
+`.venv/bin/python -m pytest` 这样的相对路径在副本中找不到环境。
+缩减和重放时继续使用同一个 `failure_command`。如果原仓库能运行、副本却失败，
+请参考[baseline 排错说明](DOCTOR.md#when-the-original-command-works-but-the-baseline-fails)。
+解释器的绝对路径属于本机环境，该环境不会随 payload 一起导出。向其他开发者
+分享结果前，请先阅读[重放要求](REPLAY.md)。
 
 Doctor 检查源目录、reducer、输出路径和 backend，并在两个全新副本中执行失败
 命令。ReproMin 不会向配置的输出目录导出结果，但失败命令本身仍可修改 backend
@@ -90,7 +113,7 @@ Doctor 检查源目录、reducer、输出路径和 backend，并在两个全新�
 首次尝试使用相同失败契约，并限制尝试次数和总时间：
 
 ```sh
-repomin reduce "$source_dir" \
+"$repomin_cli" reduce "$source_dir" \
   --command "$failure_command" \
   --match "$failure_match" \
   --exit-code "$failure_exit_code" \
@@ -117,7 +140,7 @@ payload 和证据 sidecar 是两个独立目录：
 先在不执行失败命令的情况下验证报告和 payload：
 
 ```sh
-repomin report validate \
+"$repomin_cli" report validate \
   "${output_dir}.repomin/report.json" \
   --payload "$output_dir" \
   --format markdown
@@ -131,7 +154,7 @@ repomin report validate \
 检查 `report.json` 中记录的命令后，再明确允许在两个全新副本中重放：
 
 ```sh
-repomin report replay \
+"$repomin_cli" report replay \
   "${output_dir}.repomin/report.json" \
   --payload "$output_dir" \
   --runs 2 \
