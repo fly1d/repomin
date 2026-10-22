@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when explicit environment overrides would be repeated. JSON and privacy-safe
   Markdown output remain unchanged.
 
+### Fixed
+
+- Windows host commands preserve quoted executable and script paths, literal
+  arguments, and shell operators instead of applying argument-list escaping to
+  the command text. Commands containing spaces now reach the same failure in
+  Doctor, reduction, and replay.
+
 ## [0.1.0.dev13] - 2026-09-11
 
 ### Added

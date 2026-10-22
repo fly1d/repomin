@@ -82,13 +82,13 @@ class HandoffTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             _source, output, arguments = self._fixture(Path(directory))
             code, text, errors = _capture(["doctor", *arguments])
-            self.assertEqual(0, code, errors)
+            self.assertEqual(0, code, text + errors)
             self.assertIn("ready to reduce", text)
             expected = reduction_arguments(arguments, _build_doctor_parser())
             self.assertIsNotNone(expected)
             self.assertEqual(format_reduction_command(expected), _suggestion(text))
-            code, _text, errors = _capture(expected[1:])
-            self.assertEqual(0, code, errors)
+            code, text, errors = _capture(expected[1:])
+            self.assertEqual(0, code, text + errors)
             self._check_export(output)
 
     def test_static_failed_and_shareable_formats_have_no_copyable_command(self) -> None:
@@ -106,7 +106,7 @@ class HandoffTest(unittest.TestCase):
             for controls in (["--json"], ["--format", "json"], ["--format=markdown"]):
                 with self.subTest(controls=controls):
                     code, text, errors = _capture(["doctor", *arguments, *controls])
-                    self.assertEqual(0, code, errors)
+                    self.assertEqual(0, code, text + errors)
                     self.assertNotIn("Next: run a reduction", text)
                     self.assertNotIn("Start-Process", text)
                     if controls[-1] in {"--json", "json"}:
@@ -132,7 +132,7 @@ class HandoffTest(unittest.TestCase):
                     supplied = [*arguments, *controls]
                     self.assertIsNone(reduction_arguments(supplied, _build_doctor_parser()))
                     code, text, errors = _capture(["doctor", *supplied])
-                    self.assertEqual(0, code, errors)
+                    self.assertEqual(0, code, text + errors)
                     self.assertIn("command is omitted when --env is used", text)
                     self.assertNotIn("Next: run a reduction", text)
                     self.assertNotIn(secret, text + errors)
@@ -151,7 +151,7 @@ class HandoffTest(unittest.TestCase):
             }), encoding="utf-8")
             supplied = [str(source), "--config", str(config), "--output", str(output)]
             code, text, errors = _capture(["doctor", *supplied])
-            self.assertEqual(0, code, errors)
+            self.assertEqual(0, code, text + errors)
             handoff = reduction_arguments(supplied, _build_doctor_parser())
             self.assertEqual(format_reduction_command(handoff), _suggestion(text))
             self.assertFalse(any(value.startswith("--max-") for value in handoff))
@@ -160,8 +160,8 @@ class HandoffTest(unittest.TestCase):
             self.assertEqual(7, parsed.max_attempts)
             self.assertEqual(12, parsed.max_duration)
             self.assertIn("--config=" + str(config), handoff)
-            code, _text, errors = _capture(handoff[1:])
-            self.assertEqual(0, code, errors)
+            code, text, errors = _capture(handoff[1:])
+            self.assertEqual(0, code, text + errors)
             report = validate_report_file(
                 output.with_name(output.name + ".repomin") / "report.json", output
             )
@@ -199,7 +199,7 @@ class HandoffTest(unittest.TestCase):
                 root = Path(directory)
                 _source, output, arguments = self._fixture(root, message)
                 code, text, errors = _capture(["doctor", *arguments])
-                self.assertEqual(0, code, errors)
+                self.assertEqual(0, code, text + errors)
                 environment = dict(os.environ)
                 environment["PYTHONPATH"] = str(Path(repomin.__file__).resolve().parent.parent)
                 completed = subprocess.run(
@@ -224,7 +224,7 @@ class HandoffTest(unittest.TestCase):
                 _source, output, arguments = self._fixture(root)
                 self.assertIn('"', arguments[2])
                 code, text, errors = _capture(["doctor", *arguments])
-                self.assertEqual(0, code, errors)
+                self.assertEqual(0, code, text + errors)
                 command = _suggestion(text)
                 self.assertIn("Start-Process", command)
                 environment = dict(os.environ)
