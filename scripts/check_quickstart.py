@@ -66,6 +66,8 @@ def _repomin_tokens(label: str, command: str) -> list[str]:
         tokens = shlex.split(command, comments=True)
     except ValueError as exc:
         raise RuntimeError("%s contains an invalid shell command" % label) from exc
+    if tokens and tokens[0] == "$repomin_cli":
+        tokens[0] = "repomin"
     try:
         start = tokens.index("repomin")
     except ValueError as exc:
@@ -169,6 +171,9 @@ def _check_real_failure_guide(label: str, document: str) -> None:
     """Check one translated real-failure guide's executable journey."""
     _require_release_install(label, document)
     code = _shell_code(document)
+    assignments = _shell_assignments(code)
+    if assignments.get("repomin_cli") != "$repomin_env/bin/repomin":
+        raise RuntimeError("%s must define its separate tool executable" % label)
     doctor, reduction, _, _ = _ordered_commands(
         label,
         code,
@@ -179,7 +184,7 @@ def _check_real_failure_guide(label: str, document: str) -> None:
             ("repomin", "report", "replay"),
         ),
     )
-    _check_failure_contract(label, doctor, reduction, _shell_assignments(code))
+    _check_failure_contract(label, doctor, reduction, assignments)
 
 
 def _check_documented_journey() -> None:
