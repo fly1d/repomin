@@ -10,6 +10,7 @@ the shortest network-free demonstration of structured manifest reduction.
 | [Requirements chain](#shrink-a-requirements-include-chain) | Python dependency/include reduction | None |
 | [Pipenv manifest](#shrink-a-pipenv-pipfile) | Package and development dependency reduction | None |
 | [Node manifest](#shrink-a-node-package-manifest-without-node) | Script and dependency reduction | None; Node is not invoked |
+| [Ruby Gemfile](#shrink-a-ruby-gemfile-without-bundler) | Single-line gem declaration reduction | Local Ruby runtime; no Bundler or network |
 | [Cargo workspace](#shrink-a-cargo-workspace-without-network-access) | Workspace-member reduction | Local Cargo toolchain; no network |
 | [Go module](#shrink-a-go-module-without-network-access) | Module requirement reduction | Local Go toolchain; no network |
 | [Selected text](#shrink-a-data-files-contents-with---text-file) | Explicit line-level reduction | Python only |
@@ -26,8 +27,8 @@ the shortest network-free demonstration of structured manifest reduction.
 > writes the evidence sidecar next to the payload at
 > `<output>.repomin/`, so that directory stays outside the source tree too.
 
-The host-backend examples are self-contained and use only Python. Run them from
-a scratch directory after installing ReproMin from the GitHub Release wheel as
+The Python-only host-backend examples are self-contained. Run them from a
+scratch directory after installing ReproMin from the GitHub Release wheel as
 described in the [README](../README.md#reduce-a-real-failure), or from an
 editable checkout when contributing to the project. The Docker and semantic
 examples near the end use the repository fixtures so their trust boundaries
@@ -346,6 +347,93 @@ behaves correctly as a Composer project. To assert anything about a real
 Composer project, you still need a PHP toolchain and a real `composer install`
 plus autoloader verification, both of which are outside this fixture by
 design.
+
+## Shrink a Ruby `Gemfile` without Bundler
+
+This fixture uses a local Ruby runtime to read `Gemfile` as text. It does not
+evaluate the Gemfile, invoke Bundler, install gems, or contact the network,
+including the declared gem source. See the
+[fixture notes](../benchmarks/ruby-gemfile/README.md) and the
+[host-backend boundary](../SECURITY.md) before running it.
+
+From the repository root in Bash or Zsh, first check that Ruby is available:
+
+```sh
+ruby --version
+```
+
+Continue only after this check prints a Ruby version and exits successfully.
+If it fails, install a Ruby runtime and rerun the check before copying the
+reduction commands below.
+
+Create a new temporary output parent outside the fixture and reduce it:
+
+```sh
+out_parent="$(mktemp -d /tmp/repomin-ruby-gemfile.XXXXXX)"
+PYTHONPATH=src python3 -m repomin benchmarks/ruby-gemfile \
+  --command 'ruby reproduce.rb' \
+  --match '(?m)^ORIGINAL_FAILURE$' \
+  --exit-code 1 \
+  --adapter ruby \
+  --source-reducer none \
+  --output "$out_parent/result"
+```
+
+No Bundler setup or gem installation is needed for this fixture. The failure
+contract requires a complete `ORIGINAL_FAILURE` line and exit code `1`.
+
+The exported payload contains exactly two files:
+
+```text
+Gemfile
+reproduce.rb
+```
+
+Inspect the reduced manifest:
+
+```sh
+cat "$out_parent/result/Gemfile"
+```
+
+The `gem "repomin-required", "~> 1.0"` declaration remains. The adapter removes
+the unrelated single-line declarations for `repomin-unused`,
+`repomin-unused-test` inside the development group, and the parenthesized
+`gem("repomin-unused-parenthesized")` call. The multiline
+`gem( ... "repomin-unused-multiline" ... )` call and `gemspec` are outside the
+adapter's supported edits and remain unchanged, as do the `source`, `ruby`,
+and group wrapper lines. The Ruby oracle checks the required declaration's
+presence; it does not resolve or load any declared gem.
+
+Validate the sidecar and payload fingerprint without executing the failure
+command:
+
+```sh
+PYTHONPATH=src python3 -m repomin report validate \
+  "$out_parent/result.repomin/report.json" \
+  --payload "$out_parent/result" --json
+```
+
+For this fresh local export, the validator reports `valid: true`,
+`payload_checked: true`, and `payload_fingerprint_verified: true` with
+`payload_fingerprint_mode: "exact"`. This checks the recorded tree content
+and metadata under `tree-sha256-v2`; content-only validation after metadata
+changes during transport is a separate mode.
+
+Rerun the Ruby oracle independently from the exported payload and check its
+expected failure exit code:
+
+```sh
+oracle_exit=0
+( cd "$out_parent/result" && ruby reproduce.rb ) || oracle_exit=$?
+printf 'Oracle exit code: %s\n' "$oracle_exit"
+test "$oracle_exit" -eq 1
+```
+
+The oracle prints `ORIGINAL_FAILURE` on stdout and exits with status `1`.
+This is structural reduction evidence for the fixture's text-reading oracle.
+It does not guarantee that an arbitrary minimized Bundler project resolves,
+installs, or behaves correctly. A real project's oracle must verify the
+Bundler or application behavior that matters to that project.
 
 ## Shrink a Cargo workspace without network access
 
