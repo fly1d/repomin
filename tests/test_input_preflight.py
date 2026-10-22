@@ -215,6 +215,165 @@ class InputPreflightTest(unittest.TestCase):
             self.assertEqual((str(external),), labels)
             self.assertTrue(matcher.matches(Path("generated"), is_directory=True))
 
+    def test_external_source_alias_rejects_unsafe_rule_links_before_reading(self):
+        for kind in ("absolute-link", "escaping-link"):
+            with self.subTest(kind=kind):
+                root, source, arguments = self._source()
+                self._unsafe_entry(source / ".gitignore", root, kind)
+                # If read, these rules hide the unsafe repository entry from
+                # the subsequent effective-tree validation.
+                (root / "external.txt").write_text(".gitignore\n", encoding="utf-8")
+                alias = root / "source-alias"
+                try:
+                    alias.symlink_to(source, target_is_directory=True)
+                except OSError as exc:
+                    self.skipTest("directory symlinks unavailable: %s" % exc)
+                rules = str(alias / ".gitignore")
+                with patch.object(Path, "read_bytes") as read:
+                    with self.assertRaisesRegex(ValueError, "unsafe symbolic link"):
+                        load_gitignore(source, False, (rules,))
+                read.assert_not_called()
+                arguments += ["--gitignore-file", rules]
+                for mode, expected in (("doctor", 1), ("reduce", 2)):
+                    with patch.object(Path, "read_bytes") as read:
+                        status, stdout, stderr = self._call(mode, arguments)
+                    self.assertEqual(expected, status, stdout + stderr)
+                    self.assertIn("unsafe symbolic link", stdout + stderr)
+                    read.assert_not_called()
+                    self.assertFalse((root / "output").exists())
+                    self.assertFalse((root / "output.repomin").exists())
+
+    def test_external_source_alias_preserves_safe_rules_and_external_config(self):
+        root, source, _ = self._source()
+        alias = root / "source-alias"
+        try:
+            alias.symlink_to(source, target_is_directory=True)
+        except OSError as exc:
+            self.skipTest("directory symlinks unavailable: %s" % exc)
+        rules = source / ".gitignore"
+        rules.write_text("generated/\n", encoding="utf-8")
+        matcher, labels, _, _ = load_gitignore(source, False, (str(alias / ".gitignore"),))
+        self.assertEqual((".gitignore",), labels)
+        self.assertTrue(matcher.matches(Path("generated"), is_directory=True))
+
+        rules.unlink()
+        (source / "rules.ignore").write_text("generated/\n", encoding="utf-8")
+        rules.symlink_to("rules.ignore")
+        matcher, labels, _, _ = load_gitignore(source, False, (str(alias / ".gitignore"),))
+        self.assertEqual(("rules.ignore",), labels)
+        self.assertTrue(matcher.matches(Path("generated"), is_directory=True))
+
+        external = root / "external.ignore"
+        external.write_text("external/\n", encoding="utf-8")
+        matcher, labels, _, _ = load_gitignore(
+            source, False, (str(alias / ".." / "external.ignore"),)
+        )
+        self.assertEqual((str(external),), labels)
+        self.assertTrue(matcher.matches(Path("external"), is_directory=True))
+
+    def test_external_junction_alias_cannot_hide_unsafe_repository_rule_link(self):
+        root, source, _ = self._source()
+        self._unsafe_entry(source / ".gitignore", root, "absolute-link")
+        alias = root / "source-alias"
+        try:
+            alias.symlink_to(source, target_is_directory=True)
+        except OSError as exc:
+            self.skipTest("directory symlinks unavailable: %s" % exc)
+        original_lstat = Path.lstat
+
+        def junction_lstat(path):
+            if path == alias:
+                # Windows junctions carry a reparse tag without S_IFLNK.
+                return SimpleNamespace(
+                    st_mode=stat.S_IFDIR,
+                    st_file_attributes=1024,
+                    st_reparse_tag=0xA0000003,
+                )
+            return original_lstat(path)
+
+        with patch.object(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 1024, create=True):
+            with patch.object(stat, "IO_REPARSE_TAG_MOUNT_POINT", 0xA0000003, create=True):
+                with patch.object(Path, "lstat", junction_lstat):
+                    with patch.object(Path, "read_bytes") as read:
+                        with self.assertRaisesRegex(ValueError, "unsafe symbolic link"):
+                            load_gitignore(source, False, (str(alias / ".gitignore"),))
+        read.assert_not_called()
+
+    def test_case_variant_source_alias_checks_rule_links_before_reading(self):
+        for kind in ("absolute-link", "escaping-link", "hardlink"):
+            with self.subTest(kind=kind):
+                root, source, _ = self._source()
+                alias = source.with_name(source.name.upper())
+                if not alias.exists() or not alias.samefile(source):
+                    self.skipTest("filesystem does not provide this case-insensitive alias")
+                (source / "nested").mkdir()
+                (source / "nested" / ".gitignore").write_text("generated/\n", encoding="utf-8")
+                matcher, labels, _, _ = load_gitignore(
+                    source, False, (str(alias / "nested" / ".gitignore"),)
+                )
+                self.assertEqual(("nested/.gitignore",), labels)
+                self.assertTrue(matcher.matches(Path("nested/generated"), is_directory=True))
+                self.assertFalse(matcher.matches(Path("generated"), is_directory=True))
+                self._unsafe_entry(source / ".gitignore", root, kind)
+                with patch.object(Path, "read_bytes") as read:
+                    with self.assertRaisesRegex(ValueError, "unsafe symbolic link|hard-linked"):
+                        load_gitignore(source, False, (str(alias / ".gitignore"),))
+                read.assert_not_called()
+
+    def test_external_nonredirect_reparse_directory_still_loads_regular_rules(self):
+        root, source, _ = self._source()
+        external_directory = root / "external-config"
+        external_directory.mkdir()
+        external = external_directory / "rules.ignore"
+        external.write_text("generated/\n", encoding="utf-8")
+        original_lstat = Path.lstat
+
+        def placeholder_lstat(path):
+            if path == external_directory:
+                return SimpleNamespace(
+                    st_mode=stat.S_IFDIR,
+                    st_file_attributes=1024,
+                    st_reparse_tag=0x9000001A,
+                )
+            return original_lstat(path)
+
+        with patch.object(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 1024, create=True):
+            with patch.object(Path, "lstat", placeholder_lstat):
+                with patch("repomin.gitignore.os.readlink") as readlink:
+                    matcher, labels, _, _ = load_gitignore(source, False, (str(external),))
+        readlink.assert_not_called()
+        self.assertEqual((str(external),), labels)
+        self.assertTrue(matcher.matches(Path("generated"), is_directory=True))
+
+    @unittest.skipUnless(os.name == "nt", "native directory junctions require Windows")
+    def test_windows_junction_alias_checks_internal_junction_before_reading(self):
+        root, source, _ = self._source()
+        alias = root / "source-alias"
+        external_directory = root / "external-rules"
+        external_directory.mkdir()
+        (external_directory / ".gitignore").write_text("nested/\n", encoding="utf-8")
+        for junction, target in (
+            (alias, source),
+            (source / "nested", external_directory),
+        ):
+            created = subprocess.run(
+                ["cmd", "/c", "mklink", "/J", str(junction), str(target)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if created.returncode != 0:
+                self.skipTest("directory junctions unavailable: %s" % created.stderr.strip())
+
+        (source / "rules.ignore").write_text("generated/\n", encoding="utf-8")
+        matcher, labels, _, _ = load_gitignore(source, False, (str(alias / "rules.ignore"),))
+        self.assertEqual(("rules.ignore",), labels)
+        self.assertTrue(matcher.matches(Path("generated"), is_directory=True))
+        with patch.object(Path, "read_bytes") as read:
+            with self.assertRaisesRegex(ValueError, "reparse point"):
+                load_gitignore(source, False, (str(alias / "nested" / ".gitignore"),))
+        read.assert_not_called()
+
     def test_rule_path_parent_segments_preserve_native_resolution(self):
         _, source, _ = self._source()
         (source / "real" / "nested").mkdir(parents=True)

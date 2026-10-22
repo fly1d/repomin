@@ -408,55 +408,83 @@ def _read_gitignore_file(path: Path, source: Path) -> Tuple[Path, str]:
     path = path.expanduser()
     if not path.is_absolute():
         path = Path.cwd() / path
-    try:
-        relative = path.relative_to(source)
-    except ValueError:
-        # Explicit external rule files are supported; they are not copied.
-        relative = None
-    if relative is not None:
-        component = source
-        pending = list(relative.parts)
-        links = 0
-        while pending:
-            part = pending.pop(0)
-            if part == "..":
-                # An explicitly configured ../external.ignore is supported.
-                component = component.parent
-                continue
-            candidate = component / part
-            status = candidate.lstat()
-            if stat.S_ISLNK(status.st_mode):
-                links += 1
-                if links > 40:
-                    raise ValueError("gitignore file has a symbolic-link loop: %s" % path)
-                target = Path(os.readlink(candidate))
-                if source == component or source in component.parents:
-                    try:
-                        (component / target).resolve().relative_to(source)
-                        contained = True
-                    except (OSError, RuntimeError, ValueError):
-                        contained = False
-                    if target.is_absolute() or not contained:
-                        raise ValueError(
-                            "gitignore file traverses an unsafe symbolic link: %s" % path
-                        )
-                if target.is_absolute():
-                    component = Path(target.anchor)
-                    pending = list(target.parts[1:]) + pending
-                else:
-                    pending = list(target.parts) + pending
+    if os.name == "nt":
+        # Win32 folds parent components before following directory links.
+        # POSIX instead resolves them after each preceding link.
+        path = Path(os.path.abspath(path))
+    # An explicit external path can enter the repository through a directory
+    # alias. Walk that prefix too, applying repository restrictions once its
+    # physical target is inside source rather than trusting the lexical path.
+    component = Path(path.anchor)
+    pending = list(path.parts[1:])
+    links = 0
+    while pending:
+        part = pending.pop(0)
+        if part == "..":
+            # An explicitly configured ../external.ignore is supported.
+            component = component.parent
+            continue
+        candidate = component / part
+        status = candidate.lstat()
+        in_source = source == component or source in component.parents
+        is_link = stat.S_ISLNK(status.st_mode)
+        is_reparse = bool(
+            getattr(status, "st_file_attributes", 0)
+            & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+        )
+        if is_reparse and not is_link and in_source:
+            raise ValueError("gitignore file traverses a reparse point: %s" % path)
+        reparse_tag = getattr(status, "st_reparse_tag", None)
+        is_redirect = reparse_tag is not None and reparse_tag in (
+            getattr(stat, "IO_REPARSE_TAG_SYMLINK", None),
+            getattr(stat, "IO_REPARSE_TAG_MOUNT_POINT", None),
+        )
+        if is_link or (is_reparse and is_redirect):
+            links += 1
+            if links > 40:
+                raise ValueError("gitignore file has a symbolic-link loop: %s" % path)
+            target_text = os.readlink(candidate)
+            if os.name == "nt":
+                # readlink returns junction substitution paths with a device
+                # prefix; use the same ordinary spelling as Path.resolve.
+                if target_text.startswith("\\\\?\\UNC\\"):
+                    target_text = "\\\\" + target_text[8:]
+                elif target_text.startswith("\\\\?\\"):
+                    target_text = target_text[4:]
+            target = Path(target_text)
+            if in_source:
+                try:
+                    (component / target).resolve().relative_to(source)
+                    contained = True
+                except (OSError, RuntimeError, ValueError):
+                    contained = False
+                if target.is_absolute() or not contained:
+                    raise ValueError(
+                        "gitignore file traverses an unsafe symbolic link: %s" % path
+                    )
+            if target.is_absolute():
+                component = Path(target.anchor)
+                pending = list(target.parts[1:]) + pending
             else:
-                if (
-                    source == component or source in component.parents
-                ) and getattr(status, "st_file_attributes", 0) & getattr(
-                    stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0
-                ):
-                    raise ValueError("gitignore file traverses a reparse point: %s" % path)
-                component = candidate
+                pending = list(target.parts) + pending
+        else:
+            component = candidate
+            if stat.S_ISDIR(status.st_mode) and component.samefile(source):
+                # resolve() can retain alternate casing on a case-insensitive
+                # filesystem. Match the validated physical root before using
+                # its canonical spelling for all following descendants; this
+                # also covers Windows short directory names.
+                component = source
     try:
         resolved = path.resolve()
     except (OSError, RuntimeError) as exc:
         raise ValueError("gitignore file could not be resolved: %s" % path) from exc
+    for parent in resolved.parents:
+        if parent == source or parent.samefile(source):
+            # Preserve native resolution while canonicalizing a physical
+            # repository alias for hardlink checks and nested rule scope.
+            resolved = source / resolved.relative_to(parent)
+            break
     status = resolved.stat()
     if not stat.S_ISREG(status.st_mode):
         raise ValueError("gitignore file is not a regular file: %s" % resolved)

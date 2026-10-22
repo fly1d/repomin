@@ -51,8 +51,10 @@ tree. Excluded entries are omitted from candidate copies, while a
 `--keep` override makes its selected entries subject to the usual filesystem
 safety checks. Rule files must be readable regular files; repository rule
 files cannot be hard-linked or traverse absolute, escaping symbolic links or
-reparse points, even when a rule would exclude them. Explicit external regular
-rule files remain supported through `--gitignore-file`.
+reparse points, even when a rule would exclude them. These checks also apply
+when an explicit rule-file path reaches the repository through a directory
+alias. Explicit external regular rule files remain supported through
+`--gitignore-file`.
 
 Pass the same protected paths and explicit text-reduction targets that the
 reduction will use:
