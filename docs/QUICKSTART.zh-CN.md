@@ -60,6 +60,14 @@ exit code: 1
 误认为目标失败。如果输出文本不稳定，可以改用 Java/Python 异常身份或精确的
 进程失败签名；选择前请阅读 [Doctor 指南](DOCTOR.md)。
 
+包含尚未发布的字面匹配改动的源码版本支持
+`--match-text 'FAIL [checkout]: total (12)'`，可以直接复制有辨识度的失败消息，
+不必转义正则字符。对应的正则写法是
+`--match 'FAIL \[checkout\]: total \(12\)'`。两者只选一种，并在 Doctor 和缩减
+命令中保持一致。上面安装的发布版 `v0.1.0.dev13` 尚不支持 `--match-text`；
+下文继续使用该版本支持的 `--match`。Bash/Zsh 与 PowerShell 的引号差异见
+[Doctor 字面匹配说明](DOCTOR.md#literal-failure-messages-unreleased)。
+
 ## 3. 用 Doctor 检查准备状态
 
 设置真实源目录和一个尚不存在的同级输出目录：
@@ -84,6 +92,14 @@ Doctor 检查源目录、reducer、输出路径和 backend，并在两个全新�
 
 只有 Doctor 以退出码 `0` 结束并显示 `2/2` baseline 通过时才继续。输出目录和
 `<output>.repomin` sidecar 都不能已存在，也不能位于源仓库内部。
+
+尚未发布的源码版本还会在 Doctor 检查和 baseline 都通过后，在文本输出中提供
+可复制的缩减命令，限制为 25 次尝试、300 秒，并关闭 semantic reducer。
+使用 `--config` 时则保留配置文件中的预算和 reducer 选择。在同一工作目录和环境中，
+用提示标明的 Bash/Zsh 或 Windows PowerShell 执行。失败或未验证的 baseline
+不会得到该命令；显式传入 `--env` 时也会省略整条建议，避免回显环境覆盖值。
+本地文本可能含有命令和路径，分享前请检查；JSON 和 Markdown 不包含该建议。
+详见 [Doctor 下一步提示](DOCTOR.md#continue-with-a-suggested-reduction-unreleased)。
 
 ## 4. 执行有上限的缩减
 

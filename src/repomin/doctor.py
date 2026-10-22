@@ -972,8 +972,13 @@ def _doctor_readiness(result: Mapping[str, object]) -> str:
     return "needs_attention"
 
 
-def format_doctor(result: Mapping[str, object]) -> str:
-    """Render a compact human-readable diagnostic without command output."""
+def format_doctor(
+    result: Mapping[str, object],
+    *,
+    next_command: Optional[str] = None,
+    shell: str = "Bash/Zsh",
+) -> str:
+    """Render checks without subprocess output; next-step advice is local-only."""
     readiness = _doctor_readiness(result)
     status = {
         "needs_attention": "needs attention",
@@ -1002,10 +1007,14 @@ def format_doctor(result: Mapping[str, object]) -> str:
             % baseline
         )
     if readiness == "ready_to_reduce":
-        lines.append(
-            "Next: rerun the same failure options with `repomin` instead of "
-            "`repomin doctor`."
-        )
+        if next_command is not None:
+            lines.append("Next: run a reduction (%s; same directory and environment):" % shell)
+            lines.append("  " + next_command)
+            lines.append("This local command may contain private paths or command text; review before sharing.")
+        else:
+            lines.append(
+                "Next: use `repomin reduce` with the same failure and input options."
+            )
     elif readiness == "static_checks_passed":
         lines.append(
             "Next: add --command and a failure signal to verify a baseline "
