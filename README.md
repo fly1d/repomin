@@ -94,9 +94,9 @@ does not diagnose the root cause or prove that the remaining code is correct.
 
 ReproMin requires Python 3.9+ and has no runtime dependencies. First run the
 reproduction command yourself and identify a marker that is specific to the
-target failure. Then, from a virtual environment, install the current
-pre-alpha release, check readiness, run a bounded reduction, and validate the
-exported evidence:
+target failure. Then, using the project's working virtual environment, install
+the current pre-alpha release, check readiness, run a bounded reduction, and
+validate the exported evidence:
 
 ```sh
 python -m pip install \
@@ -120,6 +120,13 @@ repomin report validate ../checkout-repro.repomin/report.json \
   --payload ../checkout-repro \
   --format markdown
 ```
+
+Keep the project environment active throughout this example; installing
+ReproMin does not install its test dependencies. Fresh copies exclude `.venv`
+and `venv`, so use an activated environment or an absolute project interpreter,
+rather than a relative `.venv/bin/python` command. The
+[quick start](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.md)
+shows how to retain the project interpreter when installing ReproMin separately.
 
 ReproMin itself prepares candidates in temporary copies and does not write into
 the source tree. On the host backend, however, your reproduction command still

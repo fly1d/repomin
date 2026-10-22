@@ -169,6 +169,12 @@ def _check_real_failure_guide(label: str, document: str) -> None:
     """Check one translated real-failure guide's executable journey."""
     _require_release_install(label, document)
     code = _shell_code(document)
+    assignments = _shell_assignments(code)
+    if assignments.get("repomin_cli") != "$repomin_env/bin/repomin":
+        raise RuntimeError("%s must define its separate tool executable" % label)
+    # Only these guides define the quoted executable variable. Other documents
+    # must still invoke their documented entry point directly.
+    code = re.sub(r'(?m)^([ \t]*)"\$repomin_cli"(?=[ \t])', r"\1repomin", code)
     doctor, reduction, _, _ = _ordered_commands(
         label,
         code,
@@ -179,7 +185,7 @@ def _check_real_failure_guide(label: str, document: str) -> None:
             ("repomin", "report", "replay"),
         ),
     )
-    _check_failure_contract(label, doctor, reduction, _shell_assignments(code))
+    _check_failure_contract(label, doctor, reduction, assignments)
 
 
 def _check_documented_journey() -> None:
