@@ -7,6 +7,7 @@ import os
 import shlex
 import subprocess
 import sys
+from pathlib import Path
 from typing import Optional, Sequence
 
 
@@ -84,7 +85,10 @@ def format_reduction_command(
     """Quote arguments for Bash/Zsh, or Windows PowerShell and PowerShell 7."""
     if windows is None:
         windows = os.name == "nt"
-    invocation = [sys.executable, "-m", "repomin", *arguments[1:]]
+    # Keep the package Doctor actually used. A fresh ``-m repomin`` lookup
+    # could import repository code or another installation from cwd/PYTHONPATH.
+    entrypoint = Path(__file__).resolve().with_name("__main__.py")
+    invocation = [sys.executable, "-I", str(entrypoint), *arguments[1:]]
     if not windows:
         return shlex.join(invocation)
 
@@ -93,8 +97,8 @@ def format_reduction_command(
 
     # Start-Process receives a literal Windows command line. Unlike native
     # PowerShell invocation this retains embedded quotes on Windows PowerShell
-    # 5.1 as well as PowerShell 7. Use this interpreter, including for source
-    # checkouts, and retain the cwd in which Doctor verified relative paths.
+    # 5.1 as well as PowerShell 7. Retain the cwd in which Doctor verified
+    # relative paths while the isolated launcher fixes the package identity.
     native = subprocess.list2cmdline(invocation[1:])
     return (
         "(Start-Process -FilePath %s -ArgumentList %s "

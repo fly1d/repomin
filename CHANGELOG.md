@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Suggestions are quoted for Bash/Zsh or Windows PowerShell, and are omitted
   when explicit environment overrides would be repeated. JSON and privacy-safe
   Markdown output remain unchanged.
+  The suggested launcher uses the checked ReproMin installation even when the
+  working directory or `PYTHONPATH` contains another `repomin` module.
 
 ### Fixed
 

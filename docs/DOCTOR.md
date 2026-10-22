@@ -130,8 +130,10 @@ apostrophe, Bash/Zsh closes the quoted string and inserts an escaped apostrophe
 ## Continue with a suggested reduction (unreleased)
 
 Source checkouts containing this change show a copyable reduction command using
-the current Python interpreter after all Doctor checks and the fresh-copy
-failure baseline pass.
+the current Python interpreter and the same ReproMin installation after all
+Doctor checks and the fresh-copy failure baseline pass. The isolated launcher
+does not select a different ReproMin module from the working directory or
+`PYTHONPATH`; the reproduction command still inherits its environment.
 This handoff is not in `v0.1.0.dev13`. A static scan without a verified failure,
 or any failed check or baseline, shows no copyable reduction command.
 

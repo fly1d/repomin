@@ -188,6 +188,62 @@ class HandoffTest(unittest.TestCase):
                 self.assertEqual(25, reduced.max_attempts)
                 self.assertEqual(300, reduced.max_duration)
 
+    def _check_package_handoff_ignores_shadow_imports(self, package: Path) -> None:
+        if os.name == "nt":
+            shell = shutil.which("powershell") or shutil.which("pwsh")
+            if shell is None:
+                self.skipTest("PowerShell is unavailable")
+        else:
+            shell = "/bin/sh"
+        for shadow_kind in ("module", "package"):
+            with self.subTest(shadow_kind=shadow_kind), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory).resolve()
+                _source, output, arguments = self._fixture(root)
+                if shadow_kind == "module":
+                    shadow = root / "repomin.py"
+                else:
+                    (root / "repomin").mkdir()
+                    shadow = root / "repomin" / "__init__.py"
+                shadow.write_text("raise SystemExit('UNTRUSTED_CWD_IMPORT')\n", encoding="utf-8")
+                poison = root / "pythonpath O'Brien with spaces"
+                poison.mkdir()
+                (poison / "repomin.py").write_text(
+                    "raise SystemExit('UNTRUSTED_PYTHONPATH_IMPORT')\n", encoding="utf-8"
+                )
+                environment = dict(os.environ)
+                environment["PYTHONPATH"] = str(poison)
+                # Exercise the real entry point from a source checkout or an
+                # independent installation layout, under the caller's cwd/env.
+                checked = subprocess.run(
+                    [sys.executable, "-I", str(package / "__main__.py"), "doctor", *arguments],
+                    cwd=root, env=environment, capture_output=True, text=True, timeout=30,
+                )
+                self.assertEqual(0, checked.returncode, checked.stdout + checked.stderr)
+                command = _suggestion(checked.stdout)
+                if os.name == "nt":
+                    invocation = [shell, "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command]
+                else:
+                    invocation = [shell, "-c", command]
+                reduced = subprocess.run(
+                    invocation, cwd=root, env=environment,
+                    capture_output=True, text=True, timeout=30,
+                )
+                self.assertEqual(0, reduced.returncode, reduced.stdout + reduced.stderr)
+                self.assertNotIn("UNTRUSTED_", reduced.stdout + reduced.stderr)
+                self._check_export(output)
+
+    def test_source_handoff_uses_checked_package_despite_shadow_imports(self) -> None:
+        self._check_package_handoff_ignores_shadow_imports(Path(repomin.__file__).resolve().parent)
+
+    def test_independent_installation_handoff_ignores_shadow_imports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            installed = Path(directory).resolve() / "installation O'Brien" / "site-packages" / "repomin"
+            shutil.copytree(
+                Path(repomin.__file__).resolve().parent, installed,
+                ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+            )
+            self._check_package_handoff_ignores_shadow_imports(installed)
+
     @unittest.skipIf(os.name == "nt", "Bash/Zsh quoting is exercised on POSIX")
     def test_posix_shell_executes_hostile_looking_values_as_literal_data(self) -> None:
         shells = [path for name in ("bash", "zsh") if (path := shutil.which(name))]
