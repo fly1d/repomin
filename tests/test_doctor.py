@@ -115,7 +115,7 @@ class DoctorTest(unittest.TestCase):
             format_doctor(result).startswith("ReproMin doctor: ready to reduce\n")
         )
         self.assertIn(
-            "Next: rerun the same failure options with `repomin`",
+            "Next: use `repomin reduce` with the same failure and input options.",
             format_doctor(result),
         )
 

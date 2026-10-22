@@ -794,8 +794,8 @@ class CliTest(unittest.TestCase):
 
             self.assertEqual(2, exit_code)
             self.assertIn(
-                "--match is required unless --process-failure or --exit-code "
-                "is enabled",
+                "--match or --match-text is required unless --process-failure "
+                "or --exit-code is enabled",
                 stderr.getvalue(),
             )
 

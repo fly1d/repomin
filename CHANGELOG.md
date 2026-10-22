@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Doctor and reduction accept `--match-text` for a literal failure message,
+  including brackets, parentheses, and other regular-expression punctuation.
+  It is mutually exclusive with the existing regex `--match` option and uses
+  the same report, session, and replay failure contract.
+
+### Changed
+
+- After a verified baseline, Doctor's text output provides a copyable reduction
+  command with the checked options. Direct CLI suggestions use a first-trial
+  budget of 25 attempts and 300 seconds with the semantic reducer disabled;
+  configuration-file invocations keep their configured limits and reducers.
+  Suggestions are quoted for Bash/Zsh or Windows PowerShell, and are omitted
+  when explicit environment overrides would be repeated. JSON and privacy-safe
+  Markdown output remain unchanged.
+
 ## [0.1.0.dev13] - 2026-09-11
 
 ### Added
