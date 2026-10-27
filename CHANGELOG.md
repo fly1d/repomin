@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Source distributions now include the Pipenv and shared MSBuild props fixtures
+  used by the shipped offline benchmark runner.
+
 - Reduction preflight now applies the same effective ignore and protected-path
   rules as Doctor. Explicitly excluded generated entries no longer block a
   reduction after Doctor succeeds; unsafe entries that remain selected are

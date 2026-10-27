@@ -47,6 +47,12 @@ include benchmarks/composer-package/README.md
 include benchmarks/dotnet-project/fixture.csproj
 include benchmarks/dotnet-project/reproduce.py
 include benchmarks/dotnet-project/README.md
+include benchmarks/dotnet-directory-build-props/Directory.Build.props
+include benchmarks/dotnet-directory-build-props/reproduce.py
+include benchmarks/dotnet-directory-build-props/README.md
+include benchmarks/pipenv-package/Pipfile
+include benchmarks/pipenv-package/reproduce.py
+include benchmarks/pipenv-package/README.md
 include benchmarks/ruby-gemfile/Gemfile
 include benchmarks/ruby-gemfile/reproduce.rb
 include benchmarks/ruby-gemfile/README.md
