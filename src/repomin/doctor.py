@@ -24,6 +24,7 @@ from repomin.input_paths import (
 )
 from repomin.model import FailureSpec
 from repomin.oracle import FailureOracle, OracleError
+from repomin.output_paths import validate_output_parent
 from repomin.sampling import sample_threshold, validate_rate_attainable
 from repomin.session import (
     DEFAULT_IGNORES,
@@ -587,6 +588,12 @@ def run_doctor(
     )
     if not configured_output.is_absolute():
         configured_output = Path.cwd() / configured_output
+    output_parent_valid = True
+    try:
+        validate_output_parent(configured_output)
+    except ValueError as exc:
+        output_parent_valid = False
+        _check(checks, "output", "fail", str(exc))
     working_directory_valid = backend != "host" or _valid_directory_basename(
         configured_output.name
     )
@@ -597,6 +604,8 @@ def run_doctor(
             "fail",
             "host output path must end in a single ordinary directory name",
         )
+        output_path = configured_output
+    elif not output_parent_valid:
         output_path = configured_output
     elif configured_output.is_symlink():
         _check(checks, "output", "fail", "output must not be a symbolic link")
@@ -845,6 +854,7 @@ def run_doctor(
         and oracle_valid
         and backend_valid
         and working_directory_valid
+        and output_parent_valid
         and baseline_configuration_valid
         and selection_valid
     ):
@@ -972,8 +982,13 @@ def _doctor_readiness(result: Mapping[str, object]) -> str:
     return "needs_attention"
 
 
-def format_doctor(result: Mapping[str, object]) -> str:
-    """Render a compact human-readable diagnostic without command output."""
+def format_doctor(
+    result: Mapping[str, object],
+    *,
+    next_command: Optional[str] = None,
+    shell: str = "Bash/Zsh",
+) -> str:
+    """Render checks without subprocess output; next-step advice is local-only."""
     readiness = _doctor_readiness(result)
     status = {
         "needs_attention": "needs attention",
@@ -1002,10 +1017,14 @@ def format_doctor(result: Mapping[str, object]) -> str:
             % baseline
         )
     if readiness == "ready_to_reduce":
-        lines.append(
-            "Next: rerun the same failure options with `repomin` instead of "
-            "`repomin doctor`."
-        )
+        if next_command is not None:
+            lines.append("Next: run a reduction (%s; same directory and environment):" % shell)
+            lines.append("  " + next_command)
+            lines.append("This local command may contain private paths or command text; review before sharing.")
+        else:
+            lines.append(
+                "Next: use `repomin reduce` with the same failure and input options."
+            )
     elif readiness == "static_checks_passed":
         lines.append(
             "Next: add --command and a failure signal to verify a baseline "

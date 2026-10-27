@@ -27,6 +27,7 @@ from repomin.doctor import (
     run_doctor,
 )
 from repomin.go_manifest import GoManifestReducer
+from repomin.handoff import format_reduction_command, reduction_arguments
 from repomin.gradle import GradleReducer
 from repomin.gitignore import GitignoreMatcher, load_gitignore
 from repomin.input_paths import (
@@ -60,6 +61,7 @@ from repomin.oracle import (
     clopper_pearson_lower_bound,
     exact_binomial_rate_gate,
 )
+from repomin.output_paths import validate_output_parent
 from repomin.pipenv_manifest import PipenvManifestReducer
 from repomin.python_manifest import PythonManifestReducer
 from repomin.python_source import PythonSourceReducer
@@ -95,6 +97,7 @@ from repomin.session import (
     DEFAULT_IGNORES,
     HeartbeatSnapshot,
     HoldoutCertificationError,
+    IgnoreSet,
     ReductionSession,
     SessionError,
     _validate_repository_entries,
@@ -255,6 +258,17 @@ def _parse_command(value: str) -> str:
     return value
 
 
+def _parse_match_text(value: str) -> str:
+    """Translate a literal failure message into the existing regex contract."""
+    if not value.strip():
+        raise argparse.ArgumentTypeError(
+            "failure text must not be empty or whitespace"
+        )
+    if "\x00" in value:
+        raise argparse.ArgumentTypeError("failure text must not contain NUL")
+    return re.escape(value)
+
+
 def _parse_ignore_name(value: str) -> str:
     """Validate one recursively ignored repository basename."""
     if not isinstance(value, str):
@@ -362,6 +376,7 @@ def build_parser(
     semantic_environment = os.environ if semantic_environment_defaults else {}
     usage = (
         "%(prog)s SOURCE --command COMMAND --match REGEX [options]\n"
+        "       %(prog)s SOURCE --command COMMAND --match-text TEXT [options]\n"
         "       %(prog)s SOURCE --command COMMAND --exit-code CODE [options]\n"
         "       %(prog)s SOURCE --command COMMAND --process-failure [options]\n"
         "       %(prog)s SOURCE --config PATH [options]"
@@ -415,12 +430,20 @@ def build_parser(
         type=_parse_command,
         help="failure reproduction command",
     )
-    failure_options.add_argument(
+    match_options = failure_options.add_mutually_exclusive_group()
+    match_options.add_argument(
         "--match",
         help=(
             "regular expression that must remain present in command output "
-            "(required unless --process-failure or --exit-code is enabled)"
+            "(or use --match-text for a literal message)"
         ),
+    )
+    match_options.add_argument(
+        "--match-text",
+        dest="match",
+        type=_parse_match_text,
+        metavar="TEXT",
+        help="literal failure message required in command output; punctuation is matched exactly",
     )
     failure_options.add_argument(
         "--exit-code",
@@ -784,8 +807,8 @@ def _print_root_help() -> None:
     print()
     print("usage:")
     print("  repomin demo WORKSPACE")
-    print("  repomin doctor SOURCE --command COMMAND --match REGEX")
-    print("  repomin reduce SOURCE --command COMMAND --match REGEX [options]")
+    print("  repomin doctor SOURCE --command COMMAND --match-text TEXT")
+    print("  repomin reduce SOURCE --command COMMAND --match-text TEXT [options]")
     print("  repomin report {validate,replay,compare} ...")
     print()
     print("commands:")
@@ -796,6 +819,7 @@ def _print_root_help() -> None:
     print("  completion  generate shell completion")
     print()
     print("Start with `repomin demo ./repomin-demo`.")
+    print("Use --match-text to paste a failure message, or --match for a regex.")
     print("Use `repomin reduce --help` for all reduction options.")
     print("The existing `repomin SOURCE ...` syntax remains supported.")
     print("For a source directory named `reduce`, use `./reduce` as SOURCE.")
@@ -1043,8 +1067,8 @@ def main(
             and not args.process_failure
         ):
             raise ValueError(
-                "--match is required unless --process-failure or --exit-code "
-                "is enabled"
+                "--match or --match-text is required unless --process-failure "
+                "or --exit-code is enabled"
             )
         if args.process_failure and args.exit_code is not None:
             raise ValueError("--process-failure cannot be combined with --exit-code")
@@ -1058,7 +1082,6 @@ def main(
             working_directory_basename,
             execution_working_directory_basename,
         ) = _working_directory_configuration(output, args.backend)
-        _validate_repository_entries(source, DEFAULT_IGNORES)
         (
             gitignore_matcher,
             gitignore_files,
@@ -1072,6 +1095,14 @@ def main(
             ignore_names=args.ignore_names,
             ignore_paths=args.ignore_paths,
         )
+        ignores = IgnoreSet(
+            DEFAULT_IGNORES,
+            args.ignore_paths,
+            gitignore_matcher,
+            args.keep_paths,
+        )
+        ignores.update(args.ignore_names)
+        _validate_repository_entries(source, ignores)
         validate_keep_paths(source, args.keep_paths)
         validate_text_file_paths(
             source,
@@ -1101,6 +1132,7 @@ def main(
             args.session,
             args.resume,
         )
+        validate_output_parent(output)
         baseline_min_passes = _sample_threshold(
             args.baseline_runs,
             args.min_baseline_passes,
@@ -1713,7 +1745,17 @@ def _build_doctor_parser() -> argparse.ArgumentParser:
         type=_parse_command,
         help="optional failure reproduction command to run in fresh copies",
     )
-    parser.add_argument("--match", help="regular expression required in command output")
+    match_options = parser.add_mutually_exclusive_group()
+    match_options.add_argument(
+        "--match", help="regular expression required in command output"
+    )
+    match_options.add_argument(
+        "--match-text",
+        dest="match",
+        type=_parse_match_text,
+        metavar="TEXT",
+        help="literal failure message required in command output; punctuation is matched exactly",
+    )
     parser.add_argument(
         "--exit-code",
         type=int,
@@ -1989,7 +2031,28 @@ def _doctor_command(argv: Sequence[str]) -> int:
             end="",
         )
     else:
-        print(format_doctor(result), end="")
+        baseline = result.get("baseline")
+        next_command = None
+        if ok and isinstance(baseline, dict) and baseline.get("status") == "pass":
+            next_arguments = reduction_arguments(argv, parser)
+            if next_arguments is not None:
+                next_command = format_reduction_command(next_arguments)
+        print(
+            format_doctor(
+                result,
+                next_command=next_command,
+                shell="PowerShell" if os.name == "nt" else "Bash/Zsh",
+            ),
+            end="",
+        )
+        if (
+            next_command is None
+            and ok
+            and isinstance(baseline, dict)
+            and baseline.get("status") == "pass"
+            and args.environment_entries
+        ):
+            print("A copyable command is omitted when --env is used; keep its values local.")
     return 0 if ok else 1
 
 
@@ -2591,6 +2654,9 @@ def _reject_symbolic_link(path: Path, label: str) -> None:
         mode = path.lstat().st_mode
     except FileNotFoundError:
         return
+    except NotADirectoryError:
+        validate_output_parent(path)
+        raise
     if stat.S_ISLNK(mode):
         raise FileExistsError("%s must not be a symbolic link: %s" % (label, path))
 

@@ -32,6 +32,12 @@ working-directory basename:
 repomin doctor . --output /tmp/project-repro
 ```
 
+The output's parent directory must already exist. If a new parent is needed,
+create it with `mkdir` before running Doctor or reduction. A missing or
+non-directory parent fails the output check before any baseline command runs;
+Doctor does not create directories, and reduction does not create output
+ancestors implicitly.
+
 Use the same repository exclusion rules as the reduction command when generated
 files or nested projects would otherwise affect detection:
 
@@ -49,6 +55,16 @@ built-in and exact `--ignore`/`--ignore-path` exclusions, so Doctor's file
 counts, adapter detection, source-reducer detection, and optional baseline use
 the same effective tree as a reduction. A missing or malformed rule file is a
 failed check rather than a silently ignored option.
+
+Doctor and reduction preflight validate filesystem entries in that effective
+tree. Excluded entries are omitted from candidate copies, while a
+`--keep` override makes its selected entries subject to the usual filesystem
+safety checks. Rule files must be readable regular files; repository rule
+files cannot be hard-linked or traverse absolute, escaping symbolic links or
+reparse points, even when a rule would exclude them. These checks also apply
+when an explicit rule-file path reaches the repository through a directory
+alias. Explicit external regular rule files remain supported through
+`--gitignore-file`.
 
 Pass the same protected paths and explicit text-reduction targets that the
 reduction will use:
@@ -100,6 +116,62 @@ Use `--exit-code` when output is unstable, or `--process-failure` to learn an
 exact process termination signature. `--baseline-runs N` changes the number
 of fresh checks; it defaults to two. Doctor never treats a command's output as
 an issue report and does not include stdout/stderr in its result.
+
+## Literal failure messages (unreleased)
+
+`--match-text` is available in a source checkout containing this change; it is
+not part of the published `v0.1.0.dev13` release. The `--match` examples above
+continue to work with that release.
+
+Use `--match-text` when copying a distinctive message directly from failure
+output. It searches for that literal text, so brackets and parentheses do not
+need regular-expression escaping:
+
+```sh
+repomin doctor . \
+  --command 'python -m pytest -q tests/test_checkout.py' \
+  --match-text 'FAIL [checkout]: total (12)' \
+  --exit-code 1 \
+  --output ../checkout-repro
+```
+
+`--match` still accepts a regular expression. To require the same message with
+that option, use `--match 'FAIL \[checkout\]: total \(12\)'`. Choose either
+`--match-text` or `--match`, and keep the same choice and value when running
+`repomin reduce`. A literal message should still identify the target failure;
+it does not replace checking the exit code or rejecting unrelated failures.
+
+The example uses Bash/Zsh line continuation (`\`). In PowerShell, put the
+command on one line or use its backtick continuation. Single quotes preserve
+the displayed message and regex in either shell. For a message containing an
+apostrophe, Bash/Zsh closes the quoted string and inserts an escaped apostrophe
+(`'can'\''t'`); PowerShell doubles it (`'can''t'`).
+
+## Continue with a suggested reduction (unreleased)
+
+Source checkouts containing this change show a copyable reduction command using
+the current Python interpreter and the same ReproMin installation after all
+Doctor checks and the fresh-copy failure baseline pass. The isolated launcher
+does not select a different ReproMin module from the working directory or
+`PYTHONPATH`; the reproduction command still inherits its environment.
+This handoff is not in `v0.1.0.dev13`. A static scan without a verified failure,
+or any failed check or baseline, shows no copyable reduction command.
+
+For a CLI invocation, the suggestion keeps the checked failure and input
+options, removes Doctor-only output-format flags, and adds `--max-attempts 25`,
+`--max-duration 300`, and `--semantic-reducer none` for a bounded first trial.
+With `--config`, it keeps the configuration file and uses its budgets and
+reducer choices without adding those overrides. Review the suggested command
+before running it in the same working directory and environment. The command
+is labelled for Bash/Zsh on POSIX systems or PowerShell on Windows. The Windows
+suggestion is for Windows PowerShell 5.1 or PowerShell 7, rather than `cmd.exe`.
+
+The suggestion appears only in text output; JSON and privacy-safe Markdown
+output do not contain it. Local text can include your reproduction command and
+paths, so inspect it before sharing. If the Doctor invocation includes any
+explicit `--env` entries, the entire copyable command is omitted and generic
+next-step guidance is shown instead. Environment override values are not
+echoed in the handoff; supply them yourself when starting the reduction.
 
 ## Output formats
 

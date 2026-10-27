@@ -9,12 +9,13 @@ import shutil
 import signal
 import stat
 import subprocess
+import sys
 import tempfile
 import threading
 import time
 from dataclasses import replace
 from pathlib import Path
-from typing import Callable, Mapping, Optional, Protocol, Sequence
+from typing import Callable, Mapping, Optional, Protocol, Sequence, Union
 
 from repomin.model import RunResult
 from repomin.signature import collect_surefire_diagnostics
@@ -25,6 +26,32 @@ _DOCKER_IMAGE_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
 _WINDOWS_CREATE_SUSPENDED = 0x00000004
 _MAX_CAPTURE_BYTES = 64 * 1024 * 1024
 _CAPTURE_PREVIEW_BYTES = 1024 * 1024
+
+# Read the inherited descriptor directly: /dev/fd is optional, and POSIX
+# shells such as dash reject redirections from multi-digit descriptors.
+# Isolated startup prevents repository code and site hooks from running
+# before the parent registers this process for cancellation.
+_POSIX_START_GATE = """\
+import os
+import signal
+import sys
+
+with os.fdopen(int(sys.argv[1]), "rb") as gate:
+    if gate.readline(6) != b"start\\n":
+        sys.exit(125)
+
+# Python can coerce the C locale during startup; preserve the command's env.
+if sys.argv[2] == "1":
+    os.environ["LC_CTYPE"] = sys.argv[3]
+else:
+    os.environ.pop("LC_CTYPE", None)
+# Match Popen's restore_signals behavior after Python's own startup.
+for name in ("SIGPIPE", "SIGXFZ", "SIGXFSZ"):
+    if hasattr(signal, name):
+        signal.signal(getattr(signal, name), signal.SIG_DFL)
+# Keep the existing shell exec behavior, including 126/127 and ENOEXEC.
+os.execv("/bin/sh", ["/bin/sh", "-c", 'exec "$@"', "repomin-gate"] + sys.argv[4:])
+"""
 
 
 class RunnerError(RuntimeError):
@@ -365,17 +392,23 @@ class CommandRunner:
 
     def run(self, cwd: Path) -> RunResult:
         cwd_identity = _working_directory_identity(cwd)
+        # Use the same spelling for process cwd and traceback normalization.
+        # Windows temporary paths may use an 8.3 alias that resolve() expands.
+        execution_root = cwd.resolve()
+        _verify_working_directory_identity(execution_root, cwd_identity)
         env = os.environ.copy()
         env.update(self.environment)
         env["REPOMIN"] = "1"
         result = _run_process(
             _host_shell_command(self.command),
-            cwd,
+            execution_root,
             env,
             self.timeout_seconds,
             process_registry=self._process_registry,
         )
         _verify_working_directory_identity(cwd, cwd_identity)
+        _verify_working_directory_identity(execution_root, cwd_identity)
+        result = replace(result, python_execution_root=str(execution_root))
         return _attach_diagnostics(result, cwd, self.collect_java_diagnostics)
 
 
@@ -597,6 +630,7 @@ class DockerRunner:
                 % (detail[0] if detail else "docker returned exit code 125")
             )
         _verify_working_directory_identity(cwd, cwd_identity)
+        result = replace(result, python_execution_root="/workspace")
         return _attach_diagnostics(result, cwd, self.collect_java_diagnostics)
 
     def _remove_container(self, cidfile: Path) -> bool:
@@ -623,7 +657,7 @@ class DockerRunner:
 
 
 def _run_process(
-    argv: Sequence[str],
+    argv: Union[str, Sequence[str]],
     cwd: Path,
     environment: Mapping[str, str],
     timeout_seconds: float,
@@ -648,20 +682,26 @@ def _run_process(
             creationflags = (
                 _WINDOWS_CREATE_SUSPENDED if os.name == "nt" else 0
             )
-            command_argv = list(argv)
+            # Raw command lines are explicit and Windows-only. In particular,
+            # cmd.exe shell text must not be escaped using CRT argv rules.
+            if isinstance(argv, str):
+                if os.name != "nt":
+                    raise ValueError("raw command lines require Windows")
+                command_argv = argv
+            else:
+                command_argv = list(argv)
             popen_options = {}
             if os.name == "posix":
                 gate_read, gate_write = os.pipe()
-                gate_script = (
-                    "IFS= read -r repomin_gate < /dev/fd/%d || exit 125\n"
-                    "exec \"$@\""
-                    % gate_read
-                )
                 command_argv = [
-                    "/bin/sh",
+                    sys.executable,
+                    "-I",
+                    "-S",
                     "-c",
-                    gate_script,
-                    "repomin-gate",
+                    _POSIX_START_GATE,
+                    str(gate_read),
+                    "1" if "LC_CTYPE" in environment else "0",
+                    environment.get("LC_CTYPE", ""),
                 ] + command_argv
                 popen_options["pass_fds"] = (gate_read,)
             process = subprocess.Popen(
@@ -1107,9 +1147,16 @@ def _verify_working_directory_identity(
         raise RunnerError("working directory changed during command execution")
 
 
-def _host_shell_command(command: str) -> Sequence[str]:
+def _host_shell_command(command: str) -> Union[str, Sequence[str]]:
     if os.name == "nt":
-        return [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/s", "/c", command]
+        prefix = subprocess.list2cmdline(
+            [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/s", "/c"]
+        )
+        # /s removes only this outer quote pair. Keep the user's shell text,
+        # including quotes and operators, verbatim inside it. Passing command
+        # as a list element would introduce CRT backslash escaping that cmd
+        # does not recognize.
+        return prefix + ' "' + command + '"'
     return ["/bin/sh", "-c", command]
 
 

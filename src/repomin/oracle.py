@@ -17,6 +17,7 @@ from repomin.execution import (
 )
 from repomin.model import (
     FailureSpec,
+    PYTHON_FRAME_POLICY,
     JavaExceptionSignature,
     ProcessFailureSignature,
     PythonExceptionSignature,
@@ -364,12 +365,16 @@ class FailureOracle:
         min_baseline_rate: Optional[float] = None,
         min_candidate_rate: Optional[float] = None,
         confidence: float = 0.95,
+        python_frame_policy: Optional[str] = PYTHON_FRAME_POLICY,
     ) -> None:
         signature_modes = sum(
             (spec.java_exception, spec.python_exception, spec.process_failure)
         )
         if signature_modes > 1:
             raise OracleError("only one learned failure signature mode may be enabled")
+        if python_frame_policy not in (None, PYTHON_FRAME_POLICY):
+            raise OracleError("unsupported Python frame normalization policy")
+        self.python_frame_policy = python_frame_policy
         self.runner = runner
         self.spec = spec
         self.min_baseline_rate = _probability(
@@ -402,6 +407,11 @@ class FailureOracle:
         except re.error as exc:
             raise OracleError("invalid --match regular expression: %s" % exc) from exc
 
+    def _extract_python_signature(self, result: RunResult) -> Optional[PythonExceptionSignature]:
+        return extract_run_python_exception(
+            result, self._pattern, self.python_frame_policy is not None,
+        )
+
     def accepts(self, result: RunResult) -> bool:
         if not self._accepts_basic(result):
             return False
@@ -413,7 +423,7 @@ class FailureOracle:
             ):
                 return False
         if self.spec.python_exception:
-            python_signature = extract_run_python_exception(result, self._pattern)
+            python_signature = self._extract_python_signature(result)
             if python_signature is None or (
                 self._python_exception_signature is not None
                 and python_signature != self._python_exception_signature
@@ -581,7 +591,7 @@ class FailureOracle:
                     if java_discovery_attempt is None:
                         java_discovery_attempt = attempt
             if self.spec.python_exception:
-                python_signature = extract_run_python_exception(result, self._pattern)
+                python_signature = self._extract_python_signature(result)
                 if python_signature is not None:
                     python_signatures.append(python_signature)
                     if python_discovery_attempt is None:
@@ -637,7 +647,7 @@ class FailureOracle:
             passing = [
                 result
                 for result in successful
-                if extract_run_python_exception(result, self._pattern)
+                if self._extract_python_signature(result)
                 == self._python_exception_signature
             ]
         elif self.spec.process_failure:
@@ -766,6 +776,8 @@ class FailureOracle:
         }
         if self._java_exception_signature is not None:
             state["java_exception_signature"] = asdict(self._java_exception_signature)
+        if self.spec.python_exception:
+            state["python_frame_policy"] = self.python_frame_policy
         if self._python_exception_signature is not None:
             state["python_exception_signature"] = asdict(
                 self._python_exception_signature
@@ -780,6 +792,11 @@ class FailureOracle:
         """Restore learned state and report whether legacy evidence was rebuilt."""
         if not isinstance(state, dict):
             raise OracleError("session contains invalid oracle state")
+        if self.spec.python_exception and (
+            "python_frame_policy" not in state
+            or state["python_frame_policy"] != self.python_frame_policy
+        ):
+            raise OracleError("Python frame normalization policy changed; start a new session")
         self._java_exception_signature = None
         self._python_exception_signature = None
         self._process_failure_signature = None
@@ -850,11 +867,16 @@ class FailureOracle:
                     "session contains a Python exception signature but "
                     "--python-exception is disabled"
                 )
+            if not isinstance(python_state, dict) or python_state.get("normalization_policy") not in (
+                None, self.python_frame_policy,
+            ):
+                raise OracleError("session contains an invalid Python frame normalization policy")
             try:
                 self._python_exception_signature = PythonExceptionSignature(
                     str(python_state["class_name"]),
                     str(python_state["message"]),
                     tuple(str(frame) for frame in python_state["frames"]),
+                    python_state.get("normalization_policy"),
                 )
             except (KeyError, TypeError) as exc:
                 raise OracleError(

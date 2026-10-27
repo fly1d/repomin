@@ -12,6 +12,7 @@ CANDIDATE_FAMILY_CONTROL_POLICY = "harmonic-alpha-spending-v1"
 REDUCTION_STRATEGY = "hierarchical-fixed-point-v2"
 HOLDOUT_CERTIFICATION_POLICY = "fixed-n-clopper-pearson-one-sided-v1"
 TREE_FINGERPRINT_POLICY = "tree-sha256-v2"
+PYTHON_FRAME_POLICY = "execution-root-relative-v1"
 DEFAULT_SEMANTIC_TIMEOUT_SECONDS = 60.0
 # A transport-friendly digest used when artifact stores rewrite filesystem
 # metadata such as modification times. It intentionally covers content,
@@ -29,6 +30,8 @@ class RunResult:
     diagnostics: str = ""
     resource_exhausted: bool = False
     resource_reason: Optional[str] = None
+    # Private execution context; never exported in a shareable report.
+    python_execution_root: Optional[str] = None
 
     @property
     def output(self) -> str:
@@ -47,6 +50,7 @@ class PythonExceptionSignature:
     class_name: str
     message: str
     frames: Tuple[str, ...]
+    normalization_policy: Optional[str] = None
 
 
 @dataclass(frozen=True)

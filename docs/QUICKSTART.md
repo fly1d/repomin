@@ -92,6 +92,15 @@ unstable, ReproMin can instead learn a Java exception, Python exception, or
 exact process-failure signature; see the [Doctor guide](DOCTOR.md) before
 choosing one of those modes.
 
+For an unreleased source checkout containing the literal-match change, use
+`--match-text 'FAIL [checkout]: total (12)'` to copy a distinctive failure
+message without regex escaping. The equivalent regex is
+`--match 'FAIL \[checkout\]: total \(12\)'`. Choose one option and use it for
+both Doctor and reduction. `--match-text` is not available in the published
+`v0.1.0.dev13` installed above; the remaining examples use its supported
+`--match` option. See [literal messages and shell quoting](DOCTOR.md#literal-failure-messages-unreleased)
+for the source-checkout workflow.
+
 ## 3. Check readiness with Doctor
 
 Set the real source path. The suggested output is a new sibling directory, so
@@ -133,6 +142,15 @@ the
 
 The output path and its `<output>.repomin` sidecar must not already exist. The
 reducer refuses to export either one inside the source repository.
+
+In an unreleased source checkout, successful Doctor text output also suggests
+a copyable bounded reduction command: 25 attempts, 300 seconds, and no semantic
+reducer. A `--config` run instead keeps the file's budgets and reducer choices.
+Run the suggestion in the same directory and environment using its labelled
+shell (Bash/Zsh or Windows PowerShell). Failed or unverified baselines do not
+produce it, and explicit `--env` entries suppress it to avoid echoing override values. Review
+local commands and paths before sharing; JSON and Markdown omit the suggestion.
+See [the Doctor handoff](DOCTOR.md#continue-with-a-suggested-reduction-unreleased).
 
 ## 4. Run a bounded reduction
 
