@@ -1,6 +1,8 @@
 import os
 import base64
 from contextlib import ExitStack
+
+import json
 import shlex
 import signal
 import stat
@@ -18,6 +20,8 @@ from repomin.execution import (
     DockerRunner,
     RunnerError,
     _POSIX_START_GATE,
+
+    _host_shell_command,
     _run_process,
     _tree_size,
     _working_directory_identity,
@@ -193,6 +197,16 @@ class ExecutionTest(unittest.TestCase):
             self.assertEqual("/workspace", docker.python_execution_root)
             self.assertEqual(result, replace(host, python_execution_root=None))
             self.assertEqual(result, replace(docker, python_execution_root=None))
+
+    def test_windows_host_shell_keeps_command_quotes_and_operators_verbatim(self) -> None:
+        command = '"C:\\Python with spaces\\python.exe" "script with spaces.py" && exit /b 9'
+        with mock.patch("repomin.execution.os.name", "nt"), mock.patch.dict(
+            os.environ, {"COMSPEC": r"C:\Windows\System32\cmd.exe"}
+        ):
+            invocation = _host_shell_command(command)
+        self.assertIsInstance(invocation, str)
+        self.assertTrue(invocation.endswith(' /d /s /c "' + command + '"'))
+        self.assertNotIn('\\"', invocation)
 
     @unittest.skipUnless(os.name == "posix", "process-group test requires POSIX")
     def test_interrupt_terminates_the_active_process_group(self) -> None:
@@ -469,8 +483,8 @@ time.sleep(10)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "child.py").write_text(child_script, encoding="utf-8")
-            (root / "parent.py").write_text(parent_script, encoding="utf-8")
-            command = subprocess.list2cmdline([sys.executable, "parent.py"])
+            (root / "parent with spaces.py").write_text(parent_script, encoding="utf-8")
+            command = '"%s" "parent with spaces.py"' % sys.executable
 
             result = CommandRunner(command, timeout_seconds=0.1).run(root)
             time.sleep(0.8)
@@ -479,6 +493,44 @@ time.sleep(10)
             self.assertEqual(124, result.returncode)
             self.assertIn("parent started", result.stdout)
             self.assertFalse((root / "escaped.txt").exists())
+
+    @unittest.skipUnless(os.name == "nt", "Windows cmd quotation test")
+    def test_windows_quoted_host_command_preserves_literal_arguments(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "script O'Brien with spaces.py").write_text(
+                "import json, sys\nprint(json.dumps(sys.argv[1:]))\nraise SystemExit(7)\n",
+                encoding="utf-8",
+            )
+            command = (
+                '"%s" "script O\'Brien with spaces.py" '
+                '"literal & (parentheses)" "O\'Brien" "C:\\path with spaces\\item"'
+                % sys.executable
+            )
+            result = CommandRunner(command, timeout_seconds=5).run(root)
+        self.assertEqual(7, result.returncode, result.stderr)
+        self.assertEqual(
+            ["literal & (parentheses)", "O'Brien", r"C:\path with spaces\item"],
+            json.loads(result.stdout),
+        )
+
+    @unittest.skipUnless(os.name == "nt", "Windows cmd operator test")
+    def test_windows_host_command_preserves_shell_chain_and_exit_code(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "successful script.py").write_text(
+                "print('SCRIPT_SUCCEEDED')\n", encoding="utf-8"
+            )
+            command = (
+                '"%s" "successful script.py" && echo CHAIN_SUCCEEDED && exit /b 9'
+                % sys.executable
+            )
+            result = CommandRunner(command, timeout_seconds=5).run(root)
+        self.assertEqual(9, result.returncode, result.stderr)
+        self.assertEqual(
+            ["SCRIPT_SUCCEEDED", "CHAIN_SUCCEEDED"],
+            [line.strip() for line in result.stdout.splitlines()],
+        )
 
     @unittest.skipUnless(os.name == "posix", "process-group test requires POSIX")
     def test_timeout_kills_descendants_after_the_group_leader_exits(self) -> None:

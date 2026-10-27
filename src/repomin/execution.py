@@ -15,7 +15,7 @@ import threading
 import time
 from dataclasses import replace
 from pathlib import Path
-from typing import Callable, Mapping, Optional, Protocol, Sequence
+from typing import Callable, Mapping, Optional, Protocol, Sequence, Union
 
 from repomin.model import RunResult
 from repomin.signature import collect_surefire_diagnostics
@@ -657,7 +657,7 @@ class DockerRunner:
 
 
 def _run_process(
-    argv: Sequence[str],
+    argv: Union[str, Sequence[str]],
     cwd: Path,
     environment: Mapping[str, str],
     timeout_seconds: float,
@@ -682,7 +682,14 @@ def _run_process(
             creationflags = (
                 _WINDOWS_CREATE_SUSPENDED if os.name == "nt" else 0
             )
-            command_argv = list(argv)
+            # Raw command lines are explicit and Windows-only. In particular,
+            # cmd.exe shell text must not be escaped using CRT argv rules.
+            if isinstance(argv, str):
+                if os.name != "nt":
+                    raise ValueError("raw command lines require Windows")
+                command_argv = argv
+            else:
+                command_argv = list(argv)
             popen_options = {}
             if os.name == "posix":
                 gate_read, gate_write = os.pipe()
@@ -1140,9 +1147,16 @@ def _verify_working_directory_identity(
         raise RunnerError("working directory changed during command execution")
 
 
-def _host_shell_command(command: str) -> Sequence[str]:
+def _host_shell_command(command: str) -> Union[str, Sequence[str]]:
     if os.name == "nt":
-        return [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/s", "/c", command]
+        prefix = subprocess.list2cmdline(
+            [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/s", "/c"]
+        )
+        # /s removes only this outer quote pair. Keep the user's shell text,
+        # including quotes and operators, verbatim inside it. Passing command
+        # as a list element would introduce CRT backslash escaping that cmd
+        # does not recognize.
+        return prefix + ' "' + command + '"'
     return ["/bin/sh", "-c", command]
 
 

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Doctor and reduction accept `--match-text` for a literal failure message,
+  including brackets, parentheses, and other regular-expression punctuation.
+  It is mutually exclusive with the existing regex `--match` option and uses
+  the same report, session, and replay failure contract.
+
+### Changed
+
+- After a verified baseline, Doctor's text output provides a copyable reduction
+  command with the checked options. Direct CLI suggestions use a first-trial
+  budget of 25 attempts and 300 seconds with the semantic reducer disabled;
+  configuration-file invocations keep their configured limits and reducers.
+  Suggestions are quoted for Bash/Zsh or Windows PowerShell, and are omitted
+  when explicit environment overrides would be repeated. JSON and privacy-safe
+  Markdown output remain unchanged.
+  The suggested launcher uses the checked ReproMin installation even when the
+  working directory or `PYTHONPATH` contains another `repomin` module.
+
 ### Fixed
 
 - Reduction preflight now applies the same effective ignore and protected-path
@@ -30,6 +49,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Doctor and reduction reject missing or non-directory output parents before
   running the failure command. Create the parent directory explicitly instead
   of completing a reduction that cannot publish its payload and report.
+
+- Windows host commands preserve quoted executable and script paths, literal
+  arguments, and shell operators instead of applying argument-list escaping to
+  the command text. Commands containing spaces now reach the same failure in
+  Doctor, reduction, and replay.
 
 ## [0.1.0.dev13] - 2026-09-11
 
