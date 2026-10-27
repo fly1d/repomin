@@ -1,5 +1,7 @@
 import os
 import base64
+from contextlib import ExitStack
+
 import json
 import shlex
 import signal
@@ -17,12 +19,14 @@ from repomin.execution import (
     CommandRunner,
     DockerRunner,
     RunnerError,
+    _POSIX_START_GATE,
+
     _host_shell_command,
     _run_process,
     _tree_size,
     _working_directory_identity,
 )
-from repomin.model import FailureSpec
+from repomin.model import FailureSpec, RunResult
 from repomin.oracle import FailureOracle
 
 
@@ -35,6 +39,165 @@ def _python_command(script: str) -> str:
 
 
 class ExecutionTest(unittest.TestCase):
+    @unittest.skipUnless(os.name == "posix", "inherited-descriptor test requires POSIX")
+    def test_start_gate_handles_high_descriptors_and_preserves_command_io(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            root = Path(directory)
+            # Concurrent runners can allocate gate descriptors above 9; dash
+            # cannot read those with a plain <&N redirection.
+            occupied = [stack.enter_context(tempfile.TemporaryFile()) for _ in range(20)]
+            self.assertGreater(occupied[-1].fileno(), 9)
+            command_input = stack.enter_context(tempfile.TemporaryFile())
+            command_input.write(b"inherited input\n")
+            command_input.seek(0)
+            real_popen = subprocess.Popen
+
+            def launch(argv, **options):
+                options["stdin"] = command_input
+                return real_popen(argv, **options)
+
+            with mock.patch("repomin.execution.subprocess.Popen", side_effect=launch):
+                result = _run_process(
+                    [
+                        "/bin/sh", "-c",
+                        'IFS= read -r value; printf "%s|%s" "$value" "$1"; '
+                        'printf "command error" >&2; exit 7',
+                        "command", "spaces ; $(not a command)",
+                    ],
+                    root,
+                    os.environ.copy(),
+                    timeout_seconds=5,
+                )
+
+            self.assertEqual(7, result.returncode)
+            self.assertEqual("inherited input|spaces ; $(not a command)", result.stdout)
+            self.assertEqual("command error", result.stderr)
+
+    @unittest.skipUnless(os.name == "posix", "inherited-descriptor test requires POSIX")
+    def test_start_gate_refuses_eof_and_invalid_activation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            marker = root / "started"
+            for token in (b"", b"start", b"wrong\n"):
+                with self.subTest(token=token):
+                    gate_read, gate_write = os.pipe()
+                    try:
+                        os.write(gate_write, token)
+                        os.close(gate_write)
+                        gate_write = None
+                        result = subprocess.run(
+                            [
+                                sys.executable, "-I", "-S", "-c", _POSIX_START_GATE,
+                                str(gate_read), "0", "",
+                                "/bin/sh", "-c", 'printf started > "$1"',
+                                "command", str(marker),
+                            ],
+                            cwd=root,
+                            pass_fds=(gate_read,),
+                            capture_output=True,
+                            timeout=5,
+                        )
+                    finally:
+                        os.close(gate_read)
+                        if gate_write is not None:
+                            os.close(gate_write)
+                    self.assertEqual(125, result.returncode)
+                    self.assertFalse(marker.exists())
+
+    @unittest.skipUnless(os.name == "posix", "POSIX startup environment test")
+    def test_start_gate_isolates_python_startup_and_preserves_locale(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            marker = root / "startup-hook"
+            (root / "sitecustomize.py").write_text(
+                "from pathlib import Path; Path(%r).touch()" % str(marker),
+                encoding="utf-8",
+            )
+            environment = {
+                key: value for key, value in os.environ.items()
+                if not key.startswith("LC_")
+            }
+            environment.update(LANG="C", PYTHONPATH=str(root))
+            for locale_value in (None, "", "C"):
+                with self.subTest(locale_value=locale_value):
+                    if locale_value is None:
+                        environment.pop("LC_CTYPE", None)
+                    else:
+                        environment["LC_CTYPE"] = locale_value
+                    result = _run_process(
+                        ["/bin/sh", "-c", 'printf "%s|%s|%s" "$LANG" "${LC_CTYPE+x}" "${LC_CTYPE-}"'],
+                        root,
+                        environment,
+                        timeout_seconds=5,
+                    )
+                    expected = "C||" if locale_value is None else "C|x|" + locale_value
+                    self.assertEqual(0, result.returncode, result.stderr)
+                    self.assertEqual(expected, result.stdout)
+                    self.assertFalse(marker.exists())
+
+    @unittest.skipUnless(os.name == "posix", "POSIX shell exec contract")
+    def test_start_gate_preserves_shell_exec_errors_and_sigpipe(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            denied = root / "not-executable"
+            denied.write_text("exit 0\n", encoding="utf-8")
+            script = root / "no-shebang"
+            script.write_text("exit 23\n", encoding="utf-8")
+            script.chmod(0o700)
+            for argv in (
+                [str(root / "missing")],
+                [str(denied)],
+                [str(script)],
+                ["/bin/sh", "-c", "kill -PIPE $$"],
+            ):
+                with self.subTest(argv=argv):
+                    # /bin/sh differs by platform: macOS can return 126 for a
+                    # missing absolute command where dash returns 127. The
+                    # gate must preserve the native shell's complete result.
+                    expected = subprocess.run(
+                        ["/bin/sh", "-c", 'exec "$@"', "repomin-gate", *argv],
+                        cwd=root,
+                        env=os.environ.copy(),
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                    )
+                    result = _run_process(argv, root, os.environ.copy(), timeout_seconds=5)
+                    self.assertEqual(expected.returncode, result.returncode, result.stderr)
+                    self.assertEqual(expected.stdout, result.stdout)
+                    self.assertEqual(expected.stderr, result.stderr)
+                    if argv == [str(script)]:
+                        self.assertEqual(23, result.returncode)
+                    if argv[0] == "/bin/sh":
+                        self.assertEqual(-signal.SIGPIPE, result.returncode)
+
+    def test_host_uses_canonical_cwd_for_execution_and_frame_context(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            spelling = root / "parent" / ".."
+            (root / "parent").mkdir()
+            canonical = root.resolve()
+            with mock.patch("repomin.execution._run_process", return_value=RunResult(1, "", "", 0.01)) as run:
+                result = CommandRunner("false", timeout_seconds=5).run(spelling)
+            self.assertEqual(canonical, run.call_args.args[1])
+            self.assertEqual(str(canonical), result.python_execution_root)
+
+    def test_runners_attach_host_and_container_frame_roots_without_changing_output(self) -> None:
+        from dataclasses import replace
+        result = RunResult(1, "stdout", "stderr", 0.01)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with mock.patch("repomin.execution._run_process", return_value=result):
+                host = CommandRunner("false", timeout_seconds=5).run(root)
+                container = DockerRunner("false", timeout_seconds=5,
+                    image="fixture:local", executable="/fake/docker")
+                container.resolved_image_id = "sha256:" + "a" * 64
+                docker = container.run(root)
+            self.assertEqual(str(root.resolve()), host.python_execution_root)
+            self.assertEqual("/workspace", docker.python_execution_root)
+            self.assertEqual(result, replace(host, python_execution_root=None))
+            self.assertEqual(result, replace(docker, python_execution_root=None))
+
     def test_windows_host_shell_keeps_command_quotes_and_operators_verbatim(self) -> None:
         command = '"C:\\Python with spaces\\python.exe" "script with spaces.py" && exit /b 9'
         with mock.patch("repomin.execution.os.name", "nt"), mock.patch.dict(

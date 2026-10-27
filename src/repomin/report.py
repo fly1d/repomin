@@ -10,6 +10,7 @@ from typing import Dict, Optional, Tuple
 from repomin import __version__
 from repomin.model import (
     FailureSpec,
+    PYTHON_FRAME_POLICY,
     ProcessFailureSignature,
     ReductionResult,
     TREE_CONTENT_FINGERPRINT_POLICY,
@@ -644,6 +645,9 @@ def _validate_failure_signatures(report: Dict[str, object]) -> None:
             continue
         if not isinstance(value, dict):
             raise ReportValidationError("%s must be an object" % name)
+        if name == "python_exception_signature" and "normalization_policy" in value:
+            if value["normalization_policy"] != PYTHON_FRAME_POLICY:
+                raise ReportValidationError("unsupported Python frame normalization policy")
         class_name = value.get("class")
         message = value.get("message")
         frames = value.get("frames")
@@ -1293,6 +1297,8 @@ def _build_report(
             "message": signature.message,
             "frames": list(signature.frames),
         }
+        if signature.normalization_policy is not None:
+            report["python_exception_signature"]["normalization_policy"] = signature.normalization_policy
     if result.process_failure_signature is not None:
         signature = result.process_failure_signature
         process_signature: Dict[str, object] = {

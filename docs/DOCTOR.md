@@ -28,6 +28,12 @@ working-directory basename:
 repomin doctor . --output /tmp/project-repro
 ```
 
+The output's parent directory must already exist. If a new parent is needed,
+create it with `mkdir` before running Doctor or reduction. A missing or
+non-directory parent fails the output check before any baseline command runs;
+Doctor does not create directories, and reduction does not create output
+ancestors implicitly.
+
 Use the same repository exclusion rules as the reduction command when generated
 files or nested projects would otherwise affect detection:
 
@@ -45,6 +51,16 @@ built-in and exact `--ignore`/`--ignore-path` exclusions, so Doctor's file
 counts, adapter detection, source-reducer detection, and optional baseline use
 the same effective tree as a reduction. A missing or malformed rule file is a
 failed check rather than a silently ignored option.
+
+Doctor and reduction preflight validate filesystem entries in that effective
+tree. Excluded entries are omitted from candidate copies, while a
+`--keep` override makes its selected entries subject to the usual filesystem
+safety checks. Rule files must be readable regular files; repository rule
+files cannot be hard-linked or traverse absolute, escaping symbolic links or
+reparse points, even when a rule would exclude them. These checks also apply
+when an explicit rule-file path reaches the repository through a directory
+alias. Explicit external regular rule files remain supported through
+`--gitignore-file`.
 
 Pass the same protected paths and explicit text-reduction targets that the
 reduction will use:

@@ -61,6 +61,7 @@ from repomin.oracle import (
     clopper_pearson_lower_bound,
     exact_binomial_rate_gate,
 )
+from repomin.output_paths import validate_output_parent
 from repomin.pipenv_manifest import PipenvManifestReducer
 from repomin.python_manifest import PythonManifestReducer
 from repomin.python_source import PythonSourceReducer
@@ -96,6 +97,7 @@ from repomin.session import (
     DEFAULT_IGNORES,
     HeartbeatSnapshot,
     HoldoutCertificationError,
+    IgnoreSet,
     ReductionSession,
     SessionError,
     _validate_repository_entries,
@@ -1080,7 +1082,6 @@ def main(
             working_directory_basename,
             execution_working_directory_basename,
         ) = _working_directory_configuration(output, args.backend)
-        _validate_repository_entries(source, DEFAULT_IGNORES)
         (
             gitignore_matcher,
             gitignore_files,
@@ -1094,6 +1095,14 @@ def main(
             ignore_names=args.ignore_names,
             ignore_paths=args.ignore_paths,
         )
+        ignores = IgnoreSet(
+            DEFAULT_IGNORES,
+            args.ignore_paths,
+            gitignore_matcher,
+            args.keep_paths,
+        )
+        ignores.update(args.ignore_names)
+        _validate_repository_entries(source, ignores)
         validate_keep_paths(source, args.keep_paths)
         validate_text_file_paths(
             source,
@@ -1123,6 +1132,7 @@ def main(
             args.session,
             args.resume,
         )
+        validate_output_parent(output)
         baseline_min_passes = _sample_threshold(
             args.baseline_runs,
             args.min_baseline_passes,
@@ -2644,6 +2654,9 @@ def _reject_symbolic_link(path: Path, label: str) -> None:
         mode = path.lstat().st_mode
     except FileNotFoundError:
         return
+    except NotADirectoryError:
+        validate_output_parent(path)
+        raise
     if stat.S_ISLNK(mode):
         raise FileExistsError("%s must not be a symbolic link: %s" % (label, path))
 

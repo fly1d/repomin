@@ -30,7 +30,7 @@ version, and never infer code correctness from a passing oracle.
 | `holdout_certification` | Optional fresh-sample certification of the exported artifact. |
 | `events` | Ordered human-readable reduction events and their oracle evidence. |
 | `java_exception_signature` | Present only with `--java-exception`. |
-| `python_exception_signature` | Present only with `--python-exception`. |
+| `python_exception_signature` | Present only with `--python-exception`; root-aware signatures record `normalization_policy: execution-root-relative-v1`. |
 | `process_failure_signature` | Present only with `--process-failure`. |
 
 `source` and `output` contain `files` and `bytes`. Output counts deliberately
@@ -286,3 +286,15 @@ sharing results.
 The architecture document explains the statistical contracts and reducer
 invariants behind these fields. See [ARCHITECTURE.md](ARCHITECTURE.md) and
 [SECURITY.md](../SECURITY.md) before processing untrusted repositories.
+
+### Python frame normalization compatibility
+
+`execution-root-relative-v1` preserves module paths relative to the explicit host
+execution root or Docker mount root and retains function identity. The execution
+root itself is private run/checkpoint context and is not exported here. Context-free
+or explicitly legacy signatures omit the policy field. Reports
+without `python_exception_signature.normalization_policy` retain legacy frame
+normalization during replay. Unsupported policies are rejected before execution;
+old signatures are never automatically rewritten. The additive field does not
+change report schema version 1. Python sessions created without this policy must
+start a new session; other signature modes retain checkpoint compatibility.
