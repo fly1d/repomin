@@ -117,11 +117,12 @@ exact process termination signature. `--baseline-runs N` changes the number
 of fresh checks; it defaults to two. Doctor never treats a command's output as
 an issue report and does not include stdout/stderr in its result.
 
-## Literal failure messages (unreleased)
+<a id="literal-failure-messages-unreleased"></a>
 
-`--match-text` is available in a source checkout containing this change; it is
-not part of the published `v0.1.0.dev13` release. The `--match` examples above
-continue to work with that release.
+## Literal failure messages
+
+`--match-text` is available starting with `v0.1.0.dev14`. The `--match`
+examples above remain supported.
 
 Use `--match-text` when copying a distinctive message directly from failure
 output. It searches for that literal text, so brackets and parentheses do not
@@ -147,15 +148,17 @@ the displayed message and regex in either shell. For a message containing an
 apostrophe, Bash/Zsh closes the quoted string and inserts an escaped apostrophe
 (`'can'\''t'`); PowerShell doubles it (`'can''t'`).
 
-## Continue with a suggested reduction (unreleased)
+<a id="continue-with-a-suggested-reduction-unreleased"></a>
 
-Source checkouts containing this change show a copyable reduction command using
+## Continue with a suggested reduction
+
+Starting with `v0.1.0.dev14`, Doctor shows a copyable reduction command using
 the current Python interpreter and the same ReproMin installation after all
 Doctor checks and the fresh-copy failure baseline pass. The isolated launcher
 does not select a different ReproMin module from the working directory or
 `PYTHONPATH`; the reproduction command still inherits its environment.
-This handoff is not in `v0.1.0.dev13`. A static scan without a verified failure,
-or any failed check or baseline, shows no copyable reduction command.
+A static scan without a verified failure, or any failed check or baseline,
+shows no copyable reduction command.
 
 For a CLI invocation, the suggestion keeps the checked failure and input
 options, removes Doctor-only output-format flags, and adds `--max-attempts 25`,

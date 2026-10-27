@@ -31,7 +31,7 @@ published release without installing anything into your project or system
 Python:
 
 ```sh
-uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev13/repomin-0.1.0.dev13-py3-none-any.whl \
+uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev14/repomin-0.1.0.dev14-py3-none-any.whl \
   repomin demo ./repomin-demo
 ```
 
@@ -100,7 +100,7 @@ validate the exported evidence:
 
 ```sh
 python -m pip install \
-  "https://github.com/fly1d/repomin/releases/download/v0.1.0.dev13/repomin-0.1.0.dev13-py3-none-any.whl"
+  "https://github.com/fly1d/repomin/releases/download/v0.1.0.dev14/repomin-0.1.0.dev14-py3-none-any.whl"
 
 repomin doctor . \
   --command 'python -m pytest -q tests/test_checkout.py' \
