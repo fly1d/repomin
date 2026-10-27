@@ -33,17 +33,28 @@ project until a human has reviewed the artifact and that project's policies.
 ## Install the pilot build
 
 The replay and transport-fingerprint workflow described below is included in
-the `v0.1.0.dev14` pre-release. Install that wheel in an isolated environment
-when you want a reproducible versioned pilot run:
+the `v0.1.0.dev14` pre-release. Keep the environment that already reproduces
+your project's failure active. Install the tool in a separate environment
+outside the repository, then call its executable explicitly:
 
 ```sh
-python3 -m venv .venv
-. .venv/bin/activate
+repomin_env="$HOME/.venvs/repomin"
+python3 -m venv "$repomin_env"
 REPOMIN_VERSION=0.1.0.dev14
-python -m pip install \
+"$repomin_env/bin/python" -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
-python -m repomin --version
+repomin_cli="$repomin_env/bin/repomin"
+"$repomin_cli" --version
 ```
+
+Use the snippets below in the same shell so `repomin_cli` remains defined.
+Installing ReproMin does not install the project's dependencies. Fresh copies
+exclude `.venv` and `venv`, so a relative command such as
+`.venv/bin/python -m pytest` cannot find that environment there. For Python,
+keep the working project interpreter or use its absolute path; the
+[quick start](QUICKSTART.md#1-install-the-published-release) shows how to record
+it before installing the tool. Do not activate the tool environment in place
+of the project's environment.
 
 Record the release version (and the Git SHA when installing from a source
 checkout) in the pilot summary. Users who only capture and validate a report
@@ -93,7 +104,7 @@ so make recipient-facing quality part of the oracle when it matters:
 For example, a public Node fixture can keep an explicit evidence boundary:
 
 ```sh
-repomin reduce /path/to/public-fixture \
+"$repomin_cli" reduce /path/to/public-fixture \
   --command 'pnpm install --offline --frozen-lockfile && node reproduce.mjs' \
   --match 'STABLE_FAILURE_MARKER' \
   --exit-code 23 \
@@ -104,6 +115,8 @@ repomin reduce /path/to/public-fixture \
   --keep package.json \
   --keep pnpm-lock.yaml \
   --keep LICENSE \
+  --max-attempts 25 \
+  --max-duration 300 \
   --output /tmp/repomin-pilot-result
 ```
 
@@ -114,30 +127,42 @@ not only byte ratios.
 ## Capture a run
 
 Run ReproMin against the sanitized checkout and use the failure signal that is
-stable for the project:
+stable for the project. Replace the marker and exit code with those observed
+for the original target failure. For the first reduction, set an attempt budget
+of 25 and a duration budget of 300 seconds:
 
 ```sh
-repomin reduce /path/to/sanitized-project \
+"$repomin_cli" reduce /path/to/sanitized-project \
   --command './run-failing-test.sh' \
   --match 'STABLE_FAILURE_MARKER' \
+  --exit-code 1 \
   --adapter auto \
+  --max-attempts 25 \
+  --max-duration 300 \
   --output /tmp/repomin-pilot-result
 ```
 
-When output text is unstable, use an exact exit code instead:
+When output text is unstable, an exit-only contract is suitable only if the
+command reserves that code for the target failure. In this example, `23` must
+not occur for setup, import, dependency, or unrelated failures. A generic `1`
+often cannot distinguish those cases. Choose a contract that also rejects
+those failures; the [Doctor guide](DOCTOR.md) explains the available exception
+and process-signature modes.
 
 ```sh
-repomin reduce /path/to/sanitized-project \
+"$repomin_cli" reduce /path/to/sanitized-project \
   --command './run-failing-test.sh' \
-  --exit-code 1 \
+  --exit-code 23 \
   --adapter auto \
+  --max-attempts 25 \
+  --max-duration 300 \
   --output /tmp/repomin-pilot-result
 ```
 
 Validate the payload and its sidecar before inspecting or sharing them:
 
 ```sh
-repomin report validate \
+"$repomin_cli" report validate \
   /tmp/repomin-pilot-result.repomin/report.json \
   --payload /tmp/repomin-pilot-result \
   --json
@@ -162,7 +187,7 @@ After reviewing the command and payload, run fresh-copy replay from the same
 pilot environment to report whether the configured oracle still matches:
 
 ```sh
-repomin report replay \
+"$repomin_cli" report replay \
   /tmp/repomin-pilot-result.repomin/report.json \
   --payload /tmp/repomin-pilot-result \
   --runs 2 \

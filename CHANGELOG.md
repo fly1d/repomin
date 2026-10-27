@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The real-failure pilot guide keeps the project's dependency environment
+  active while calling a separate ReproMin installation. Its first reductions
+  now have attempt and duration limits, and the exit-only example requires a
+  code that distinguishes the target from setup failures.
+
 ## [0.1.0.dev14] - 2026-10-27
 
 ### Added
