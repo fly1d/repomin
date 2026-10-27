@@ -25,24 +25,42 @@ root cause, and a weak contract can produce a small but unusable result.
 
 ## 1. Install the published release
 
-Create and activate an isolated environment, then install the current
-development release from its reviewed GitHub Release artifact:
+For the Python example below, first select the project's existing environment
+using its normal setup. Record the interpreter that already has its test
+dependencies, before creating ReproMin's environment:
 
 ```sh
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install --upgrade pip
+project_python="$(python -c 'import sys; print(sys.executable)')"
+"$project_python" -m pytest --version
+```
+
+If that check cannot find pytest, select or prepare the project's environment
+first. Installing ReproMin does not install the project's dependencies.
+
+Create a separate environment outside the source repository, then install the
+current development release from its reviewed GitHub Release artifact. Use
+the tool's explicit path below, keeping the project environment and `PATH` active:
+
+```sh
+repomin_env="$HOME/.venvs/repomin"
+python3 -m venv "$repomin_env"
+"$repomin_env/bin/python" -m pip install --upgrade pip
 
 REPOMIN_VERSION=0.1.0.dev13
-python -m pip install \
+"$repomin_env/bin/python" -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 
-repomin --version
+repomin_cli="$repomin_env/bin/repomin"
+"$repomin_cli" --version
 ```
 
 The final command should print `repomin 0.1.0.dev13`. The
 [release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev13)
 publishes SHA-256 digests for users who need to verify the wheel.
+
+Other guides write the command name as `repomin`. With this separate tool
+environment, use `"$repomin_cli"` in its place and keep the project's environment
+active in the same shell.
 
 ## 2. Confirm the command and strict failure contract
 
@@ -51,14 +69,14 @@ ReproMin. Replace this example with your real command:
 
 ```sh
 cd /absolute/path/to/your/repository
-python -m pytest -q tests/test_checkout.py
+"$project_python" -m pytest -q tests/test_checkout.py
 ```
 
 Run it at least twice. Record a message specific to the target failure and its
 exact exit code. This guide uses the following example contract:
 
 ```text
-command:   python -m pytest -q tests/test_checkout.py
+command:   /absolute/path/to/project/.venv/bin/python -m pytest -q tests/test_checkout.py
 match:     AssertionError: checkout total mismatch
 exit code: 1
 ```
@@ -74,6 +92,15 @@ unstable, ReproMin can instead learn a Java exception, Python exception, or
 exact process-failure signature; see the [Doctor guide](DOCTOR.md) before
 choosing one of those modes.
 
+For an unreleased source checkout containing the literal-match change, use
+`--match-text 'FAIL [checkout]: total (12)'` to copy a distinctive failure
+message without regex escaping. The equivalent regex is
+`--match 'FAIL \[checkout\]: total \(12\)'`. Choose one option and use it for
+both Doctor and reduction. `--match-text` is not available in the published
+`v0.1.0.dev13` installed above; the remaining examples use its supported
+`--match` option. See [literal messages and shell quoting](DOCTOR.md#literal-failure-messages-unreleased)
+for the source-checkout workflow.
+
 ## 3. Check readiness with Doctor
 
 Set the real source path. The suggested output is a new sibling directory, so
@@ -82,16 +109,27 @@ it is outside the source repository as required:
 ```sh
 source_dir="/absolute/path/to/your/repository"
 output_dir="/absolute/path/to/your/repository-repro"
-failure_command='python -m pytest -q tests/test_checkout.py'
+failure_command="$("$project_python" -c 'import shlex, sys; print(shlex.join([sys.executable, "-m", "pytest", "-q", "tests/test_checkout.py"]))')"
 failure_match='AssertionError: checkout total mismatch'
 failure_exit_code=1
 
-repomin doctor "$source_dir" \
+"$repomin_cli" doctor "$source_dir" \
   --command "$failure_command" \
   --match "$failure_match" \
   --exit-code "$failure_exit_code" \
   --output "$output_dir"
 ```
+
+The command uses the saved project interpreter, quoted for Bash/Zsh even when
+its path contains spaces. Doctor runs it in fresh repository copies; built-in
+exclusions omit `.venv` and `venv`, so a relative command such as
+`.venv/bin/python -m pytest` cannot find that environment there. Keep using the
+same `failure_command` for reduction and replay. See
+[baseline troubleshooting](DOCTOR.md#when-the-original-command-works-but-the-baseline-fails)
+if a command works in the original checkout but not in a fresh copy.
+The absolute interpreter path is local to this machine; its environment is not
+exported with the payload. Review the [replay requirements](REPLAY.md) before
+sharing a result with another developer.
 
 Doctor checks the source, selected reducers, output path, and backend without
 exporting to the configured output path. ReproMin prepares each baseline in a
@@ -105,12 +143,21 @@ the
 The output path and its `<output>.repomin` sidecar must not already exist. The
 reducer refuses to export either one inside the source repository.
 
+In an unreleased source checkout, successful Doctor text output also suggests
+a copyable bounded reduction command: 25 attempts, 300 seconds, and no semantic
+reducer. A `--config` run instead keeps the file's budgets and reducer choices.
+Run the suggestion in the same directory and environment using its labelled
+shell (Bash/Zsh or Windows PowerShell). Failed or unverified baselines do not
+produce it, and explicit `--env` entries suppress it to avoid echoing override values. Review
+local commands and paths before sharing; JSON and Markdown omit the suggestion.
+See [the Doctor handoff](DOCTOR.md#continue-with-a-suggested-reduction-unreleased).
+
 ## 4. Run a bounded reduction
 
 Run the same contract with an attempt and wall-clock limit for the first trial:
 
 ```sh
-repomin reduce "$source_dir" \
+"$repomin_cli" reduce "$source_dir" \
   --command "$failure_command" \
   --match "$failure_match" \
   --exit-code "$failure_exit_code" \
@@ -145,7 +192,7 @@ Validate the report structure and recorded payload fingerprint without
 executing the command:
 
 ```sh
-repomin report validate \
+"$repomin_cli" report validate \
   "${output_dir}.repomin/report.json" \
   --payload "$output_dir" \
   --format markdown
@@ -155,7 +202,7 @@ Inspect the payload, `REPOMIN.md`, and the full `report.json`. Before replaying,
 review the recorded command, then explicitly allow two fresh-copy runs:
 
 ```sh
-repomin report replay \
+"$repomin_cli" report replay \
   "${output_dir}.repomin/report.json" \
   --payload "$output_dir" \
   --runs 2 \

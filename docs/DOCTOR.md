@@ -7,6 +7,10 @@ and sibling metadata paths that a normal run would use. When a failure command
 is supplied, ReproMin prepares fresh copies but the command can still modify
 anything its backend permits.
 
+If you installed into the separate tool environment in the
+[quick start](QUICKSTART.md), use `"$repomin_cli"` in place of `repomin` in the
+examples below, keeping your project environment active.
+
 Start with a static project scan that does not run a project command:
 
 ```sh
@@ -28,6 +32,12 @@ working-directory basename:
 repomin doctor . --output /tmp/project-repro
 ```
 
+The output's parent directory must already exist. If a new parent is needed,
+create it with `mkdir` before running Doctor or reduction. A missing or
+non-directory parent fails the output check before any baseline command runs;
+Doctor does not create directories, and reduction does not create output
+ancestors implicitly.
+
 Use the same repository exclusion rules as the reduction command when generated
 files or nested projects would otherwise affect detection:
 
@@ -45,6 +55,16 @@ built-in and exact `--ignore`/`--ignore-path` exclusions, so Doctor's file
 counts, adapter detection, source-reducer detection, and optional baseline use
 the same effective tree as a reduction. A missing or malformed rule file is a
 failed check rather than a silently ignored option.
+
+Doctor and reduction preflight validate filesystem entries in that effective
+tree. Excluded entries are omitted from candidate copies, while a
+`--keep` override makes its selected entries subject to the usual filesystem
+safety checks. Rule files must be readable regular files; repository rule
+files cannot be hard-linked or traverse absolute, escaping symbolic links or
+reparse points, even when a rule would exclude them. These checks also apply
+when an explicit rule-file path reaches the repository through a directory
+alias. Explicit external regular rule files remain supported through
+`--gitignore-file`.
 
 Pass the same protected paths and explicit text-reduction targets that the
 reduction will use:
@@ -96,6 +116,62 @@ Use `--exit-code` when output is unstable, or `--process-failure` to learn an
 exact process termination signature. `--baseline-runs N` changes the number
 of fresh checks; it defaults to two. Doctor never treats a command's output as
 an issue report and does not include stdout/stderr in its result.
+
+## Literal failure messages (unreleased)
+
+`--match-text` is available in a source checkout containing this change; it is
+not part of the published `v0.1.0.dev13` release. The `--match` examples above
+continue to work with that release.
+
+Use `--match-text` when copying a distinctive message directly from failure
+output. It searches for that literal text, so brackets and parentheses do not
+need regular-expression escaping:
+
+```sh
+repomin doctor . \
+  --command 'python -m pytest -q tests/test_checkout.py' \
+  --match-text 'FAIL [checkout]: total (12)' \
+  --exit-code 1 \
+  --output ../checkout-repro
+```
+
+`--match` still accepts a regular expression. To require the same message with
+that option, use `--match 'FAIL \[checkout\]: total \(12\)'`. Choose either
+`--match-text` or `--match`, and keep the same choice and value when running
+`repomin reduce`. A literal message should still identify the target failure;
+it does not replace checking the exit code or rejecting unrelated failures.
+
+The example uses Bash/Zsh line continuation (`\`). In PowerShell, put the
+command on one line or use its backtick continuation. Single quotes preserve
+the displayed message and regex in either shell. For a message containing an
+apostrophe, Bash/Zsh closes the quoted string and inserts an escaped apostrophe
+(`'can'\''t'`); PowerShell doubles it (`'can''t'`).
+
+## Continue with a suggested reduction (unreleased)
+
+Source checkouts containing this change show a copyable reduction command using
+the current Python interpreter and the same ReproMin installation after all
+Doctor checks and the fresh-copy failure baseline pass. The isolated launcher
+does not select a different ReproMin module from the working directory or
+`PYTHONPATH`; the reproduction command still inherits its environment.
+This handoff is not in `v0.1.0.dev13`. A static scan without a verified failure,
+or any failed check or baseline, shows no copyable reduction command.
+
+For a CLI invocation, the suggestion keeps the checked failure and input
+options, removes Doctor-only output-format flags, and adds `--max-attempts 25`,
+`--max-duration 300`, and `--semantic-reducer none` for a bounded first trial.
+With `--config`, it keeps the configuration file and uses its budgets and
+reducer choices without adding those overrides. Review the suggested command
+before running it in the same working directory and environment. The command
+is labelled for Bash/Zsh on POSIX systems or PowerShell on Windows. The Windows
+suggestion is for Windows PowerShell 5.1 or PowerShell 7, rather than `cmd.exe`.
+
+The suggestion appears only in text output; JSON and privacy-safe Markdown
+output do not contain it. Local text can include your reproduction command and
+paths, so inspect it before sharing. If the Doctor invocation includes any
+explicit `--env` entries, the entire copyable command is omitted and generic
+next-step guidance is shown instead. Environment override values are not
+echoed in the handoff; supply them yourself when starting the reduction.
 
 ## Output formats
 
@@ -151,3 +227,35 @@ correctness claim.
 The baseline runs in disposable copies and inherits the normal host or Docker
 trust boundary. Do not run an untrusted command on the host backend, and review
 the repository and environment settings before sharing Doctor output.
+
+## When the original command works but the baseline fails
+
+Doctor runs the command in disposable repository copies. A command that depends
+on an ignored environment, a generated file, an absolute checkout path, or a
+working-directory name can behave differently there.
+
+For Python projects, `.venv` and `venv` are excluded by default. A relative
+command such as `.venv/bin/python -m pytest` therefore loses its interpreter in
+the copy. Use the absolute interpreter from the project's working environment,
+or keep that environment active and use `python`. Installing ReproMin in a new
+environment does not install pytest or the project's other dependencies there.
+The [Bash/Zsh quick start](QUICKSTART.md#1-install-the-published-release)
+keeps the project interpreter and environment while calling ReproMin from a
+separate tool environment. The
+[PowerShell tour](QUICKSTART.windows.md#3-preflight-and-reduce-the-project)
+shows how a process-local `PATH` keeps an environment available to fresh copies;
+for a real project, that interpreter must also contain its dependencies.
+
+| Observation | What to check |
+| --- | --- |
+| The baseline reports `0/2` passes | The complete failure contract was not observed in either run; this does not identify the cause. |
+| The last exit code differs from `--exit-code` | Check the executable, relative paths, selected environment, and setup command. A command-not-found exit can come from an excluded `.venv`. |
+| The last exit code agrees, but the baseline still fails | Check the actual error in the project environment, the exact marker or regex, and any requested exception/process signature. A missing dependency and the intended failure can share an exit code. |
+| The baseline reports a timeout or resource exhaustion | Check whether setup fits the selected timeout and backend limits before changing the failure contract. |
+
+Doctor deliberately omits raw stdout/stderr. Run the trusted command yourself
+to inspect its error; if you need to compare fresh-copy behavior, use a separate
+scratch checkout with the same exclusions. Do not run diagnostic commands in an
+exported payload while validation or replay is reading it. Keep the strict
+marker and exit code: broadening the oracle can accept a setup failure instead
+of the bug you want to reduce.

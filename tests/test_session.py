@@ -3660,6 +3660,57 @@ class ReductionSessionTest(unittest.TestCase):
                     identity=identity,
                 )
 
+    def test_persistent_python_session_restores_roots_and_rejects_policy_before_execution(self) -> None:
+        class RootRunner:
+            calls = 0
+
+            def run(self, cwd: Path) -> RunResult:
+                self.calls += 1
+                output = ('Traceback (most recent call last):\n'
+                          '  File "%s/app/service.py", line 1, in checkout\n'
+                          'ValueError: failure\n') % cwd
+                return RunResult(1, output, "", 0.01, python_execution_root=str(cwd))
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            source.mkdir()
+            (source / "seed.txt").write_text("seed\n", encoding="utf-8")
+            checkpoint = root / "checkpoint"
+            identity = {"command": "python app/service.py", "python_exception": True}
+            spec = FailureSpec("ValueError", python_exception=True)
+            runner = RootRunner()
+            session = ReductionSession(source, FailureOracle(runner, spec),
+                                       ReductionStats(source_files=1, source_bytes=5),
+                                       session_path=checkpoint, identity=identity)
+            try:
+                session.verify_baseline(2)
+            finally:
+                session.close()
+            oracle = FailureOracle(runner, spec)
+            resumed = ReductionSession(source, oracle, ReductionStats(source_files=0, source_bytes=0),
+                                       session_path=checkpoint, resume=True, identity=identity)
+            try:
+                self.assertTrue(oracle.accepts(runner.run(root / "fresh-candidate")))
+                self.assertEqual(("app/service.py:checkout",), oracle.python_exception_signature.frames)
+            finally:
+                resumed.close()
+            state_path = checkpoint / "state.json"
+            original = json.loads(state_path.read_text(encoding="utf-8"))
+            for policy in (None, "unknown", "missing"):
+                state = deepcopy(original)
+                if policy == "missing":
+                    del state["oracle"]["python_frame_policy"]
+                else:
+                    state["oracle"]["python_frame_policy"] = policy
+                state_path.write_text(json.dumps(state), encoding="utf-8")
+                before = runner.calls
+                with self.assertRaisesRegex(OracleError, "start a new session"):
+                    ReductionSession(source, FailureOracle(runner, spec),
+                                     ReductionStats(source_files=0, source_bytes=0),
+                                     session_path=checkpoint, resume=True, identity=identity)
+                self.assertEqual(before, runner.calls)
+
     def test_persistent_session_has_an_exclusive_lifetime_lock(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

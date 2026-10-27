@@ -2047,6 +2047,10 @@ def _validate_repository_entries(root: Path, ignores: Set[str]) -> None:
                 continue
             try:
                 status = entry.stat(follow_symlinks=False)
+                if stat.S_ISREG(status.st_mode) and status.st_nlink == 0:
+                    # Windows DirEntry.stat can omit the link count. Refresh
+                    # selected entries before enforcing the hardlink boundary.
+                    status = path.lstat()
             except OSError as exc:
                 raise SessionError(
                     "repository entry changed while being inspected: %s" % path
@@ -2376,6 +2380,8 @@ def _oracle_identity_digest(identity: dict, oracle: FailureOracle) -> str:
         "python_exception_signature": oracle_state.get("python_exception_signature"),
         "process_failure_signature": oracle_state.get("process_failure_signature"),
     }
+    if oracle.spec.python_exception:
+        payload["python_frame_policy"] = oracle.python_frame_policy
     encoded = json.dumps(
         payload,
         sort_keys=True,
@@ -3446,7 +3452,7 @@ def _optional_int(value: object) -> Optional[int]:
 
 
 def _run_result_to_dict(result: RunResult) -> dict:
-    return {
+    data = {
         "returncode": result.returncode,
         "stdout": result.stdout,
         "stderr": result.stderr,
@@ -3456,6 +3462,9 @@ def _run_result_to_dict(result: RunResult) -> dict:
         "resource_exhausted": result.resource_exhausted,
         "resource_reason": result.resource_reason,
     }
+    if result.python_execution_root is not None:
+        data["python_execution_root"] = result.python_execution_root
+    return data
 
 
 def _run_result_from_dict(data: dict) -> RunResult:
@@ -3468,6 +3477,7 @@ def _run_result_from_dict(data: dict) -> RunResult:
         str(data.get("diagnostics", "")),
         bool(data.get("resource_exhausted", False)),
         data.get("resource_reason"),
+        data.get("python_execution_root"),
     )
 
 
