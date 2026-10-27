@@ -12,7 +12,7 @@ job's failure-handling step:
 ```yaml
 - name: Minimize failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev13
+  uses: fly1d/repomin@v0.1.0.dev14
   with:
     command: python -m pytest -q tests/test_checkout.py
     match: "AssertionError: checkout total mismatch"
@@ -188,7 +188,7 @@ result through `holdout-status`:
 ```yaml
 - name: Certify minimized failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev13
+  uses: fly1d/repomin@v0.1.0.dev14
   with:
     command: python -m pytest -q tests/test_checkout.py
     match: "AssertionError: checkout total mismatch"
@@ -203,7 +203,7 @@ For a command with a stable exit code but unstable output:
 ```yaml
 - name: Minimize failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev13
+  uses: fly1d/repomin@v0.1.0.dev14
   with:
     command: python -m pytest -q
     exit-code: "1"
@@ -215,7 +215,7 @@ For a Python failure where the match text may also appear in unrelated output:
 ```yaml
 - name: Minimize Python exception
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev13
+  uses: fly1d/repomin@v0.1.0.dev14
   with:
     command: python -m pytest -q tests/test_checkout.py
     match: "ValueError"
@@ -230,7 +230,7 @@ existing local image:
 ```yaml
 - name: Minimize Docker failure
   if: ${{ failure() }}
-  uses: fly1d/repomin@v0.1.0.dev13
+  uses: fly1d/repomin@v0.1.0.dev14
   with:
     command: python3 reproduce.py
     match: "ORIGINAL_FAILURE"
@@ -257,7 +257,7 @@ environment names or values.
 - name: Minimize failure
   if: ${{ failure() }}
   id: minimize
-  uses: fly1d/repomin@v0.1.0.dev13
+  uses: fly1d/repomin@v0.1.0.dev14
   with:
     command: python -m pytest -q tests/test_checkout.py
     match: "AssertionError: checkout total mismatch"

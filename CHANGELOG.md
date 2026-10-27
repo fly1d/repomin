@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0.dev14] - 2026-10-27
+
 ### Added
 
 - Doctor and reduction accept `--match-text` for a literal failure message,
@@ -25,8 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Markdown output remain unchanged.
   The suggested launcher uses the checked ReproMin installation even when the
   working directory or `PYTHONPATH` contains another `repomin` module.
+- The English and Chinese quick starts keep the project's interpreter and
+  dependencies active while ReproMin runs from a separate tool environment.
+  The Ruby Gemfile walkthrough now covers reduction, fingerprint validation,
+  and an independent oracle rerun.
 
 ### Fixed
+
+- Source distributions now include the Pipenv and shared MSBuild props fixtures
+  used by the shipped offline benchmark runner.
 
 - Reduction preflight now applies the same effective ignore and protected-path
   rules as Doctor. Explicitly excluded generated entries no longer block a
@@ -54,6 +63,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   arguments, and shell operators instead of applying argument-list escaping to
   the command text. Commands containing spaces now reach the same failure in
   Doctor, reduction, and replay.
+
+### Compatibility and validation
+
+- Python exception reports keep schema version 1 and add
+  `normalization_policy: execution-root-relative-v1`. Reports without the field
+  retain legacy replay behavior; Python sessions created without this policy
+  must start a new session. Other signature modes retain checkpoint compatibility.
+- This remains a pre-alpha development release. The host backend executes the
+  reproduction command with the current user's permissions. Reduction and replay
+  validate the configured failure contract; they do not establish a root cause.
+- The integrated changes passed the ten required CI checks on Linux, macOS,
+  Windows, Python 3.9/3.13/3.14, JDK 11/21, GitHub Action, offline benchmarks,
+  packaging, and isolated wheel/source-distribution installs. Release artifacts
+  require their own tag-bound validation before publication.
 
 ## [0.1.0.dev13] - 2026-09-11
 

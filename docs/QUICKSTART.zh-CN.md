@@ -40,7 +40,7 @@ repomin_env="$HOME/.venvs/repomin"
 python3 -m venv "$repomin_env"
 "$repomin_env/bin/python" -m pip install --upgrade pip
 
-REPOMIN_VERSION=0.1.0.dev13
+REPOMIN_VERSION=0.1.0.dev14
 "$repomin_env/bin/python" -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 
@@ -48,7 +48,7 @@ repomin_cli="$repomin_env/bin/repomin"
 "$repomin_cli" --version
 ```
 
-最后一条命令应输出 `repomin 0.1.0.dev13`。发布页提供 wheel、源码归档和
+最后一条命令应输出 `repomin 0.1.0.dev14`。发布页提供 wheel、源码归档和
 SHA-256 校验值。ReproMin 目前尚未发布到 PyPI。
 
 其他指南用 `repomin` 表示工具命令。按这里单独安装后，请用 `"$repomin_cli"`
@@ -75,13 +75,12 @@ exit code: 1
 误认为目标失败。如果输出文本不稳定，可以改用 Java/Python 异常身份或精确的
 进程失败签名；选择前请阅读 [Doctor 指南](DOCTOR.md)。
 
-包含尚未发布的字面匹配改动的源码版本支持
-`--match-text 'FAIL [checkout]: total (12)'`，可以直接复制有辨识度的失败消息，
+使用 `--match-text 'FAIL [checkout]: total (12)'`，可以直接复制有辨识度的失败消息，
 不必转义正则字符。对应的正则写法是
 `--match 'FAIL \[checkout\]: total \(12\)'`。两者只选一种，并在 Doctor 和缩减
-命令中保持一致。上面安装的发布版 `v0.1.0.dev13` 尚不支持 `--match-text`；
-下文继续使用该版本支持的 `--match`。Bash/Zsh 与 PowerShell 的引号差异见
-[Doctor 字面匹配说明](DOCTOR.md#literal-failure-messages-unreleased)。
+命令中保持一致。`v0.1.0.dev14` 同时支持这两个选项；下文使用 `--match`。
+Bash/Zsh 与 PowerShell 的引号差异见
+[Doctor 字面匹配说明](DOCTOR.md#literal-failure-messages)。
 
 ## 3. 用 Doctor 检查准备状态
 
@@ -116,13 +115,13 @@ Doctor 检查源目录、reducer、输出路径和 backend，并在两个全新�
 只有 Doctor 以退出码 `0` 结束并显示 `2/2` baseline 通过时才继续。输出目录和
 `<output>.repomin` sidecar 都不能已存在，也不能位于源仓库内部。
 
-尚未发布的源码版本还会在 Doctor 检查和 baseline 都通过后，在文本输出中提供
+Doctor 检查和 baseline 都通过后，还会在文本输出中提供
 可复制的缩减命令，限制为 25 次尝试、300 秒，并关闭 semantic reducer。
 使用 `--config` 时则保留配置文件中的预算和 reducer 选择。在同一工作目录和环境中，
 用提示标明的 Bash/Zsh 或 Windows PowerShell 执行。失败或未验证的 baseline
 不会得到该命令；显式传入 `--env` 时也会省略整条建议，避免回显环境覆盖值。
 本地文本可能含有命令和路径，分享前请检查；JSON 和 Markdown 不包含该建议。
-详见 [Doctor 下一步提示](DOCTOR.md#continue-with-a-suggested-reduction-unreleased)。
+详见 [Doctor 下一步提示](DOCTOR.md#continue-with-a-suggested-reduction)。
 
 ## 4. 执行有上限的缩减
 

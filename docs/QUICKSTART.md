@@ -46,7 +46,7 @@ repomin_env="$HOME/.venvs/repomin"
 python3 -m venv "$repomin_env"
 "$repomin_env/bin/python" -m pip install --upgrade pip
 
-REPOMIN_VERSION=0.1.0.dev13
+REPOMIN_VERSION=0.1.0.dev14
 "$repomin_env/bin/python" -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 
@@ -54,8 +54,8 @@ repomin_cli="$repomin_env/bin/repomin"
 "$repomin_cli" --version
 ```
 
-The final command should print `repomin 0.1.0.dev13`. The
-[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev13)
+The final command should print `repomin 0.1.0.dev14`. The
+[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev14)
 publishes SHA-256 digests for users who need to verify the wheel.
 
 Other guides write the command name as `repomin`. With this separate tool
@@ -92,14 +92,13 @@ unstable, ReproMin can instead learn a Java exception, Python exception, or
 exact process-failure signature; see the [Doctor guide](DOCTOR.md) before
 choosing one of those modes.
 
-For an unreleased source checkout containing the literal-match change, use
+Use
 `--match-text 'FAIL [checkout]: total (12)'` to copy a distinctive failure
 message without regex escaping. The equivalent regex is
 `--match 'FAIL \[checkout\]: total \(12\)'`. Choose one option and use it for
-both Doctor and reduction. `--match-text` is not available in the published
-`v0.1.0.dev13` installed above; the remaining examples use its supported
-`--match` option. See [literal messages and shell quoting](DOCTOR.md#literal-failure-messages-unreleased)
-for the source-checkout workflow.
+both Doctor and reduction. Both options are available in `v0.1.0.dev14`;
+the remaining examples use `--match`.
+See [literal messages and shell quoting](DOCTOR.md#literal-failure-messages).
 
 ## 3. Check readiness with Doctor
 
@@ -143,14 +142,14 @@ the
 The output path and its `<output>.repomin` sidecar must not already exist. The
 reducer refuses to export either one inside the source repository.
 
-In an unreleased source checkout, successful Doctor text output also suggests
+Successful Doctor text output also suggests
 a copyable bounded reduction command: 25 attempts, 300 seconds, and no semantic
 reducer. A `--config` run instead keeps the file's budgets and reducer choices.
 Run the suggestion in the same directory and environment using its labelled
 shell (Bash/Zsh or Windows PowerShell). Failed or unverified baselines do not
 produce it, and explicit `--env` entries suppress it to avoid echoing override values. Review
 local commands and paths before sharing; JSON and Markdown omit the suggestion.
-See [the Doctor handoff](DOCTOR.md#continue-with-a-suggested-reduction-unreleased).
+See [the Doctor handoff](DOCTOR.md#continue-with-a-suggested-reduction).
 
 ## 4. Run a bounded reduction
 
