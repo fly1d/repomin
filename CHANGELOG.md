@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Explicit rule-file paths through repository directory aliases receive the
   same link checks before their contents are read.
 
+- POSIX reproduction commands now start without `/dev/fd`, including when
+  parallel execution allocates multi-digit pipe descriptors. The startup gate
+  still blocks command execution until cancellation tracking is registered.
+
 ## [0.1.0.dev13] - 2026-09-11
 
 ### Added
