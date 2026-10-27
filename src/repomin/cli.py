@@ -96,6 +96,7 @@ from repomin.session import (
     DEFAULT_IGNORES,
     HeartbeatSnapshot,
     HoldoutCertificationError,
+    IgnoreSet,
     ReductionSession,
     SessionError,
     _validate_repository_entries,
@@ -1059,7 +1060,6 @@ def main(
             working_directory_basename,
             execution_working_directory_basename,
         ) = _working_directory_configuration(output, args.backend)
-        _validate_repository_entries(source, DEFAULT_IGNORES)
         (
             gitignore_matcher,
             gitignore_files,
@@ -1073,6 +1073,14 @@ def main(
             ignore_names=args.ignore_names,
             ignore_paths=args.ignore_paths,
         )
+        ignores = IgnoreSet(
+            DEFAULT_IGNORES,
+            args.ignore_paths,
+            gitignore_matcher,
+            args.keep_paths,
+        )
+        ignores.update(args.ignore_names)
+        _validate_repository_entries(source, ignores)
         validate_keep_paths(source, args.keep_paths)
         validate_text_file_paths(
             source,
