@@ -22,7 +22,7 @@ from repomin.execution import (
     _tree_size,
     _working_directory_identity,
 )
-from repomin.model import FailureSpec
+from repomin.model import FailureSpec, RunResult
 from repomin.oracle import FailureOracle
 
 
@@ -166,6 +166,33 @@ class ExecutionTest(unittest.TestCase):
                         self.assertEqual(23, result.returncode)
                     if argv[0] == "/bin/sh":
                         self.assertEqual(-signal.SIGPIPE, result.returncode)
+
+    def test_host_uses_canonical_cwd_for_execution_and_frame_context(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            spelling = root / "parent" / ".."
+            (root / "parent").mkdir()
+            canonical = root.resolve()
+            with mock.patch("repomin.execution._run_process", return_value=RunResult(1, "", "", 0.01)) as run:
+                result = CommandRunner("false", timeout_seconds=5).run(spelling)
+            self.assertEqual(canonical, run.call_args.args[1])
+            self.assertEqual(str(canonical), result.python_execution_root)
+
+    def test_runners_attach_host_and_container_frame_roots_without_changing_output(self) -> None:
+        from dataclasses import replace
+        result = RunResult(1, "stdout", "stderr", 0.01)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with mock.patch("repomin.execution._run_process", return_value=result):
+                host = CommandRunner("false", timeout_seconds=5).run(root)
+                container = DockerRunner("false", timeout_seconds=5,
+                    image="fixture:local", executable="/fake/docker")
+                container.resolved_image_id = "sha256:" + "a" * 64
+                docker = container.run(root)
+            self.assertEqual(str(root.resolve()), host.python_execution_root)
+            self.assertEqual("/workspace", docker.python_execution_root)
+            self.assertEqual(result, replace(host, python_execution_root=None))
+            self.assertEqual(result, replace(docker, python_execution_root=None))
 
     @unittest.skipUnless(os.name == "posix", "process-group test requires POSIX")
     def test_interrupt_terminates_the_active_process_group(self) -> None:

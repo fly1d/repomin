@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parallel execution allocates multi-digit pipe descriptors. The startup gate
   still blocks command execution until cancellation tracking is registered.
 
+- Python exception oracles now retain stable module/function identity across
+  fresh execution copies under host `/workspace` directories. Reports record
+  the frame policy for compatible replay; old Python sessions require restart.
+
 ## [0.1.0.dev13] - 2026-09-11
 
 ### Added
