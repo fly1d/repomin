@@ -2047,6 +2047,10 @@ def _validate_repository_entries(root: Path, ignores: Set[str]) -> None:
                 continue
             try:
                 status = entry.stat(follow_symlinks=False)
+                if stat.S_ISREG(status.st_mode) and status.st_nlink == 0:
+                    # Windows DirEntry.stat can omit the link count. Refresh
+                    # selected entries before enforcing the hardlink boundary.
+                    status = path.lstat()
             except OSError as exc:
                 raise SessionError(
                     "repository entry changed while being inspected: %s" % path

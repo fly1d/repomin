@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import stat
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Iterable, List, Optional, Sequence, Tuple
@@ -402,6 +403,103 @@ def _glob_segments_overlap(pattern: str, actual: str) -> bool:
     return pattern == actual
 
 
+def _read_gitignore_file(path: Path, source: Path) -> Tuple[Path, str]:
+    """Read rules before tree validation without following unsafe source links."""
+    path = path.expanduser()
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    if os.name == "nt":
+        # Win32 folds parent components before following directory links.
+        # POSIX instead resolves them after each preceding link.
+        path = Path(os.path.abspath(path))
+    # An explicit external path can enter the repository through a directory
+    # alias. Walk that prefix too, applying repository restrictions once its
+    # physical target is inside source rather than trusting the lexical path.
+    component = Path(path.anchor)
+    pending = list(path.parts[1:])
+    links = 0
+    while pending:
+        part = pending.pop(0)
+        if part == "..":
+            # An explicitly configured ../external.ignore is supported.
+            component = component.parent
+            continue
+        candidate = component / part
+        status = candidate.lstat()
+        in_source = source == component or source in component.parents
+        is_link = stat.S_ISLNK(status.st_mode)
+        is_reparse = bool(
+            getattr(status, "st_file_attributes", 0)
+            & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+        )
+        if is_reparse and not is_link and in_source:
+            raise ValueError("gitignore file traverses a reparse point: %s" % path)
+        reparse_tag = getattr(status, "st_reparse_tag", None)
+        is_redirect = reparse_tag is not None and reparse_tag in (
+            getattr(stat, "IO_REPARSE_TAG_SYMLINK", None),
+            getattr(stat, "IO_REPARSE_TAG_MOUNT_POINT", None),
+        )
+        if is_link or (is_reparse and is_redirect):
+            links += 1
+            if links > 40:
+                raise ValueError("gitignore file has a symbolic-link loop: %s" % path)
+            target_text = os.readlink(candidate)
+            if os.name == "nt":
+                # readlink returns junction substitution paths with a device
+                # prefix; use the same ordinary spelling as Path.resolve.
+                if target_text.startswith("\\\\?\\UNC\\"):
+                    target_text = "\\\\" + target_text[8:]
+                elif target_text.startswith("\\\\?\\"):
+                    target_text = target_text[4:]
+            target = Path(target_text)
+            if in_source:
+                try:
+                    (component / target).resolve().relative_to(source)
+                    contained = True
+                except (OSError, RuntimeError, ValueError):
+                    contained = False
+                if target.is_absolute() or not contained:
+                    raise ValueError(
+                        "gitignore file traverses an unsafe symbolic link: %s" % path
+                    )
+            if target.is_absolute():
+                component = Path(target.anchor)
+                pending = list(target.parts[1:]) + pending
+            else:
+                pending = list(target.parts) + pending
+        else:
+            component = candidate
+            if stat.S_ISDIR(status.st_mode) and component.samefile(source):
+                # resolve() can retain alternate casing on a case-insensitive
+                # filesystem. Match the validated physical root before using
+                # its canonical spelling for all following descendants; this
+                # also covers Windows short directory names.
+                component = source
+    try:
+        resolved = path.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ValueError("gitignore file could not be resolved: %s" % path) from exc
+    for parent in resolved.parents:
+        if parent == source or parent.samefile(source):
+            # Preserve native resolution while canonicalizing a physical
+            # repository alias for hardlink checks and nested rule scope.
+            resolved = source / resolved.relative_to(parent)
+            break
+    status = resolved.stat()
+    if not stat.S_ISREG(status.st_mode):
+        raise ValueError("gitignore file is not a regular file: %s" % resolved)
+    if source in resolved.parents and status.st_nlink > 1:
+        raise ValueError("gitignore file is hard-linked: %s" % path)
+    try:
+        data = resolved.read_bytes()
+    except OSError as exc:
+        raise ValueError("gitignore file could not be read: %s" % resolved) from exc
+    try:
+        return resolved, data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("gitignore file is not UTF-8: %s" % resolved) from exc
+
+
 def load_gitignore(
     source: Path,
     enabled: bool,
@@ -428,7 +526,7 @@ def load_gitignore(
     seen: set[str] = set()
 
     def add_path(path: Path) -> None:
-        resolved = path.expanduser().resolve()
+        resolved, text = _read_gitignore_file(path, source_root)
         key = str(resolved)
         if key in seen:
             return
@@ -439,16 +537,6 @@ def load_gitignore(
             relative = None
         label = relative.as_posix() if relative is not None else str(resolved)
         base = relative.parent.parts if relative is not None else ()
-        if not resolved.is_file():
-            raise ValueError("gitignore file is not a regular file: %s" % resolved)
-        try:
-            data = resolved.read_bytes()
-        except OSError as exc:
-            raise ValueError("gitignore file could not be read: %s" % resolved) from exc
-        try:
-            text = data.decode("utf-8")
-        except UnicodeDecodeError as exc:
-            raise ValueError("gitignore file is not UTF-8: %s" % resolved) from exc
         entry = (label, base, text)
         entries.append(entry)
         base_entries.append(entry)
@@ -540,7 +628,7 @@ def _collect_nested_gitignore(
             label = relative.as_posix()
             if label not in loaded:
                 try:
-                    text = path.read_text(encoding="utf-8")
+                    _, text = _read_gitignore_file(path, source)
                 except (OSError, UnicodeDecodeError) as exc:
                     raise ValueError(
                         "nested gitignore file could not be read: %s" % path
@@ -559,8 +647,18 @@ def _collect_nested_gitignore(
                 result.append((label, text))
         kept = []
         for name in sorted(dirnames):
-            relative = (directory_path / name).relative_to(source)
-            if not excluded(relative):
-                kept.append(name)
+            child = directory_path / name
+            relative = child.relative_to(source)
+            if excluded(relative):
+                continue
+            status = child.lstat()
+            if getattr(status, "st_file_attributes", 0) & getattr(
+                stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0
+            ) and not stat.S_ISLNK(status.st_mode):
+                raise ValueError(
+                    "nested gitignore discovery cannot traverse a reparse point: %s"
+                    % child
+                )
+            kept.append(name)
         dirnames[:] = kept
     return result
