@@ -1,0 +1,7 @@
+.clickable {
+  cursor: pointer;
+
+  &:is(:disabled, [aria-disabled]) {
+    cursor: not-allowed;
+  }
+}

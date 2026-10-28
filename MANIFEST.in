@@ -119,4 +119,51 @@ include benchmarks/python-fastapi/requirements/runtime.txt
 include benchmarks/python-fastapi/tests/test_regression.py
 include benchmarks/python-fastapi/tests/test_unrelated.py
 
+# Opt-in real-case replay sources only; exclude downloaded wheels and workspaces.
+include reproductions/tsdown-979/.gitignore
+include reproductions/tsdown-979/FEEDBACK.md
+include reproductions/tsdown-979/LICENSE
+include reproductions/tsdown-979/README.md
+include reproductions/tsdown-979/README.zh-CN.md
+include reproductions/tsdown-979/prepared-input/.gitignore
+include reproductions/tsdown-979/prepared-input/LICENSE
+include reproductions/tsdown-979/prepared-input/README.md
+include reproductions/tsdown-979/prepared-input/package.json
+include reproductions/tsdown-979/prepared-input/pnpm-lock.yaml
+include reproductions/tsdown-979/prepared-input/reproduce.mjs
+include reproductions/tsdown-979/prepared-input/src/index.ts
+include reproductions/tsdown-979/prepared-input/src/styles/common.module.css
+include reproductions/tsdown-979/prepared-input/src/styles/components/accordion.module.css
+include reproductions/tsdown-979/prepared-input/src/styles/components/button.module.css
+include reproductions/tsdown-979/prepared-input/src/styles/components/navlink.module.css
+include reproductions/tsdown-979/prepared-input/src/styles/components/tile.module.css
+include reproductions/tsdown-979/prepared-input/tsconfig.json
+include reproductions/tsdown-979/prepared-input/tsdown.config.ts
+include reproductions/tsdown-979/prepared-input.patch
+include reproductions/tsdown-979/provenance.json
+include reproductions/tsdown-979/reference-result/README.md
+include reproductions/tsdown-979/reference-result/payload/LICENSE
+include reproductions/tsdown-979/reference-result/payload/package.json
+include reproductions/tsdown-979/reference-result/payload/pnpm-lock.yaml
+include reproductions/tsdown-979/reference-result/payload/reproduce.mjs
+include reproductions/tsdown-979/reference-result/payload/src/index.ts
+include reproductions/tsdown-979/reference-result/payload/src/styles/common.module.css
+include reproductions/tsdown-979/reference-result/payload/src/styles/components/navlink.module.css
+include reproductions/tsdown-979/reference-result/payload/src/styles/components/tile.module.css
+include reproductions/tsdown-979/reference-result/receipt.json
+include reproductions/tsdown-979/reference-result/validation-summary.md
+include reproductions/tsdown-979/run.py
+include reproductions/tsdown-979/upstream-input/.gitignore
+include reproductions/tsdown-979/upstream-input/LICENSE
+include reproductions/tsdown-979/upstream-input/README.md
+include reproductions/tsdown-979/upstream-input/package.json
+include reproductions/tsdown-979/upstream-input/src/index.ts
+include reproductions/tsdown-979/upstream-input/src/styles/common.module.css
+include reproductions/tsdown-979/upstream-input/src/styles/components/accordion.module.css
+include reproductions/tsdown-979/upstream-input/src/styles/components/button.module.css
+include reproductions/tsdown-979/upstream-input/src/styles/components/navlink.module.css
+include reproductions/tsdown-979/upstream-input/src/styles/components/tile.module.css
+include reproductions/tsdown-979/upstream-input/tsconfig.json
+include reproductions/tsdown-979/upstream-input/tsdown.config.ts
+
 global-exclude *.class *.py[cod] .DS_Store

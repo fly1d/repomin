@@ -1,0 +1,17 @@
+--- upstream-input/src/index.ts
++++ prepared-input/src/index.ts
+@@ -1,10 +1,4 @@
+-import btnstyles from './styles/components/button.module.css';
+-import accordionstyles from './styles/components/accordion.module.css';
+-import navlinkstyles from './styles/components/navlink.module.css';
+-import tilestyles from './styles/components/tile.module.css';
+-
+-export const foo = 'foo'
+-
+-export function fn(): void {
+-  console.log(btnstyles, accordionstyles, navlinkstyles, tilestyles)
+-}
++export { default as buttonStyles } from './styles/components/button.module.css'
++export { default as accordionStyles } from './styles/components/accordion.module.css'
++export { default as navlinkStyles } from './styles/components/navlink.module.css'
++export { default as tileStyles } from './styles/components/tile.module.css'

@@ -66,6 +66,46 @@ The run did not exhaust its attempt or duration budget. `report validate`
 confirmed the exact payload fingerprint, and `report replay` reproduced the
 recorded match-and-exit-code oracle in 3 of 3 fresh copies.
 
+## Current-release revalidation
+
+On 2026-10-28, the published dev14 wheel completed a new, transparently prepared
+version of this case. The original historical 14-file preparation directory
+was not recovered. The [reproduction materials](../reproductions/tsdown-979/README.md)
+include all 12 upstream files from commit
+`094c1471678386c4851fae87922cd7b4d4fac461`, an explicit four-export entry-point
+patch, and only the lockfile and strict oracle from public result commit
+`69801202853e56c5e4e970145cbef86aab14007d`. No reduced source file was used to
+seed the input. Matching historical counts do not prove snapshot identity.
+
+| Measured host | Python | Node | pnpm | Maintainer runs | Fresh replays per run |
+| --- | --- | --- | --- | ---: | ---: |
+| macOS arm64 | 3.13.9 | 26.5.0 | 11.8.0 | 2 | 3/3 |
+| macOS arm64 | 3.9.6 | 24.19.0 | 11.8.0 | 1 | 3/3 |
+
+Each run reduced 14 files / 32,788 bytes to 8 files / 31,342 bytes, with
+56 attempts, four accepted mutations, 14 cache uses and no exhausted budget.
+Six fewer files means only 1,446 fewer bytes (4.41%); the lockfile dominates.
+The newly measured pnpm is 11.8.0, as declared by the public fixture, rather
+than the historical 11.19.0 recorded above.
+
+Both negative controls built successfully and reached the intended checks:
+removing the target declaration exited 0 with zero matches; exporting only one
+CSS object exited 2 with the insufficient-exports diagnostic. Neither emitted
+the target marker. The original prepared inputs remained byte-identical, and
+each exported payload passed exact fingerprint validation before and after
+controls. The [selected receipt](../reproductions/tsdown-979/reference-result/receipt.json)
+and [reference payload](../reproductions/tsdown-979/reference-result/payload)
+cover the Node 24 / Python 3.9 run. Full reports, raw logs, paths and runtimes
+remain private.
+
+These are tests on one maintainer-controlled host, with fresh repository copies
+and task-local dependency stores. They do not establish independent users,
+separate-machine or Linux portability, statistical certification, comparative
+advantage or confirmed usefulness. The [five-field feedback form](../reproductions/tsdown-979/FEEDBACK.md)
+separates replication from real-workflow value. The recipe is an opt-in online
+setup and host execution example, not part of the network-free CI benchmark
+suite.
+
 ## Public delivery
 
 The validated result is available on the

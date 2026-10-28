@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A source-complete, opt-in tsdown #979 replay recipe uses the published dev14
+  wheel, with a no-download environment preflight, explicit preparation and
+  failure controls, a selected result receipt, and English/Chinese instructions.
+  Maintainer tests cover two runtime combinations on macOS arm64; independent
+  usefulness and other platforms remain unvalidated.
+
 ### Fixed
 
 - The real-failure pilot guide keeps the project's dependency environment
