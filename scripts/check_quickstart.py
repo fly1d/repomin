@@ -116,7 +116,7 @@ def _resolve_shell_value(value: str, assignments: dict[str, str]) -> str:
 def _check_failure_contract(
     label: str,
     doctor: str,
-    reduction: str,
+    reduction: str | None,
     assignments: dict[str, str],
     *,
     target_failure: str = TARGET_FAILURE,
@@ -132,18 +132,21 @@ def _check_failure_contract(
         doctor_value = _resolve_shell_value(
             _option_value(label + " Doctor", doctor, option), assignments
         )
-        reduction_value = _resolve_shell_value(
-            _option_value(label + " reduction", reduction, option), assignments
-        )
-        if doctor_value != reduction_value:
-            raise RuntimeError(
-                "%s Doctor and reduction differ for %s" % (label, option)
+        if reduction is not None:
+            reduction_value = _resolve_shell_value(
+                _option_value(label + " reduction", reduction, option), assignments
             )
+            if doctor_value != reduction_value:
+                raise RuntimeError(
+                    "%s Doctor and reduction differ for %s" % (label, option)
+                )
         values[option] = doctor_value
     if values["--match"] != target_failure or values["--exit-code"] != "1":
         raise RuntimeError(
             "%s does not use the strict documented failure contract" % label
         )
+    if reduction is None:
+        return
     for option in ("--max-attempts", "--max-duration"):
         value = _resolve_shell_value(
             _option_value(label + " reduction", reduction, option), assignments
@@ -195,19 +198,20 @@ def _check_documented_journey() -> None:
     chinese = (ROOT / "docs" / "QUICKSTART.zh-CN.md").read_text(encoding="utf-8")
 
     readme_code = _shell_code(readme)
-    _, readme_doctor, readme_reduce, _ = _ordered_commands(
+    _, readme_doctor, _ = _ordered_commands(
         "README",
         readme_code,
         (
             ("repomin", "demo"),
             ("repomin", "doctor"),
-            ("repomin", "reduce"),
             ("repomin", "report", "validate"),
         ),
     )
     _check_failure_contract(
-        "README", readme_doctor, readme_reduce, _shell_assignments(readme_code)
+        "README", readme_doctor, None, _shell_assignments(readme_code)
     )
+    if "DOCTOR.md#continue-with-a-suggested-reduction" not in readme:
+        raise RuntimeError("README must link the generated Doctor handoff")
 
     _check_real_failure_guide("quick start", quickstart)
     _check_real_failure_guide("Chinese quick start", chinese)

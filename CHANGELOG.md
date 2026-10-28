@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Maintainer tests cover two runtime combinations on macOS arm64; independent
   usefulness and other platforms remain unvalidated.
 
+### Changed
+
+- First public-failure help now goes to the existing thread with a repository,
+  failing command and error excerpt. The separate long pilot intake form is
+  removed. Completed runs can share the existing Markdown summary and one
+  useful-or-blocked observation instead of retyping report fields.
+- The README follows Doctor's generated bounded command; the complete quick
+  starts retain a manual reference for cases where suggestions are suppressed.
+  Installation no longer upgrades pip unconditionally.
+
 ### Fixed
 
 - The real-failure pilot guide keeps the project's dependency environment

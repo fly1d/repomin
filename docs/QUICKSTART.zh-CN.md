@@ -38,8 +38,6 @@ project_python="$(python -c 'import sys; print(sys.executable)')"
 ```sh
 repomin_env="$HOME/.venvs/repomin"
 python3 -m venv "$repomin_env"
-"$repomin_env/bin/python" -m pip install --upgrade pip
-
 REPOMIN_VERSION=0.1.0.dev14
 "$repomin_env/bin/python" -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
@@ -125,7 +123,11 @@ Doctor 检查和 baseline 都通过后，还会在文本输出中提供
 
 ## 4. 执行有上限的缩减
 
-首次尝试使用相同失败契约，并限制尝试次数和总时间：
+在同一终端复制执行 Doctor 输出的命令，沿用已检查的失败契约和首次预算。
+如果建议命令被省略（例如你传入了环境覆盖值），再使用下面的手工参考：
+
+手工命令也要带上 Doctor 检查时使用的额外选项，包括私下使用的环境覆盖值；
+下面只列出本指南示例中的选项。
 
 ```sh
 "$repomin_cli" reduce "$source_dir" \

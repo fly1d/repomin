@@ -55,11 +55,11 @@ class CommunityTemplateTest(unittest.TestCase):
             for key in ("name", "about"):
                 self.assertTrue(fields[key], msg=key + " is empty in " + str(path))
 
-    def test_issue_intake_has_three_distinct_routes(self) -> None:
+    def test_issue_intake_keeps_two_issue_forms(self) -> None:
         paths = sorted(_ISSUE_TEMPLATE_DIR.glob("*.md"))
         self.assertEqual(
             {path.name for path in paths},
-            {"bug_report.md", "feature_request.md", "real_failure.md"},
+            {"bug_report.md", "feature_request.md"},
         )
 
         expected_sections = {
@@ -76,14 +76,6 @@ class CommunityTemplateTest(unittest.TestCase):
                 "Evidence and validation",
                 "Done when",
                 "Safety",
-            },
-            "real_failure.md": {
-                "Requested outcome",
-                "Context and impact",
-                "Evidence and validation",
-                "Done when",
-                "Authorship and automation",
-                "Safety and redistribution",
             },
         }
         for path in paths:
@@ -190,22 +182,14 @@ class CommunityTemplateTest(unittest.TestCase):
             self.assertNotIn("Additional context", headings, msg=str(path))
             self.assertNotIn("Other decision-relevant context", headings, msg=str(path))
 
-    def test_real_failure_template_collects_runnable_or_reviewed_evidence(self) -> None:
-        text = (_ISSUE_TEMPLATE_DIR / "real_failure.md").read_text(
-            encoding="utf-8"
-        ).lower()
-        for required in (
-            "public, licensed repository/fixture",
-            "enough reviewed evidence",
-            "target exit code or failure-signature shape",
-            "different failure that must be rejected",
-            "report validate",
-            "material llm or agent involvement",
-            "ai-assistance policies",
-            "credentials",
-            "proprietary source",
-        ):
-            self.assertIn(required, text)
+    def test_public_failure_help_uses_the_existing_thread(self) -> None:
+        config = (_ISSUE_TEMPLATE_DIR / "config.yml").read_text(encoding="utf-8")
+        support = (_ROOT / "SUPPORT.md").read_text(encoding="utf-8")
+        self.assertFalse((_ISSUE_TEMPLATE_DIR / "real_failure.md").exists())
+        self.assertIn("name: Help reduce a public failure", config)
+        self.assertEqual(config.count("https://github.com/fly1d/repomin/issues/11"), 1)
+        self.assertEqual(support.count("https://github.com/fly1d/repomin/issues/11"), 1)
+        self.assertNotIn("template=real_failure.md", support)
 
     def test_improvement_template_keeps_benchmark_decision_context(self) -> None:
         text = (_ISSUE_TEMPLATE_DIR / "feature_request.md").read_text(

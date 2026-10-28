@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Help reduce a public failure
+    url: https://github.com/fly1d/repomin/issues/11
+    about: Share the repository and revision, failing command, and a short failure message. No ReproMin installation or run report required.
   - name: Security vulnerability
     url: https://github.com/fly1d/repomin/blob/main/SECURITY.md
     about: Please follow the private reporting process in SECURITY.md. Do not disclose vulnerabilities in a public issue.

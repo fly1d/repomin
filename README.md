@@ -79,8 +79,7 @@ for readers. The Gradle case study records the method and results; it does
 not offer a downloadable payload.
 
 These are feasibility results, not independent adoption or a promise that
-every repository will shrink by the same amount. The current milestone is
-[five non-maintainer workflows](https://github.com/fly1d/repomin/issues/11).
+every repository will shrink by the same amount.
 
 ## When to use it
 
@@ -122,14 +121,14 @@ repomin doctor . \
   --exit-code 1 \
   --output ../checkout-repro
 
-repomin reduce . \
-  --command 'python -m pytest -q tests/test_checkout.py' \
-  --match 'AssertionError: checkout total mismatch' \
-  --exit-code 1 \
-  --max-attempts 25 \
-  --max-duration 300 \
-  --output ../checkout-repro
+```
 
+When Doctor passes, run the command it prints: it carries the checked contract
+and a 25-attempt, 300-second budget. See the [handoff](https://github.com/fly1d/repomin/blob/main/docs/DOCTOR.md#continue-with-a-suggested-reduction)
+or [manual fallback](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.md#4-run-a-bounded-reduction).
+After it finishes, validate the result:
+
+```sh
 repomin report validate ../checkout-repro.repomin/report.json \
   --payload ../checkout-repro \
   --format markdown
