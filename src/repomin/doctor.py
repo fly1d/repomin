@@ -528,7 +528,11 @@ def run_doctor(
         for path in repository_files
         if path.suffix == ".py"
     ]
-    java_toolchain = _java_toolchain()
+    java_toolchain = _java_toolchain() if java_files else {
+        "available": False,
+        "version": None,
+        "message": "JDK check skipped: no .java files in the selected tree",
+    }
     reducers: Dict[str, object] = {
         "java": {
             "detected": bool(java_files),

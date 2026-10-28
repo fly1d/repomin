@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Doctor no longer launches an unrelated JDK probe for repositories without
+  included Java source files. Java projects retain the existing toolchain
+  checks; detection respects the effective ignore and `--keep` selection.
 - The real-failure pilot guide keeps the project's dependency environment
   active while calling a separate ReproMin installation. Its first reductions
   now have attempt and duration limits, and the exit-only example requires a

@@ -119,6 +119,59 @@ class DoctorTest(unittest.TestCase):
             format_doctor(result),
         )
 
+    def test_doctor_does_not_probe_jdk_without_java_sources(self) -> None:
+        source = self._source()
+        for reducer in ("auto", "python", "none", "java"):
+            with self.subTest(reducer=reducer):
+                with patch("repomin.doctor._java_toolchain") as probe:
+                    ok, result = run_doctor(source, source_reducer=reducer)
+                probe.assert_not_called()
+                self.assertEqual(reducer != "java", ok)
+                self.assertFalse(result["source_reducers"]["java"]["available"])
+                self.assertIsNone(
+                    result["source_reducers"]["java"]["toolchain"]["version"]
+                )
+                self.assertIn("skipped", result["source_reducers"]["java"]["toolchain"]["message"])
+                if reducer == "java":
+                    self.assertIn("no .java files were found", format_doctor(result))
+
+    def test_doctor_probes_jdk_only_for_included_java_sources(self) -> None:
+        source = self._source()
+        generated = source / "generated"
+        generated.mkdir()
+        (generated / "Example.java").write_text("class Example {}\n", encoding="utf-8")
+        toolchain = {"available": True, "version": 21, "message": "JDK 21 is available"}
+        for protected in (False, True):
+            with self.subTest(protected=protected):
+                with patch("repomin.doctor._java_toolchain", return_value=toolchain) as probe:
+                    ok, result = run_doctor(
+                        source,
+                        ignore_names=("generated",),
+                        keep_paths=("generated/Example.java",) if protected else (),
+                    )
+                self.assertTrue(ok)
+                if protected:
+                    probe.assert_called_once_with()
+                    self.assertEqual(toolchain, result["source_reducers"]["java"]["toolchain"])
+                    self.assertTrue(result["source_reducers"]["java"]["available"])
+                else:
+                    probe.assert_not_called()
+                    self.assertFalse(result["source_reducers"]["java"]["detected"])
+
+    def test_doctor_keeps_jdk_validation_for_java_sources(self) -> None:
+        source = self._source()
+        (source / "Example.java").write_text("class Example {}\n", encoding="utf-8")
+        for available in (False, True):
+            for reducer in ("auto", "java", "none"):
+                with self.subTest(available=available, reducer=reducer):
+                    toolchain = {"available": available, "version": 21 if available else None,
+                                 "message": "JDK 21 is available" if available else "JDK unavailable"}
+                    with patch("repomin.doctor._java_toolchain", return_value=toolchain) as probe:
+                        ok, result = run_doctor(source, source_reducer=reducer)
+                    probe.assert_called_once_with()
+                    self.assertEqual(available or reducer != "java", ok)
+                    self.assertEqual(available, result["source_reducers"]["java"]["available"])
+
     def test_doctor_rejects_empty_or_whitespace_command_without_running(self) -> None:
         source = self._source()
 

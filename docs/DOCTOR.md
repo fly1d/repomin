@@ -7,6 +7,11 @@ and sibling metadata paths that a normal run would use. When a failure command
 is supplied, ReproMin prepares fresh copies but the command can still modify
 anything its backend permits.
 
+Doctor skips the Java toolchain check when the included tree has no `.java`
+files. Files excluded by ignore rules do not trigger it; a `--keep` override
+can include them again. Requesting `--source-reducer java` still requires Java
+source files and JDK 11 or newer.
+
 If you installed into the separate tool environment in the
 [quick start](QUICKSTART.md), use `"$repomin_cli"` in place of `repomin` in the
 examples below, keeping your project environment active.
