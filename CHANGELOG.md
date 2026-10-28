@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release candidates bootstrap hash-bound pip 26.2.2 before package-index
+  access. The PyPI action is pinned to the upstream certificate remediation,
+  with patched pip, certifi, and Sigstore dependencies. Publishing remains
+  disabled unless explicitly authorized and enabled by the maintainer.
 - Python first-use guidance now explains how to reject imports from outside a
   candidate, including editable installs that still point at the original checkout. The
   source-check example rejects that setup instead of accepting its failure as
