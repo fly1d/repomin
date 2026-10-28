@@ -468,6 +468,7 @@ time.sleep(10)
 import time
 from pathlib import Path
 
+print("child started", flush=True)
 time.sleep(0.6)
 Path("escaped.txt").write_text("child survived\\n", encoding="utf-8")
 """
@@ -486,12 +487,15 @@ time.sleep(10)
             (root / "parent with spaces.py").write_text(parent_script, encoding="utf-8")
             command = '"%s" "parent with spaces.py"' % sys.executable
 
-            result = CommandRunner(command, timeout_seconds=0.1).run(root)
+            # Allow Python startup, as in the POSIX test, while timing out
+            # before the child writes. This tests cleanup, not 100ms startup.
+            result = CommandRunner(command, timeout_seconds=0.5).run(root)
             time.sleep(0.8)
 
             self.assertTrue(result.timed_out)
             self.assertEqual(124, result.returncode)
             self.assertIn("parent started", result.stdout)
+            self.assertIn("child started", result.stdout)
             self.assertFalse((root / "escaped.txt").exists())
 
     @unittest.skipUnless(os.name == "nt", "Windows cmd quotation test")
