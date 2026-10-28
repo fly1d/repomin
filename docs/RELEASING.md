@@ -7,6 +7,23 @@ PyPI upload is authorized without an explicit maintainer decision. The runtime
 version in `src/repomin/__init__.py` is the single source of truth; `setup.cfg`
 reads it when building wheel and source-distribution metadata.
 
+## Installer prerequisite
+
+Activate a maintained Python 3.11+ virtual environment for the release tools.
+Before any package-index access, bootstrap pip 26.2.2 from the exact wheel and
+checksum in the [Python certificate incident advisory](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576).
+`python` below must refer to that environment. Keep this variable in the same
+shell for the later environment checks:
+
+```sh
+pip_bootstrap='pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70'
+python -m pip install --disable-pip-version-check --no-deps "$pip_bootstrap"
+```
+
+This updates the release tool environment, not the project's runtime
+requirement. The tag-bound workflow performs the same bootstrap in its build,
+wheel-test, and source-distribution-test environments.
+
 ## Before Tagging
 
 1. Confirm the working tree is clean and the default branch is up to date. Do
@@ -81,6 +98,7 @@ above:
 ```sh
 wheel_venv="$(mktemp -d "${TMPDIR:-/tmp}/repomin-wheel-venv.XXXXXX")"
 python -m venv "$wheel_venv"
+"$wheel_venv/bin/python" -m pip install --disable-pip-version-check --no-deps "$pip_bootstrap"
 "$wheel_venv/bin/python" -m pip install --no-deps "$wheel_path"
 "$wheel_venv/bin/repomin" --help >/dev/null
 "$wheel_venv/bin/python" -m repomin --version
@@ -89,6 +107,7 @@ python -m venv "$wheel_venv"
 
 sdist_venv="$(mktemp -d "${TMPDIR:-/tmp}/repomin-sdist-venv.XXXXXX")"
 python -m venv "$sdist_venv"
+"$sdist_venv/bin/python" -m pip install --disable-pip-version-check --no-deps "$pip_bootstrap"
 "$sdist_venv/bin/python" -m pip install --no-deps "$sdist_path"
 "$sdist_venv/bin/repomin" --help >/dev/null
 "$sdist_venv/bin/python" -m repomin --version
