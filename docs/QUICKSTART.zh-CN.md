@@ -112,6 +112,12 @@ failure_exit_code=1
 解释器的绝对路径属于本机环境，该环境不会随 payload 一起导出。向其他开发者
 分享结果前，请先阅读[重放要求](REPLAY.md)。
 
+如果环境中有项目的 editable 安装、同名包的已安装版本，或指向绝对路径的
+`PYTHONPATH`，测试仍可能导入候选副本之外的代码。把
+[源码来源检查](DOCTOR.md#when-a-passing-baseline-uses-the-original-python-source)
+放进复现命令，在每个候选和重放中都执行。baseline 通过或指纹一致，不能证明
+测试使用的是候选源码。
+
 输出目录和 `<output>.repomin` sidecar 都不能已存在，也不能位于源仓库内部。
 失败命令本身仍可修改 backend 允许访问的任何资源；在默认 host backend 下，
 它拥有当前用户的权限。
