@@ -12,6 +12,7 @@ include scripts/check_quickstart.py
 include scripts/check_release_artifacts.py
 include scripts/check_windows_quickstart.ps1
 recursive-include docs *.md
+include docs/assets/demo-preview.svg
 include tests/test_*.py
 
 # Keep benchmark fixtures explicit. Recursive extension globs also collect
