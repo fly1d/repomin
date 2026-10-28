@@ -44,8 +44,6 @@ the tool's explicit path below, keeping the project environment and `PATH` activ
 ```sh
 repomin_env="$HOME/.venvs/repomin"
 python3 -m venv "$repomin_env"
-"$repomin_env/bin/python" -m pip install --upgrade pip
-
 REPOMIN_VERSION=0.1.0.dev14
 "$repomin_env/bin/python" -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
@@ -153,7 +151,12 @@ See [the Doctor handoff](DOCTOR.md#continue-with-a-suggested-reduction).
 
 ## 4. Run a bounded reduction
 
-Run the same contract with an attempt and wall-clock limit for the first trial:
+Copy the command Doctor printed and run it in the same shell. It carries the
+checked contract and first-run budget. If the suggestion was suppressed (for
+example, because you supplied environment overrides), use this manual reference:
+
+Carry over any extra options you checked with Doctor, including private
+environment overrides; the reference below contains only this guide's options.
 
 ```sh
 "$repomin_cli" reduce "$source_dir" \

@@ -1,8 +1,9 @@
 # Real failure pilot
 
-Use this guide to share a sanitized ReproMin run from a real CI or dependency
-failure. The goal is to learn which defaults, adapters, and report fields help
-in practice; a complete private repository is not required.
+Get a repeatable failure into a smaller reproduction that helps a bug report,
+debugging session, or regression test. Start with the three-item help request
+below. The later sections are for running and reviewing a reduction yourself;
+they are not prerequisites for asking for help.
 
 For completed public workflows, see the
 [tsdown CSS module pilot](CASE_STUDY_TSDOWN_979.md), which records an oracle
@@ -20,12 +21,12 @@ for help. For a public repository, add these three items to
 [pilot issue #11](https://github.com/fly1d/repomin/issues/11):
 
 1. the repository and revision;
-2. a deterministic local command that reproduces the failure; and
-3. the exit code, exception type, or stable output that distinguishes the
-   target failure from setup and dependency failures.
+2. the local command that fails; and
+3. a short error excerpt showing which failure should remain.
 
-A maintainer can check fit, run Doctor, propose a strict oracle, and perform a
-bounded first reduction. The repository must have an explicit open-source
+A maintainer first checks whether the failure reproduces or identifies the
+one missing detail needed to try it. Then they can propose a strict oracle and
+run a bounded first reduction. The repository must have an explicit open-source
 license, and the command must not require credentials, private services,
 special hardware, or production data. The result is not sent to another
 project until a human has reviewed the artifact and that project's policies.
@@ -165,15 +166,13 @@ Validate the payload and its sidecar before inspecting or sharing them:
 "$repomin_cli" report validate \
   /tmp/repomin-pilot-result.repomin/report.json \
   --payload /tmp/repomin-pilot-result \
-  --json
+  --format markdown
 ```
 
-The `--json` result includes the validated ReproMin version, execution backend,
-source and payload sizes, attempt/mutation counts, cache uses, holdout status,
-and resolved report/payload paths. Copy only the reviewed scalar evidence into
-the issue template and redact local paths, or rerun with `--format markdown`
-for a path-free shareable summary. Still review the complete `report.json` and
-payload for secrets before sharing.
+The Markdown summary contains the validated version, sizes, attempt counts and
+validation status without local paths or command output. Review it before
+sharing; it replaces manual report fields. Review the complete `report.json`
+and payload for secrets separately before sharing either artifact.
 
 The sidecar contains `report.json` and a human-readable `REPOMIN.md`. Review
 both files and the minimized payload for secrets before posting anything.
@@ -201,21 +200,13 @@ values; review the report and payload for secrets first.
 
 ## Share the result
 
-Open [the real CI pilot issue](https://github.com/fly1d/repomin/issues/11) and
-include only this summary:
-
-```text
-Language and build/test system:
-ReproMin version:
-Backend and adapter:
-Source/text reducer options:
-Failure signal shape (redacted):
-Payload retained:
-Payload removed:
-Approximate duration:
-What was useful or confusing:
-Known limitations:
-```
+After a run, paste the reviewed Markdown validation summary in
+[the existing thread](https://github.com/fly1d/repomin/issues/11) and add one
+answer: what did the result help you do, or where did you get blocked? Generate
+the summary with the `report validate --format markdown` command described
+above. It already contains the version, sizes, attempts and validation status;
+there is no need to retype them. If the run stopped before creating a report,
+just share the stopped stage and a short redacted error.
 
 Do not attach the original checkout or unredacted logs. A maintainer may ask
 for a public fixture only after the workflow and licensing are clear. Repeatable

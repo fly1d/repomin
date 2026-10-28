@@ -12,8 +12,10 @@ vulnerabilities. Follow [SECURITY.md](SECURITY.md) for private reports.
 
 - Ask usage and troubleshooting questions in [GitHub Discussions][discussions].
 - Share results and workflow feedback in [Show and tell][show-and-tell].
-- Use an issue template for reproducible bugs, focused improvements, and real
-  failure pilots. Benchmark proposals use the improvement template.
+- Use an issue template for reproducible bugs or focused improvements.
+  For help reducing a public failure, use the
+  [existing thread](https://github.com/fly1d/repomin/issues/11).
+  Benchmark proposals use the improvement template.
 - Start from a scoped task in [good first issues](docs/GOOD_FIRST_ISSUES.md) when
   making a first contribution. Comment before starting so overlapping work is
   visible.
@@ -42,6 +44,10 @@ Contributor messages cover:
 
 These are questions to answer, not headings that every message must repeat.
 Combine them when one concise paragraph carries the same decision context.
+
+For a first public-failure help request, the repository and revision, failing
+command, and a short error excerpt are enough. A maintainer helps establish the
+contract; installation and a completed run report are not intake requirements.
 
 Use `N/A` and explain why when a detail is unavailable or does not apply. Do not
 guess or leave a required field ambiguous.
