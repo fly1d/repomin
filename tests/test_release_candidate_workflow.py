@@ -62,6 +62,38 @@ class ReleaseCandidateWorkflowTests(unittest.TestCase):
             self.assertNotIn(trigger, self.workflow)
         self.assertIn('if [[ "$GITHUB_REF_TYPE" != "tag" ]]', self.workflow)
 
+    def test_fixed_installer_precedes_candidate_index_access(self) -> None:
+        build_job = self._named_job("build")
+        self.assertIn("PIP_BOOTSTRAP_REQUIREMENT:", build_job)
+        self.assertIn("pip-26.2.2-py3-none-any.whl", build_job)
+        self.assertIn(
+            "#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70",
+            build_job,
+        )
+        marker = "Install certificate-safe pip"
+        self.assertIn(marker, build_job)
+        self.assertLess(build_job.index(marker), build_job.index("Install build tools"))
+        bootstrap = self._named_step(marker)
+        self.assertNotIn("\n        if:", bootstrap)
+        self.assertNotIn("continue-on-error", bootstrap)
+        self.assertIn('"$PIP_BOOTSTRAP_REQUIREMENT"', bootstrap)
+        installed = self._named_step_run("Test exact release candidate")
+        for kind, archive in (("wheel", "wheels[0]"), ("sdist", "sdists[0]")):
+            interpreter = f'"${kind}_venv/bin/python"'
+            bootstrap_command = (
+                interpreter + ' -m pip install \\\n'
+                '  --disable-pip-version-check --no-deps "$PIP_BOOTSTRAP_REQUIREMENT"'
+            )
+            candidate_command = (
+                interpreter + ' -m pip install \\\n'
+                f'  --no-deps --no-cache-dir "${{{archive}}}"'
+            )
+            self.assertLess(
+                installed.index(f'python -m venv "${kind}_venv"'),
+                installed.index(bootstrap_command),
+            )
+            self.assertLess(installed.index(bootstrap_command), installed.index(candidate_command))
+
     def test_tag_is_bound_to_source_and_built_artifact_versions(self) -> None:
         source_check = self.workflow.index("Verify tag matches source version")
         build = self.workflow.index("python -m build --outdir release-dist")
@@ -154,7 +186,10 @@ class ReleaseCandidateWorkflowTests(unittest.TestCase):
             sdist_tests,
         ):
             self.assertEqual(1, installed_run.count(command))
-            self.assertEqual(1, run_lines.count(command.splitlines()[0]))
+            # Each environment installs the fixed pip bootstrap before the
+            # candidate archive. Other guarded commands still run only once.
+            prefix_count = 2 if command in (wheel_install_command, sdist_install_command) else 1
+            self.assertEqual(prefix_count, run_lines.count(command.splitlines()[0]))
         for import_check in (
             'assert_installed_package "$wheel_venv/bin/python"',
             'assert_installed_package "$sdist_venv/bin/python"',
@@ -361,7 +396,7 @@ class ReleaseCandidateWorkflowTests(unittest.TestCase):
             "artifact-ids: ${{ needs.build.outputs.candidate-artifact-id }}",
             "path: candidate",
             "pypa/gh-action-pypi-publish@"
-            "dc37677b2e1c63e2034f94d8a5b11f265b73ba33",
+            "2442bad8f54b06a326f3030ef5e6a7a674118557",
             "packages-dir: candidate/release-dist/",
             "verify-metadata: true",
             "skip-existing: false",
@@ -405,7 +440,7 @@ class ReleaseCandidateWorkflowTests(unittest.TestCase):
                 "actions/download-artifact@"
                 "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
                 "pypa/gh-action-pypi-publish@"
-                "dc37677b2e1c63e2034f94d8a5b11f265b73ba33",
+                "2442bad8f54b06a326f3030ef5e6a7a674118557",
             ],
             publish_actions,
         )

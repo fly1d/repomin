@@ -32,22 +32,30 @@ project_python="$(python -c 'import sys; print(sys.executable)')"
 
 如果找不到 pytest，先选择或准备项目自己的环境。安装 ReproMin 不会安装项目依赖。
 
-在源仓库外创建独立环境，并从经过发布检查的 GitHub Release 安装当前开发版本。
-后续通过工具的绝对路径调用，保持项目当前的环境和 `PATH`：
+在源仓库外创建独立环境，通过包名从 PyPI 安装固定的 pre-alpha 开发版本。
+后续通过工具的绝对路径调用，保持项目当前的环境和 `PATH`。
+
+工具环境使用仍在维护的 Python 3.11+（下文的 `python3`），项目可以继续使用
+自己的解释器。新环境在运行 `pip install` 前需要 pip 26.2.2 或更新版本；
+如果自带的 pip 版本较旧，请按
+[Python 官方安全公告](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576)更新。
+如果当前项目环境让 `python3` 指向旧版本，请把下文的 `python3` 替换为
+工具所用维护中解释器的绝对路径。
 
 ```sh
 repomin_env="$HOME/.venvs/repomin"
 python3 -m venv "$repomin_env"
-REPOMIN_VERSION=0.1.0.dev14
+REPOMIN_VERSION=0.1.0.dev15
 "$repomin_env/bin/python" -m pip install \
-  "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
+  "repomin==${REPOMIN_VERSION}"
 
 repomin_cli="$repomin_env/bin/repomin"
 "$repomin_cli" --version
 ```
 
-最后一条命令应输出 `repomin 0.1.0.dev14`。发布页提供 wheel、源码归档和
-SHA-256 校验值。ReproMin 目前尚未发布到 PyPI。
+最后一条命令应输出 `repomin 0.1.0.dev15`。对应的
+[发布页](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev15)提供 wheel、
+源码归档和 SHA-256 校验值。这是 pre-alpha 开发版本。
 
 其他指南用 `repomin` 表示工具命令。按这里单独安装后，请用 `"$repomin_cli"`
 替换它，并在同一终端中保持项目环境。

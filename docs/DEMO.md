@@ -35,13 +35,14 @@ retained alongside the result, so you can compare them.
 
 ## Run it
 
-With Python 3.9+ and [uv](https://docs.astral.sh/uv/getting-started/installation/),
-run the published pre-alpha release in a new workspace. These commands use
-Bash/Zsh on macOS/Linux:
+With Python 3.9+ and [uv](https://docs.astral.sh/uv/getting-started/installation/)
+0.13.4 or newer, run this exact pre-alpha development version in a new
+workspace. Keep uv up to date as described in the
+[Python security notice](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576).
+These commands use Bash/Zsh on macOS/Linux:
 
 ```sh
-uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev14/repomin-0.1.0.dev14-py3-none-any.whl \
-  repomin demo ./repomin-demo
+uvx --from "repomin==0.1.0.dev15" repomin demo ./repomin-demo
 ```
 
 This does not install into the project's Python environment. The first

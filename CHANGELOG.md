@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0.dev15] - 2026-10-29
+
 ### Added
 
 - A source-complete, opt-in tsdown #979 replay recipe uses the published dev14
@@ -17,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Installation examples select the exact development version from PyPI by
+  package name. The first PyPI upload requires a configured trusted publisher
+  and an explicit maintainer publication decision; this remains pre-alpha.
 - First public-failure help now goes to the existing thread with a repository,
   failing command and error excerpt. The separate long pilot intake form is
   removed. Completed runs can share the existing Markdown summary and one
@@ -28,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release candidates bootstrap pip 26.2.2 from its verified SHA-256 before
+  package-index access. The PyPI action is pinned to the upstream certificate
+  remediation, with patched pip, certifi, and Sigstore dependencies.
 - Doctor no longer launches an unrelated JDK probe for repositories without
   included Java source files. Java projects retain the existing toolchain
   checks; detection respects the effective ignore and `--keep` selection.

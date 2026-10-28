@@ -33,17 +33,26 @@ project until a human has reviewed the artifact and that project's policies.
 
 ## Install the pilot build
 
-The replay and transport-fingerprint workflow described below is included in
-the `v0.1.0.dev14` pre-release. Keep the environment that already reproduces
-your project's failure active. Install the tool in a separate environment
-outside the repository, then call its executable explicitly:
+Install the exact `v0.1.0.dev15` pre-release from PyPI for the replay and
+transport-fingerprint workflow below.
+Keep the environment that already reproduces your project's failure active.
+Install the tool in a separate environment outside the repository, then call
+its executable explicitly.
+
+Use a maintained Python 3.11+ for this tool environment (`python3` below); the
+project can keep its own interpreter. ReproMin's runtime supports Python 3.9+.
+The new environment needs pip 26.2.2 or newer before `pip install`. Update an
+older bundled pip using the
+[Python security notice](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576).
+Use the maintained interpreter's absolute path in place of `python3` if the
+active project environment selects an older Python.
 
 ```sh
 repomin_env="$HOME/.venvs/repomin"
 python3 -m venv "$repomin_env"
-REPOMIN_VERSION=0.1.0.dev14
+REPOMIN_VERSION=0.1.0.dev15
 "$repomin_env/bin/python" -m pip install \
-  "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
+  "repomin==${REPOMIN_VERSION}"
 repomin_cli="$repomin_env/bin/repomin"
 "$repomin_cli" --version
 ```

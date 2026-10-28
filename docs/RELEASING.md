@@ -1,11 +1,27 @@
 # Releasing ReproMin
 
-This checklist describes the supported GitHub Release process for the
-pre-alpha project. ReproMin is not published to PyPI. Its trusted-publishing
-job is dormant unless a repository variable is deliberately enabled, and no
-PyPI upload is authorized without an explicit maintainer decision. The runtime
+This checklist describes GitHub Releases and optional PyPI distribution for
+the pre-alpha project. Each channel requires a maintainer decision. The
+trusted-publishing job is dormant unless a repository variable is deliberately
+enabled, and no PyPI upload is authorized without an explicit maintainer decision. The runtime
 version in `src/repomin/__init__.py` is the single source of truth; `setup.cfg`
 reads it when building wheel and source-distribution metadata.
+
+## Installer prerequisite
+
+Use a maintained Python 3.11+ environment for the release tools. Before any
+package-index access, bootstrap pip 26.2.2 from the exact wheel and checksum in
+the [Python certificate incident advisory](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576).
+Keep this variable in the same shell for the later environment checks:
+
+```sh
+pip_bootstrap='pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70'
+python -m pip install --disable-pip-version-check --no-deps "$pip_bootstrap"
+```
+
+This updates the isolated release environment, not the project's runtime
+requirement. The tag-bound workflow performs the same bootstrap in its build,
+wheel-test, and source-distribution-test environments.
 
 ## Before Tagging
 
@@ -18,11 +34,13 @@ reads it when building wheel and source-distribution metadata.
 3. Move the relevant entries from the `Unreleased` section of `CHANGELOG.md`
    into a dated version heading. Include user-visible behavior, compatibility
    notes, known limitations, and the verification scope.
-4. Update every pinned release reference, not only the wheel URL:
-   `README.md`, `docs/QUICKSTART.md`, `docs/QUICKSTART.windows.md`,
+4. Update every pinned release reference, including package requirements:
+   `README.md`, `docs/DEMO.md`, `docs/QUICKSTART.md`, `docs/QUICKSTART.windows.md`,
    `docs/QUICKSTART.zh-CN.md`, `docs/GITHUB_ACTION.md`, `docs/REPLAY.md`, and
    `docs/REAL_FAILURE_PILOT.md`. This includes both tag or Action refs and the
-   `REPOMIN_VERSION` values used in install commands.
+   `REPOMIN_VERSION` values used in install commands and literal
+   `repomin==X.Y.Z` requirements. Confirm the PyPI name and trusted publisher
+   before merging instructions that depend on the first PyPI upload.
    Use `rg -n 'v[0-9]+\.[0-9]+\.[0-9]+|REPOMIN_VERSION' README.md docs action.yml`
    to find stale references, then inspect the diff so historical changelog
    entries remain unchanged.
@@ -81,6 +99,7 @@ above:
 ```sh
 wheel_venv="$(mktemp -d "${TMPDIR:-/tmp}/repomin-wheel-venv.XXXXXX")"
 python -m venv "$wheel_venv"
+"$wheel_venv/bin/python" -m pip install --disable-pip-version-check --no-deps "$pip_bootstrap"
 "$wheel_venv/bin/python" -m pip install --no-deps "$wheel_path"
 "$wheel_venv/bin/repomin" --help >/dev/null
 "$wheel_venv/bin/python" -m repomin --version
@@ -89,6 +108,7 @@ python -m venv "$wheel_venv"
 
 sdist_venv="$(mktemp -d "${TMPDIR:-/tmp}/repomin-sdist-venv.XXXXXX")"
 python -m venv "$sdist_venv"
+"$sdist_venv/bin/python" -m pip install --disable-pip-version-check --no-deps "$pip_bootstrap"
 "$sdist_venv/bin/python" -m pip install --no-deps "$sdist_path"
 "$sdist_venv/bin/repomin" --help >/dev/null
 "$sdist_venv/bin/python" -m repomin --version

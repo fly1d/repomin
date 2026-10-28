@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 _RELEASE_DOCUMENTS = (
     ROOT / "README.md",
+    ROOT / "docs" / "DEMO.md",
     ROOT / "docs" / "QUICKSTART.md",
     ROOT / "docs" / "QUICKSTART.windows.md",
     ROOT / "docs" / "QUICKSTART.zh-CN.md",
@@ -19,6 +20,7 @@ _RELEASE_DOCUMENTS = (
     ROOT / "docs" / "REAL_FAILURE_PILOT.md",
 )
 _RELEASE_REFERENCE_PATTERNS = (
+    re.compile(r"\brepomin==([0-9]+\.[0-9]+\.[0-9]+(?:[.-][0-9A-Za-z.-]+)?)"),
     re.compile(r"fly1d/repomin@v([0-9][^\s`]*)"),
     re.compile(
         r"releases/(?:download|tag)/v"
