@@ -142,6 +142,10 @@ rather than a relative `.venv/bin/python` command. The
 [quick start](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.md)
 shows how to retain the project interpreter when installing ReproMin separately.
 
+An editable install can still import the original project from a fresh copy.
+Make the reproduction command [check the tested package's source](https://github.com/fly1d/repomin/blob/main/docs/DOCTOR.md#when-a-passing-baseline-uses-the-original-python-source)
+on every run; preserving the interpreter does not ensure it tests the candidate.
+
 ReproMin itself prepares candidates in temporary copies and does not write into
 the source tree. On the host backend, however, your reproduction command still
 runs with your account and can modify any resource it can access.

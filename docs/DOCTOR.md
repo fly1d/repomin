@@ -267,3 +267,48 @@ scratch checkout with the same exclusions. Do not run diagnostic commands in an
 exported payload while validation or replay is reading it. Keep the strict
 marker and exit code: broadening the oracle can accept a setup failure instead
 of the bug you want to reduce.
+
+## When a passing baseline uses the original Python source
+
+Keeping the project interpreter preserves its dependencies, including any
+[editable installation](https://pip.pypa.io/en/stable/topics/local-project-installs/#editable-installs)
+that points to the original checkout. An installed copy of the same package or
+an absolute `PYTHONPATH` can also select code outside the candidate. A baseline
+and replay can then match even after the candidate's package has been removed.
+Payload fingerprints check the exported tree, not the origin of its imports.
+
+For a Python `src` layout, put a source check in your reproduction script before
+the tests run in that same process. This example covers one ordinary file-backed
+package that imports successfully; replace `your_package` with the package under
+reduction. Import-time failures need a project-specific check before running the
+failing code.
+
+```python
+from pathlib import Path
+import sys
+
+candidate_root = Path.cwd().resolve()
+sys.path.insert(0, str(candidate_root / "src"))
+import your_package
+
+try:
+    Path(your_package.__file__).resolve().relative_to(candidate_root)
+except (TypeError, ValueError):
+    print("SETUP: project imported outside this candidate", file=sys.stderr)
+    raise SystemExit(2)
+```
+
+Keep the oracle script unchanged. `--keep oracle.py` prevents whole-file deletion
+only; other passes can still edit it. For this first file-reduction trial, also
+use `--adapter none --source-reducer none --semantic-reducer none` and do not
+select the oracle with `--text-file`. The failure contract must reject missing
+imports and this setup exit instead of accepting
+them as the target failure. Check that deleting the package in a separate scratch
+copy is rejected. Do not modify an exported payload during validation or replay.
+
+The check covers the selected package's entry file, not every dependency or
+submodule. Namespace packages and compiled projects need checks suited to their
+paths and build outputs. Selecting `PYTHONPATH=src` alone is insufficient: when
+the candidate package disappears, Python can fall back to an installed copy.
+Reinstalling from the original checkout or running Doctor again does not verify
+the candidate's import origin.
