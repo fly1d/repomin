@@ -140,6 +140,12 @@ The absolute interpreter path is local to this machine; its environment is not
 exported with the payload. Review the [replay requirements](REPLAY.md) before
 sharing a result with another developer.
 
+If the project has an editable install, an installed copy of the same package,
+or an absolute `PYTHONPATH`, tests can still import code outside the candidate.
+Add a [source-origin check](DOCTOR.md#when-a-passing-baseline-uses-the-original-python-source)
+to the reproduction command and keep it active for every candidate and replay.
+A passing baseline or fingerprint check does not establish which code was tested.
+
 The output path and its `<output>.repomin` sidecar must not already exist. The
 reducer refuses to export either one inside the source repository. Each failure
 command runs with the access its backend permits; on the host backend that
