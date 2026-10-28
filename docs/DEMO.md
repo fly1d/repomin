@@ -72,8 +72,11 @@ Kept: reproduce.py and input.txt (only NEEDLE remains).
 Validated: exact payload fingerprint.
 ```
 
-On Windows, the fixture uses `reproduce.ps1`, so file names and byte counts
-differ. See the [PowerShell walkthrough](QUICKSTART.windows.md).
+The published `v0.1.0.dev14` uses `reproduce.ps1` on Windows. The unreleased
+source version uses `reproduce.cmd`, removing the demo's PowerShell startup.
+File names and byte counts differ from the macOS/Linux example. Existing
+reports keep their recorded commands. See the
+[PowerShell walkthrough](QUICKSTART.windows.md).
 
 ## Try a real failure
 

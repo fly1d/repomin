@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The Windows source-build demo uses a small batch fixture and native
+  `findstr` instead of starting PowerShell for each oracle run. It retains
+  case-sensitive whole-line matching, fixed failure markers and exit codes,
+  the existing time limits, and replay without a local Python path.
 - First public-failure help now goes to the existing thread with a repository,
   failing command and error excerpt. The separate long pilot intake form is
   removed. Completed runs can share the existing Markdown summary and one

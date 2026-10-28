@@ -22,6 +22,7 @@ from repomin.cli import (
     _format_heartbeat,
     _format_reduction_start,
     _validation_command,
+    _write_demo_file,
     _parse_byte_size,
     _parse_confidence,
     _parse_environment,
@@ -35,6 +36,7 @@ from repomin.cli import (
     main,
 )
 from repomin.model import TREE_FINGERPRINT_POLICY, ReductionStats, RunResult
+from repomin.execution import CommandRunner
 from repomin.oracle import (
     FailureOracle,
     clopper_pearson_lower_bound,
@@ -420,7 +422,7 @@ class CliTest(unittest.TestCase):
 
             self.assertEqual(0, exit_code, stderr.getvalue())
             self.assertEqual("", stderr.getvalue())
-            reproducer_name = "reproduce.ps1" if os.name == "nt" else "reproduce.py"
+            reproducer_name = "reproduce.cmd" if os.name == "nt" else "reproduce.py"
             self.assertEqual(
                 ["input.txt", reproducer_name],
                 sorted(
@@ -669,15 +671,56 @@ class CliTest(unittest.TestCase):
         with patch("repomin.cli.os.name", "nt"):
             name, content, command = _demo_reproducer()
 
-        self.assertEqual("reproduce.ps1", name)
-        self.assertIn(
-            r"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe",
-            command,
-        )
-        self.assertIn(r"-File .\reproduce.ps1", command)
-        self.assertIn("$PSScriptRoot", content)
+        self.assertEqual("reproduce.cmd", name)
+        self.assertEqual(r".\reproduce.cmd", command)
+        self.assertIn(r'"%SystemRoot%\System32\findstr.exe"', content)
+        self.assertIn(r'"%~dp0input.txt"', content)
         self.assertIn("REPOMIN_DEMO_FAILURE", content)
         self.assertNotIn("python.exe", (content + command).lower())
+        self.assertNotIn("powershell", (content + command).lower())
+
+    @unittest.skipUnless(os.name == "nt", "native Windows demo oracle contract")
+    def test_demo_windows_oracle_handles_literal_input_and_shell_settings(self) -> None:
+        name, content, command = _demo_reproducer()
+        cases = (
+            ("LF", "NEEDLE\n", True),
+            ("CRLF", "NEEDLE\r\n", True),
+            ("EOF", "NEEDLE", True),
+            ("lowercase", "needle\n", False),
+            ("prefix", "xNEEDLE\n", False),
+            ("suffix", "NEEDLEx\n", False),
+            ("trailing-space", "NEEDLE \n", False),
+            ("empty", "", False),
+            ("missing", None, False),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "demo 演示 %NAME% !NAME! ^ & () O'Brien"
+            root.mkdir()
+            _write_demo_file(root / name, content)
+            self.assertNotIn(b"\r", (root / name).read_bytes())
+            _write_demo_file(
+                root / "starter.cmd",
+                "@echo off\nsetlocal EnableDelayedExpansion DisableExtensions\n"
+                + command + "\n",
+            )
+            input_path = root / "input.txt"
+            for altered_shell in (False, True):
+                runner = CommandRunner(
+                    r".\starter.cmd" if altered_shell else command,
+                    timeout_seconds=10,
+                    environment={"NAME": "expanded-path", "ERRORLEVEL": "17" if altered_shell else "0"},
+                )
+                for label, text, interesting in cases:
+                    with self.subTest(altered_shell=altered_shell, case=label):
+                        if input_path.exists():
+                            input_path.unlink()
+                        if text is not None:
+                            _write_demo_file(input_path, text)
+                        result = runner.run(root)
+                        self.assertEqual(1 if interesting else 2, result.returncode, result.stderr)
+                        marker = "REPOMIN_DEMO_FAILURE" if interesting else "DIFFERENT_FAILURE"
+                        self.assertEqual(marker, result.stderr.strip())
+                        self.assertEqual("", result.stdout)
 
     def test_demo_reports_an_interrupted_reduction_distinctly(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -688,7 +731,7 @@ class CliTest(unittest.TestCase):
                     exit_code = _demo_command([str(workspace)])
 
             self.assertEqual(130, exit_code)
-            reproducer_name = "reproduce.ps1" if os.name == "nt" else "reproduce.py"
+            reproducer_name = "reproduce.cmd" if os.name == "nt" else "reproduce.py"
             self.assertTrue((workspace / "source" / reproducer_name).is_file())
             self.assertIn("interrupted; workspace retained", stderr.getvalue())
             self.assertNotIn("reduction failed", stderr.getvalue())
