@@ -705,10 +705,11 @@ class CliTest(unittest.TestCase):
             )
             input_path = root / "input.txt"
             for altered_shell in (False, True):
+                environment = {"NAME": "expanded-path", "ERRORLEVEL": "17" if altered_shell else "0"}
                 runner = CommandRunner(
                     r".\starter.cmd" if altered_shell else command,
                     timeout_seconds=10,
-                    environment={"NAME": "expanded-path", "ERRORLEVEL": "17" if altered_shell else "0"},
+                    environment=environment,
                 )
                 for label, text, interesting in cases:
                     with self.subTest(altered_shell=altered_shell, case=label):
@@ -717,10 +718,50 @@ class CliTest(unittest.TestCase):
                         if text is not None:
                             _write_demo_file(input_path, text)
                         result = runner.run(root)
-                        self.assertEqual(1 if interesting else 2, result.returncode, result.stderr)
+                        expected_code = 1 if interesting else 2
                         marker = "REPOMIN_DEMO_FAILURE" if interesting else "DIFFERENT_FAILURE"
-                        self.assertEqual(marker, result.stderr.strip())
-                        self.assertEqual("", result.stdout)
+                        diagnostics = ""
+                        if (result.returncode, result.stderr.strip(), result.stdout) != (
+                            expected_code, marker, ""
+                        ):
+                            observations = {"batch_lf": {
+                                "returncode": result.returncode,
+                                "stdout": result.stdout, "stderr": result.stderr,
+                            }}
+                            try:
+                                observations["input_bytes"] = repr(input_path.read_bytes()) if input_path.exists() else None
+                                findstr = Path(os.environ["SystemRoot"]) / "System32" / "findstr.exe"
+                                for target in ("input.txt", str(input_path.resolve())):
+                                    try:
+                                        probe = subprocess.run(
+                                            [str(findstr), "/l", "/x", "/c:NEEDLE", target],
+                                            cwd=root.resolve(), env={**os.environ, **environment},
+                                            capture_output=True, text=True, encoding="utf-8",
+                                            errors="replace", timeout=5, check=False,
+                                        )
+                                        observations["findstr " + target] = {
+                                            "returncode": probe.returncode,
+                                            "stdout": probe.stdout, "stderr": probe.stderr,
+                                        }
+                                    except Exception as exc:
+                                        observations["findstr " + target] = repr(exc)
+                                (root / "reproduce-crlf.cmd").write_bytes(
+                                    content.replace("\n", "\r\n").encode("utf-8")
+                                )
+                                probe = CommandRunner(
+                                    r".\reproduce-crlf.cmd", timeout_seconds=5,
+                                    environment=environment,
+                                ).run(root)
+                                observations["batch_crlf_direct"] = {
+                                    "returncode": probe.returncode,
+                                    "stdout": probe.stdout, "stderr": probe.stderr,
+                                }
+                            except Exception as exc:
+                                observations["diagnostic_error"] = repr(exc)
+                            diagnostics = json.dumps(observations, ensure_ascii=True)
+                        self.assertEqual(expected_code, result.returncode, result.stderr + diagnostics)
+                        self.assertEqual(marker, result.stderr.strip(), diagnostics)
+                        self.assertEqual("", result.stdout, diagnostics)
 
     def test_demo_reports_an_interrupted_reduction_distinctly(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
