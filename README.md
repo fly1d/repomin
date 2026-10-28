@@ -5,11 +5,15 @@
 ![License Apache-2.0](https://img.shields.io/github/license/fly1d/repomin)
 [![Discussions](https://img.shields.io/github/discussions/fly1d/repomin)](https://github.com/fly1d/repomin/discussions)
 
+[中文快速开始](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.zh-CN.md) · [Inspect the demo](https://github.com/fly1d/repomin/blob/main/docs/DEMO.md)
+
 **Turn a large failing repository into a small, verified bug reproduction.**
 
 ReproMin is a repository-scale test-case reducer for repeatable Maven, Gradle,
 and Python failures. It removes files, manifest entries, source structure, and
 selected text only while the same failure still occurs.
+
+[![Synthetic demo: three files become two while preserving the same failure](https://raw.githubusercontent.com/fly1d/repomin/main/docs/assets/demo-preview.svg)](https://github.com/fly1d/repomin/blob/main/docs/DEMO.md)
 
 [Maintainer-run Gradle pilot](https://github.com/fly1d/repomin/blob/main/docs/CASE_STUDY_GRADLE_38843.md): **854 -> 11
 files**, with the same failure reproduced in **5/5 fresh copies**.
@@ -18,11 +22,11 @@ files**, with the same failure reproduced in **5/5 fresh copies**.
 
 Run the self-contained demo to see a reduction complete in about 30 seconds.
 Already have a repeatable failure? [Reduce it yourself](#reduce-a-real-failure).
-For a public, licensed Maven, Gradle, or Python case, [share its exact revision,
-reproduction command, and target failure
-signal](https://github.com/fly1d/repomin/issues/new?template=real_failure.md).
-A maintainer will check the fit and run a bounded first reduction; you do not
-need to install ReproMin.
+For a public, licensed Maven, Gradle, or Python case, [reply in the pilot thread
+with its exact revision, reproduction command, and target failure
+signal](https://github.com/fly1d/repomin/issues/11). You do not need to install
+ReproMin or complete a run report first. A maintainer will check the fit and
+run a bounded first reduction.
 
 ### 30-second demo
 
@@ -69,6 +73,11 @@ Two maintainer-run pilots demonstrate the current technical scope:
 | [Gradle #38843](https://github.com/fly1d/repomin/blob/main/docs/CASE_STUDY_GRADLE_38843.md) | 854 files, 3.8 MB | 11 files, 87.9 KB | 5/5 replays + cold start |
 | [tsdown #979](https://github.com/fly1d/repomin/blob/main/docs/CASE_STUDY_TSDOWN_979.md) | 14 files | 8 files | 3/3 replays |
 
+[Inspect the public tsdown reproduction](https://github.com/fly1d/tsdown-css-modules-bug-report/tree/69801202853e56c5e4e970145cbef86aab14007d).
+It contains the eight payload files plus a README and `.gitignore` restored
+for readers. The Gradle case study records the method and results; it does
+not offer a downloadable payload.
+
 These are feasibility results, not independent adoption or a promise that
 every repository will shrink by the same amount. The current milestone is
 [five non-maintainer workflows](https://github.com/fly1d/repomin/issues/11).
@@ -84,8 +93,13 @@ or replayed.
 | --- | --- |
 | Find the commit that introduced a regression | `git bisect` |
 | Capture the runtime environment and dependencies | A container or ReproZip |
-| Minimize source or compiler inputs | C-Reduce, C-Vise, Perses, or Shrink Ray |
-| Shrink a build or application repository and retain evidence | ReproMin |
+| Minimize source or compiler inputs | [C-Reduce](https://github.com/csmith-project/creduce), [C-Vise](https://github.com/marxin/cvise), [Perses](https://github.com/perses-project/perses), or [Shrink Ray](https://github.com/DRMacIver/shrinkray) |
+| Reduce multi-file inputs with an interestingness test | [C-Vise's directory workflow](https://github.com/marxin/cvise#usage-with-multi-file-inputs) |
+| Reduce Maven/Gradle/Python projects with build-manifest edits and validated replay evidence | ReproMin (pre-alpha) |
+
+Directory reduction is also available in other tools. ReproMin's current
+focus is the build/test workflow and its exported evidence; no comparative
+performance or output-size advantage has been established.
 
 ReproMin treats your build, test, or reproduction command as the authority. It
 does not diagnose the root cause or prove that the remaining code is correct.

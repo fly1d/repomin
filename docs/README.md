@@ -5,6 +5,7 @@ maintainer material is kept out of the first-run path.
 
 ## Getting started
 
+- [Inspect the demo before installing](DEMO.md)
 - [Real-failure quick start](QUICKSTART.md)
 - [PowerShell self-contained walkthrough](QUICKSTART.windows.md)
 - [Chinese quick start](QUICKSTART.zh-CN.md)
