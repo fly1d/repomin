@@ -21,9 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failing command and error excerpt. The separate long pilot intake form is
   removed. Completed runs can share the existing Markdown summary and one
   useful-or-blocked observation instead of retyping report fields.
-- The README follows Doctor's generated bounded command; the complete quick
-  starts retain a manual reference for cases where suggestions are suppressed.
-  Installation no longer upgrades pip unconditionally.
+- The README and English/Chinese quick starts begin with a bounded reduction,
+  which verifies its own fresh-copy baseline. A separate Doctor run is optional;
+  the first trial keeps semantic reduction disabled. Installation no longer
+  upgrades pip unconditionally.
 
 ### Fixed
 

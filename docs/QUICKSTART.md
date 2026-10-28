@@ -70,8 +70,8 @@ cd /absolute/path/to/your/repository
 "$project_python" -m pytest -q tests/test_checkout.py
 ```
 
-Run it at least twice. Record a message specific to the target failure and its
-exact exit code. This guide uses the following example contract:
+Record a message specific to the target failure and its exact exit code.
+This guide uses the following example contract:
 
 ```text
 command:   /absolute/path/to/project/.venv/bin/python -m pytest -q tests/test_checkout.py
@@ -93,15 +93,18 @@ choosing one of those modes.
 Use
 `--match-text 'FAIL [checkout]: total (12)'` to copy a distinctive failure
 message without regex escaping. The equivalent regex is
-`--match 'FAIL \[checkout\]: total \(12\)'`. Choose one option and use it for
-both Doctor and reduction. Both options are available in `v0.1.0.dev14`;
-the remaining examples use `--match`.
+`--match 'FAIL \[checkout\]: total \(12\)'`. Choose one option for the
+reduction and keep the same choice if you later use Doctor. Both options are
+available in `v0.1.0.dev14`; the remaining examples use `--match`.
 See [literal messages and shell quoting](DOCTOR.md#literal-failure-messages).
 
-## 3. Check readiness with Doctor
+<a id="4-run-a-bounded-reduction"></a>
 
-Set the real source path. The suggested output is a new sibling directory, so
-it is outside the source repository as required:
+## 3. Run a bounded reduction
+
+Set the real source path and a new sibling output directory, then run the
+reduction directly. It first verifies the failure in two fresh copies by
+default, then reduces candidates only if that baseline passes.
 
 ```sh
 source_dir="/absolute/path/to/your/repository"
@@ -110,63 +113,30 @@ failure_command="$("$project_python" -c 'import shlex, sys; print(shlex.join([sy
 failure_match='AssertionError: checkout total mismatch'
 failure_exit_code=1
 
-"$repomin_cli" doctor "$source_dir" \
-  --command "$failure_command" \
-  --match "$failure_match" \
-  --exit-code "$failure_exit_code" \
-  --output "$output_dir"
-```
-
-The command uses the saved project interpreter, quoted for Bash/Zsh even when
-its path contains spaces. Doctor runs it in fresh repository copies; built-in
-exclusions omit `.venv` and `venv`, so a relative command such as
-`.venv/bin/python -m pytest` cannot find that environment there. Keep using the
-same `failure_command` for reduction and replay. See
-[baseline troubleshooting](DOCTOR.md#when-the-original-command-works-but-the-baseline-fails)
-if a command works in the original checkout but not in a fresh copy.
-The absolute interpreter path is local to this machine; its environment is not
-exported with the payload. Review the [replay requirements](REPLAY.md) before
-sharing a result with another developer.
-
-Doctor checks the source, selected reducers, output path, and backend without
-exporting to the configured output path. ReproMin prepares each baseline in a
-fresh copy, but the failure command itself can still modify anything its
-backend permits. On the host backend, that includes resources available to
-your user account. Continue only when Doctor exits with status `0` and reports
-a passing baseline. If it reports a failed check, fix that check and rerun it;
-the
-[Doctor guide](DOCTOR.md) explains each result.
-
-The output path and its `<output>.repomin` sidecar must not already exist. The
-reducer refuses to export either one inside the source repository.
-
-Successful Doctor text output also suggests
-a copyable bounded reduction command: 25 attempts, 300 seconds, and no semantic
-reducer. A `--config` run instead keeps the file's budgets and reducer choices.
-Run the suggestion in the same directory and environment using its labelled
-shell (Bash/Zsh or Windows PowerShell). Failed or unverified baselines do not
-produce it, and explicit `--env` entries suppress it to avoid echoing override values. Review
-local commands and paths before sharing; JSON and Markdown omit the suggestion.
-See [the Doctor handoff](DOCTOR.md#continue-with-a-suggested-reduction).
-
-## 4. Run a bounded reduction
-
-Copy the command Doctor printed and run it in the same shell. It carries the
-checked contract and first-run budget. If the suggestion was suppressed (for
-example, because you supplied environment overrides), use this manual reference:
-
-Carry over any extra options you checked with Doctor, including private
-environment overrides; the reference below contains only this guide's options.
-
-```sh
 "$repomin_cli" reduce "$source_dir" \
   --command "$failure_command" \
   --match "$failure_match" \
   --exit-code "$failure_exit_code" \
   --max-attempts 25 \
   --max-duration 300 \
+  --semantic-reducer none \
   --output "$output_dir"
 ```
+
+The command uses the saved project interpreter, quoted for Bash/Zsh even when
+its path contains spaces. Built-in exclusions omit `.venv` and `venv`, so a
+relative command such as `.venv/bin/python -m pytest` cannot find that environment
+in fresh copies. Keep using the same `failure_command` for reduction and replay.
+See [baseline troubleshooting](DOCTOR.md#when-the-original-command-works-but-the-baseline-fails)
+if a command works in the original checkout but not in a fresh copy.
+The absolute interpreter path is local to this machine; its environment is not
+exported with the payload. Review the [replay requirements](REPLAY.md) before
+sharing a result with another developer.
+
+The output path and its `<output>.repomin` sidecar must not already exist. The
+reducer refuses to export either one inside the source repository. Each failure
+command runs with the access its backend permits; on the host backend that
+includes resources available to your user account.
 
 The command runs in temporary copies. It exports the smallest verified state
 reached within the limits, even when a larger case needs another, deliberately
@@ -180,7 +150,14 @@ file that must survive whole-file reduction. Use `--text-file RELATIVE_PATH`
 only when the contract rejects malformed or unusable content in that file. See
 the [ecosystem examples](EXAMPLES.md) for reducer-specific choices.
 
-## 5. Validate and replay the result
+<a id="3-check-readiness-with-doctor"></a>
+
+[Doctor](DOCTOR.md) is available for a separate readiness diagnosis. Its static
+scan without `--command` does not execute the failure command.
+
+<a id="5-validate-and-replay-the-result"></a>
+
+## 4. Validate and replay the result
 
 The payload and evidence sidecar are separate:
 
@@ -219,7 +196,9 @@ common reason. Replay shows whether the configured failure still occurs in the
 current environment. Neither validation nor replay proves correctness or root
 cause.
 
-## 6. Put the reduced result to work
+<a id="6-put-the-reduced-result-to-work"></a>
+
+## 5. Put the reduced result to work
 
 A reduction creates value only when it helps the next task. After human review:
 

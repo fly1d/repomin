@@ -47,7 +47,6 @@ ReproMin demo completed.
 Reduced: 3 files / 855 bytes -> 2 files / 276 bytes in 14 attempts.
 Removed: unused.txt and two unrelated input lines.
 Validated: exact payload fingerprint.
-Next: install ReproMin persistently, then check your repository with `repomin doctor SOURCE`.
 ```
 
 The demo validates the reduced payload and leaves it with an evidence report
@@ -108,25 +107,27 @@ does not diagnose the root cause or prove that the remaining code is correct.
 ReproMin requires Python 3.9+ and has no runtime dependencies. First run the
 reproduction command yourself and identify a marker that is specific to the
 target failure. Then, using the project's working virtual environment, install
-the current pre-alpha release, check readiness, run a bounded reduction, and
+the current pre-alpha release, run a bounded reduction, and
 validate the exported evidence:
 
 ```sh
 python -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v0.1.0.dev14/repomin-0.1.0.dev14-py3-none-any.whl"
 
-repomin doctor . \
+repomin reduce . \
   --command 'python -m pytest -q tests/test_checkout.py' \
   --match 'AssertionError: checkout total mismatch' \
   --exit-code 1 \
+  --max-attempts 25 \
+  --max-duration 300 \
+  --semantic-reducer none \
   --output ../checkout-repro
-
 ```
 
-When Doctor passes, run the command it prints: it carries the checked contract
-and a 25-attempt, 300-second budget. See the [handoff](https://github.com/fly1d/repomin/blob/main/docs/DOCTOR.md#continue-with-a-suggested-reduction)
-or [manual fallback](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.md#4-run-a-bounded-reduction).
-After it finishes, validate the result:
+Reduction checks the failure in two fresh copies before trying edits; a failed
+baseline stops the run. To check readiness separately before a reduction, use
+the optional [Doctor](https://github.com/fly1d/repomin/blob/main/docs/DOCTOR.md).
+After reduction finishes, validate the result:
 
 ```sh
 repomin report validate ../checkout-repro.repomin/report.json \

@@ -115,10 +115,10 @@ def _resolve_shell_value(value: str, assignments: dict[str, str]) -> str:
 
 def _check_failure_contract(
     label: str,
-    doctor: str,
-    reduction: str | None,
+    reduction: str,
     assignments: dict[str, str],
     *,
+    doctor: str | None = None,
     target_failure: str = TARGET_FAILURE,
     shared_options: tuple[str, ...] = (
         "--command",
@@ -129,24 +129,24 @@ def _check_failure_contract(
 ) -> None:
     values = {}
     for option in shared_options:
-        doctor_value = _resolve_shell_value(
-            _option_value(label + " Doctor", doctor, option), assignments
+        value = _resolve_shell_value(
+            _option_value(label + " reduction", reduction, option), assignments
         )
-        if reduction is not None:
-            reduction_value = _resolve_shell_value(
-                _option_value(label + " reduction", reduction, option), assignments
+        if doctor is not None:
+            doctor_value = _resolve_shell_value(
+                _option_value(label + " Doctor", doctor, option), assignments
             )
-            if doctor_value != reduction_value:
+            if doctor_value != value:
                 raise RuntimeError(
                     "%s Doctor and reduction differ for %s" % (label, option)
                 )
-        values[option] = doctor_value
+        values[option] = value
     if values["--match"] != target_failure or values["--exit-code"] != "1":
         raise RuntimeError(
             "%s does not use the strict documented failure contract" % label
         )
-    if reduction is None:
-        return
+    if doctor is None and _option_value(label, reduction, "--semantic-reducer") != "none":
+        raise RuntimeError("%s first reduction must disable semantic reduction" % label)
     for option in ("--max-attempts", "--max-duration"):
         value = _resolve_shell_value(
             _option_value(label + " reduction", reduction, option), assignments
@@ -178,17 +178,16 @@ def _check_real_failure_guide(label: str, document: str) -> None:
     # Only these guides define the quoted executable variable. Other documents
     # must still invoke their documented entry point directly.
     code = re.sub(r'(?m)^([ \t]*)"\$repomin_cli"(?=[ \t])', r"\1repomin", code)
-    doctor, reduction, _, _ = _ordered_commands(
+    reduction, _, _ = _ordered_commands(
         label,
         code,
         (
-            ("repomin", "doctor"),
             ("repomin", "reduce"),
             ("repomin", "report", "validate"),
             ("repomin", "report", "replay"),
         ),
     )
-    _check_failure_contract(label, doctor, reduction, assignments)
+    _check_failure_contract(label, reduction, assignments)
 
 
 def _check_documented_journey() -> None:
@@ -198,20 +197,18 @@ def _check_documented_journey() -> None:
     chinese = (ROOT / "docs" / "QUICKSTART.zh-CN.md").read_text(encoding="utf-8")
 
     readme_code = _shell_code(readme)
-    _, readme_doctor, _ = _ordered_commands(
+    _, readme_reduction, _ = _ordered_commands(
         "README",
         readme_code,
         (
             ("repomin", "demo"),
-            ("repomin", "doctor"),
+            ("repomin", "reduce"),
             ("repomin", "report", "validate"),
         ),
     )
     _check_failure_contract(
-        "README", readme_doctor, None, _shell_assignments(readme_code)
+        "README", readme_reduction, _shell_assignments(readme_code)
     )
-    if "DOCTOR.md#continue-with-a-suggested-reduction" not in readme:
-        raise RuntimeError("README must link the generated Doctor handoff")
 
     _check_real_failure_guide("quick start", quickstart)
     _check_real_failure_guide("Chinese quick start", chinese)
@@ -244,9 +241,9 @@ def _check_documented_journey() -> None:
     )
     _check_failure_contract(
         "Windows walkthrough",
-        windows_doctor,
         windows_reduce,
         {},
+        doctor=windows_doctor,
         target_failure="ORIGINAL_FAILURE",
         shared_options=("--command", "--match", "--exit-code"),
     )
@@ -348,32 +345,6 @@ raise SystemExit(1)
         (source / "unused.txt").write_text("unrelated file\n", encoding="utf-8")
         reproduce = _command(sys.executable, "reproduce.py")
 
-        doctor = _run(
-            "doctor",
-            str(source),
-            "--command",
-            reproduce,
-            "--match",
-            TARGET_FAILURE,
-            "--exit-code",
-            "1",
-            "--text-file",
-            "input.txt",
-            "--output",
-            str(output),
-            "--json",
-        )
-        doctor_result = _json_object("Doctor", doctor)
-        baseline = doctor_result.get("baseline")
-        if (
-            doctor_result.get("ok") is not True
-            or not isinstance(baseline, dict)
-            or baseline.get("status") != "pass"
-            or baseline.get("runs") != 2
-            or baseline.get("passes") != 2
-        ):
-            raise RuntimeError("Doctor did not verify a 2/2 fresh-copy baseline")
-
         _run(
             "reduce",
             str(source),
@@ -393,6 +364,8 @@ raise SystemExit(1)
             "25",
             "--max-duration",
             "300",
+            "--semantic-reducer",
+            "none",
             "--output",
             str(output),
         )
@@ -408,6 +381,17 @@ raise SystemExit(1)
             raise RuntimeError("text reduction did not remove the unrelated line")
 
         report = root / "reduced.repomin" / "report.json"
+        reduction_report = json.loads(report.read_text(encoding="utf-8"))
+        execution = reduction_report.get("execution")
+        if (
+            not isinstance(execution, dict)
+            or execution.get("baseline_runs") != 2
+            or execution.get("baseline_passes") != 2
+            or execution.get("max_attempts") != 25
+            or execution.get("max_duration_seconds") != 300
+            or execution.get("semantic_reducer") != "none"
+        ):
+            raise RuntimeError("Reduction did not preserve the first-run baseline and limits")
         validation = _run(
             "report",
             "validate",
@@ -439,7 +423,7 @@ raise SystemExit(1)
         )
         _check_replay_result("report replay", replay)
 
-    print("Quick-start smoke passed: demo, Doctor, reduce, validate, and 2/2 replay.")
+    print("Quick-start smoke passed: demo, direct reduce, validate, and 2/2 replay.")
     return 0
 
 

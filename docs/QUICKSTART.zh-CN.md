@@ -54,7 +54,7 @@ SHA-256 校验值。ReproMin 目前尚未发布到 PyPI。
 
 ## 2. 确认命令和严格失败契约
 
-先在仓库根目录直接运行真实复现命令，至少成功复现两次：
+先在仓库根目录直接运行真实复现命令，确认它触发目标失败：
 
 ```sh
 cd /absolute/path/to/your/repository
@@ -75,14 +75,17 @@ exit code: 1
 
 使用 `--match-text 'FAIL [checkout]: total (12)'`，可以直接复制有辨识度的失败消息，
 不必转义正则字符。对应的正则写法是
-`--match 'FAIL \[checkout\]: total \(12\)'`。两者只选一种，并在 Doctor 和缩减
-命令中保持一致。`v0.1.0.dev14` 同时支持这两个选项；下文使用 `--match`。
+`--match 'FAIL \[checkout\]: total \(12\)'`。缩减时只选一种；如果之后使用
+Doctor，也沿用同一个选项和内容。`v0.1.0.dev14` 同时支持这两个选项；下文使用 `--match`。
 Bash/Zsh 与 PowerShell 的引号差异见
 [Doctor 字面匹配说明](DOCTOR.md#literal-failure-messages)。
 
-## 3. 用 Doctor 检查准备状态
+<a id="4-执行有上限的缩减"></a>
 
-设置真实源目录和一个尚不存在的同级输出目录：
+## 3. 执行有上限的缩减
+
+设置真实源目录和一个尚不存在的同级输出目录，直接执行缩减。ReproMin 默认先在
+两个全新副本中验证失败，只有 baseline 通过才开始缩减候选。
 
 ```sh
 source_dir="/absolute/path/to/your/repository"
@@ -91,60 +94,41 @@ failure_command="$("$project_python" -c 'import shlex, sys; print(shlex.join([sy
 failure_match='AssertionError: checkout total mismatch'
 failure_exit_code=1
 
-"$repomin_cli" doctor "$source_dir" \
-  --command "$failure_command" \
-  --match "$failure_match" \
-  --exit-code "$failure_exit_code" \
-  --output "$output_dir"
-```
-
-这里沿用前面记住的项目解释器，并处理 Bash/Zsh 下路径含空格时的引号。
-Doctor 会在新的仓库副本中运行命令；默认排除 `.venv` 和 `venv`，所以
-`.venv/bin/python -m pytest` 这样的相对路径在副本中找不到环境。
-缩减和重放时继续使用同一个 `failure_command`。如果原仓库能运行、副本却失败，
-请参考[baseline 排错说明](DOCTOR.md#when-the-original-command-works-but-the-baseline-fails)。
-解释器的绝对路径属于本机环境，该环境不会随 payload 一起导出。向其他开发者
-分享结果前，请先阅读[重放要求](REPLAY.md)。
-
-Doctor 检查源目录、reducer、输出路径和 backend，并在两个全新副本中执行失败
-命令。ReproMin 不会向配置的输出目录导出结果，但失败命令本身仍可修改 backend
-允许访问的任何资源；在默认 host backend 下，它拥有当前用户的权限。
-
-只有 Doctor 以退出码 `0` 结束并显示 `2/2` baseline 通过时才继续。输出目录和
-`<output>.repomin` sidecar 都不能已存在，也不能位于源仓库内部。
-
-Doctor 检查和 baseline 都通过后，还会在文本输出中提供
-可复制的缩减命令，限制为 25 次尝试、300 秒，并关闭 semantic reducer。
-使用 `--config` 时则保留配置文件中的预算和 reducer 选择。在同一工作目录和环境中，
-用提示标明的 Bash/Zsh 或 Windows PowerShell 执行。失败或未验证的 baseline
-不会得到该命令；显式传入 `--env` 时也会省略整条建议，避免回显环境覆盖值。
-本地文本可能含有命令和路径，分享前请检查；JSON 和 Markdown 不包含该建议。
-详见 [Doctor 下一步提示](DOCTOR.md#continue-with-a-suggested-reduction)。
-
-## 4. 执行有上限的缩减
-
-在同一终端复制执行 Doctor 输出的命令，沿用已检查的失败契约和首次预算。
-如果建议命令被省略（例如你传入了环境覆盖值），再使用下面的手工参考：
-
-手工命令也要带上 Doctor 检查时使用的额外选项，包括私下使用的环境覆盖值；
-下面只列出本指南示例中的选项。
-
-```sh
 "$repomin_cli" reduce "$source_dir" \
   --command "$failure_command" \
   --match "$failure_match" \
   --exit-code "$failure_exit_code" \
   --max-attempts 25 \
   --max-duration 300 \
+  --semantic-reducer none \
   --output "$output_dir"
 ```
+
+这里沿用前面记住的项目解释器，并处理 Bash/Zsh 下路径含空格时的引号。
+默认排除 `.venv` 和 `venv`，所以 `.venv/bin/python -m pytest` 这样的相对路径
+在副本中找不到环境。缩减和重放时继续使用同一个 `failure_command`。
+如果原仓库能运行、副本却失败，请参考
+[baseline 排错说明](DOCTOR.md#when-the-original-command-works-but-the-baseline-fails)。
+解释器的绝对路径属于本机环境，该环境不会随 payload 一起导出。向其他开发者
+分享结果前，请先阅读[重放要求](REPLAY.md)。
+
+输出目录和 `<output>.repomin` sidecar 都不能已存在，也不能位于源仓库内部。
+失败命令本身仍可修改 backend 允许访问的任何资源；在默认 host backend 下，
+它拥有当前用户的权限。
 
 ReproMin 会导出预算内找到的最小已验证状态。大仓库第一次不必追求固定点；先看
 有限预算的结果，再决定是否增加限制。需要强制保留 oracle 脚本、许可证或锁文件
 时使用 `--keep RELATIVE_PATH`；只有当失败契约能拒绝无效内容时，才用
 `--text-file RELATIVE_PATH` 对指定 UTF-8 文件按行缩减。
 
-## 5. 验证并重放结果
+<a id="3-用-doctor-检查准备状态"></a>
+
+需要单独诊断准备状态时，可使用 [Doctor](DOCTOR.md)。不传 `--command` 的静态
+检查不会执行失败命令。
+
+<a id="5-验证并重放结果"></a>
+
+## 4. 验证并重放结果
 
 payload 和证据 sidecar 是两个独立目录：
 
@@ -181,7 +165,9 @@ payload 和证据 sidecar 是两个独立目录：
 验证指纹不会执行命令；replay 只证明当前环境仍符合配置的失败契约。两者都不能
 证明代码正确或找到根因。
 
-## 6. 让结果真正产生价值
+<a id="6-让结果真正产生价值"></a>
+
+## 5. 让结果真正产生价值
 
 人工检查后，把脱敏副本链接到对应 bug，加入回归测试，或保留为调试和依赖升级
 样例。保留未经修改的 payload 和 sidecar 作为证据副本；如果为了 issue 增加
