@@ -1,0 +1,33 @@
+{
+  "name": "tsdown-css-modules-bug-report",
+  "version": "0.0.0",
+  "packageManager": "pnpm@11.8.0",
+  "description": "tsdown starter",
+  "type": "module",
+  "license": "MIT",
+  "author": "Treycos",
+  "files": [
+    "dist"
+  ],
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  },
+  "devDependencies": {
+    "@tsdown/css": "latest",
+    "tsdown": "latest",
+    "typescript": "^6.0.3"
+  },
+  "stackblitz": {
+    "installDependencies": false,
+    "startCommand": "pnpm i && pnpm build"
+  },
+  "resolutions": {
+    "rolldown": "npm:@rolldown/browser@latest"
+  }
+}

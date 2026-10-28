@@ -1,0 +1,3 @@
+.button {
+  composes: clickable from "../common.module.css";
+}

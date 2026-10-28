@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "identity": "Current-version prepared input reconstructed transparently from pinned public sources; not recovered historical14-file snapshot",
+  "upstream_repository": "https://github.com/fly1d/tsdown-css-modules-bug-report",
+  "upstream_commit": "094c1471678386c4851fae87922cd7b4d4fac461",
+  "upstream_tree": "7a101194bf65c40ed2a9e9cb27eaeefff2d68d17",
+  "upstream_files": [
+    {
+      "path": ".gitignore",
+      "git_blob": "dc9dc93181b560ec72d42977048115bcc7070b9d",
+      "sha256": "7efb706afb403b10112e886b593f75010a7b42f0c3d2ff16b0a2103618626157",
+      "bytes": 50
+    },
+    {
+      "path": "LICENSE",
+      "git_blob": "8701f9fe69eb9e01d8a4ade1c51bc5b8a4a7e315",
+      "sha256": "72486c40be1f5f6c4d7c2543d2c976f6cea123c57871cbe7fec33c7f25d65395",
+      "bytes": 1110
+    },
+    {
+      "path": "README.md",
+      "git_blob": "1a186b847f5dcd084d7c91d4b6e69a7da5d28549",
+      "sha256": "f66c49092b5328996fa30f7f32a7312b2547fa3444366c1f9f702446430d42d1",
+      "bytes": 488
+    },
+    {
+      "path": "package.json",
+      "git_blob": "abcfef4f9ff1208fbb3471c5da09e6192326e1b0",
+      "sha256": "c4cdd260d6e7a00a3794723c86ce4c1402926031902e95f4707287dcbc65d889",
+      "bytes": 700
+    },
+    {
+      "path": "src/index.ts",
+      "git_blob": "1b9df0ffc0ae1e3b34ba7d763d1170e2f42acfbe",
+      "sha256": "4b8cbd2eb38bf3a06f8c5b91506bf517cdda9d90fc79e91288951274c93b77db",
+      "bytes": 392
+    },
+    {
+      "path": "src/styles/common.module.css",
+      "git_blob": "2064078af905d53807dd3f36939d5721331a6ca5",
+      "sha256": "6a16d6e6b4a7607fe78a2757072f57035e47af8ee74d533f186d55d516e7fd80",
+      "bytes": 100
+    },
+    {
+      "path": "src/styles/components/accordion.module.css",
+      "git_blob": "b1c907ca7171aef82d671ec7e540e689d7e3e21b",
+      "sha256": "96b020a83bbc611038c7d38d022e83ac2d144b0f93536d1075dee743d242182b",
+      "bytes": 65
+    },
+    {
+      "path": "src/styles/components/button.module.css",
+      "git_blob": "7f7e0eac8891324c4d78c5ad22b2b49d8c9ea300",
+      "sha256": "769138761f311bacaaf0a73b3166e81da1172393b564f22ece2d8446b33abd99",
+      "bytes": 62
+    },
+    {
+      "path": "src/styles/components/navlink.module.css",
+      "git_blob": "905b92d6a69cd62c9a5fc68fb4d334012f70b20f",
+      "sha256": "5ae992a96a82fe203e66eac39990131ebdad02d97fff20545085575aa002dc0b",
+      "bytes": 63
+    },
+    {
+      "path": "src/styles/components/tile.module.css",
+      "git_blob": "42ed753b9133a305319b6afab904f2eaaa71e11d",
+      "sha256": "c914c85ddd4050f068460840d47c83cc64bd32a87acbb2b064626cb8368e49e7",
+      "bytes": 60
+    },
+    {
+      "path": "tsconfig.json",
+      "git_blob": "0226a163168ca7ecc539553480c44f56c361dcac",
+      "sha256": "9be55fea9cccb1649257f81928b7eca86772f150804d7201023c370fd02f63e9",
+      "bytes": 476
+    },
+    {
+      "path": "tsdown.config.ts",
+      "git_blob": "305dda270360cc032ad29db1219e4ded55c4863b",
+      "sha256": "b06c012af83f2c010ea3ce07e2119e938a76bf5e798d03daa898b31b6beb3eac",
+      "bytes": 139
+    }
+  ],
+  "protected_metadata_source_commit": "69801202853e56c5e4e970145cbef86aab14007d",
+  "reused_files": [
+    "pnpm-lock.yaml",
+    "reproduce.mjs"
+  ],
+  "metadata_note": "Reused only the public lockfile and strict oracle; no reduced source files were used as the initial input.",
+  "adaptation": "Replace original foo/fn wrapper with four direct CSS object exports to exercise the generated module in the strict oracle; diff supplied.",
+  "historical_snapshot_identity_proven": false,
+  "historical_counts_agree_but_do_not_prove_identity": true,
+  "prepared_files": [
+    {
+      "path": ".gitignore",
+      "sha256": "7efb706afb403b10112e886b593f75010a7b42f0c3d2ff16b0a2103618626157",
+      "bytes": 50
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "72486c40be1f5f6c4d7c2543d2c976f6cea123c57871cbe7fec33c7f25d65395",
+      "bytes": 1110
+    },
+    {
+      "path": "README.md",
+      "sha256": "f66c49092b5328996fa30f7f32a7312b2547fa3444366c1f9f702446430d42d1",
+      "bytes": 488
+    },
+    {
+      "path": "package.json",
+      "sha256": "c4cdd260d6e7a00a3794723c86ce4c1402926031902e95f4707287dcbc65d889",
+      "bytes": 700
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "c499134f8024038384eb393c4daf5bfed0fba0469a09dbd7ebba6515b1d92f35",
+      "bytes": 28148
+    },
+    {
+      "path": "reproduce.mjs",
+      "sha256": "ee592f4232f0a71e79519d5fea543cee1344f729b7b8231604d793fe9fae0c71",
+      "bytes": 1003
+    },
+    {
+      "path": "src/index.ts",
+      "sha256": "3278e5d88c272f40c4eb0b1b59e55307d86c9f75c3b47f3ecb29e4ce5fb3eed5",
+      "bytes": 324
+    },
+    {
+      "path": "src/styles/common.module.css",
+      "sha256": "6a16d6e6b4a7607fe78a2757072f57035e47af8ee74d533f186d55d516e7fd80",
+      "bytes": 100
+    },
+    {
+      "path": "src/styles/components/accordion.module.css",
+      "sha256": "96b020a83bbc611038c7d38d022e83ac2d144b0f93536d1075dee743d242182b",
+      "bytes": 65
+    },
+    {
+      "path": "src/styles/components/button.module.css",
+      "sha256": "769138761f311bacaaf0a73b3166e81da1172393b564f22ece2d8446b33abd99",
+      "bytes": 62
+    },
+    {
+      "path": "src/styles/components/navlink.module.css",
+      "sha256": "5ae992a96a82fe203e66eac39990131ebdad02d97fff20545085575aa002dc0b",
+      "bytes": 63
+    },
+    {
+      "path": "src/styles/components/tile.module.css",
+      "sha256": "c914c85ddd4050f068460840d47c83cc64bd32a87acbb2b064626cb8368e49e7",
+      "bytes": 60
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "9be55fea9cccb1649257f81928b7eca86772f150804d7201023c370fd02f63e9",
+      "bytes": 476
+    },
+    {
+      "path": "tsdown.config.ts",
+      "sha256": "b06c012af83f2c010ea3ce07e2119e938a76bf5e798d03daa898b31b6beb3eac",
+      "bytes": 139
+    }
+  ],
+  "prepared_file_count": 14,
+  "prepared_bytes": 32788,
+  "license": "MIT; upstream LICENSE retained unchanged",
+  "package_manager": "pnpm11.8.0 as declared in public package.json; historical case text11.19.0 not assumed",
+  "public_post_or_upstream_contact": false
+}

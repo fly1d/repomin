@@ -1,0 +1,3 @@
+.accordion {
+  composes: clickable from "../common.module.css";
+}

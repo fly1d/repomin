@@ -35,7 +35,7 @@ maintainer material is kept out of the first-run path.
 
 ## Case studies
 
-- [tsdown #979](CASE_STUDY_TSDOWN_979.md)
+- [tsdown #979](CASE_STUDY_TSDOWN_979.md) — [re-run dev14](../reproductions/tsdown-979/README.md) / [中文复跑说明](../reproductions/tsdown-979/README.zh-CN.md)
 - [Gradle #38843](CASE_STUDY_GRADLE_38843.md)
 - [pydoctor #728 outreach postmortem](CASE_STUDY_PYDOCTOR_728.md)
 

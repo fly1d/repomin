@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "kind": "maintainer-controlled-second-environment-revalidation",
+  "started_at_utc": "2026-10-28T10:04:52.139450+00:00",
+  "finished_at_utc": "2026-10-28T10:06:46.926900+00:00",
+  "status": "passed",
+  "environment": {
+    "platform": "Darwin",
+    "architecture": "arm64",
+    "python": "3.9.6",
+    "node": "v24.19.0",
+    "npm": "12.0.1",
+    "pnpm": "11.8.0",
+    "repomin": "0.1.0.dev14"
+  },
+  "runner_sha256": "a86d54bedc613014cffbcc8b80e8bb3ea51b59ef7506f3dddc99e79a44e9d6a0",
+  "input_identity": "Current-version prepared input reconstructed transparently from pinned public sources; not recovered historical14-file snapshot",
+  "historical_snapshot_identity_proven": false,
+  "validation": {
+    "accepted_mutations": 4,
+    "attempts": 56,
+    "backend": "host",
+    "budget_exhausted": false,
+    "byte_retention_ratio": 0.955898,
+    "bytes_removed": 1446,
+    "cache_hits": 14,
+    "file_retention_ratio": 0.571429,
+    "files_removed": 6,
+    "holdout_completed_runs": 0,
+    "holdout_exact_rate_gate_passed": null,
+    "holdout_passes": 0,
+    "holdout_planned_runs": 0,
+    "holdout_status": "not_requested",
+    "oracle_mode": "match_and_exit_code",
+    "output_bytes": 31342,
+    "output_files": 8,
+    "payload_checked": true,
+    "payload_fingerprint_mode": "exact",
+    "payload_fingerprint_verified": true,
+    "repomin_version": "0.1.0.dev14",
+    "schema_version": 1,
+    "source_bytes": 32788,
+    "source_files": 14,
+    "summary_schema_version": 2,
+    "valid": true
+  },
+  "replay": {
+    "runs": 3,
+    "passes": 3,
+    "failures": 0,
+    "reproduced": true,
+    "cache_used": false,
+    "fresh_repository_copy_per_run": true,
+    "fingerprint_mode": "exact",
+    "fingerprint_verified": true,
+    "ambient_environment_pinned": false,
+    "holdout_status": "not_requested"
+  },
+  "replay_samples": [
+    {
+      "index": 1,
+      "accepted": true,
+      "returncode": 23,
+      "timed_out": false,
+      "resource_exhausted": false
+    },
+    {
+      "index": 2,
+      "accepted": true,
+      "returncode": 23,
+      "timed_out": false,
+      "resource_exhausted": false
+    },
+    {
+      "index": 3,
+      "accepted": true,
+      "returncode": 23,
+      "timed_out": false,
+      "resource_exhausted": false
+    }
+  ],
+  "negative_controls": [
+    {
+      "name": "no-target",
+      "returncode": 0,
+      "target_rejected": true,
+      "intended_oracle_check_reached": true
+    },
+    {
+      "name": "one-export",
+      "returncode": 2,
+      "target_rejected": true,
+      "intended_oracle_check_reached": true
+    }
+  ],
+  "prepared_input_unchanged": true,
+  "payload_files": [
+    {
+      "path": "LICENSE",
+      "bytes": 1110,
+      "sha256": "72486c40be1f5f6c4d7c2543d2c976f6cea123c57871cbe7fec33c7f25d65395"
+    },
+    {
+      "path": "package.json",
+      "bytes": 700,
+      "sha256": "c4cdd260d6e7a00a3794723c86ce4c1402926031902e95f4707287dcbc65d889"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "bytes": 28148,
+      "sha256": "c499134f8024038384eb393c4daf5bfed0fba0469a09dbd7ebba6515b1d92f35"
+    },
+    {
+      "path": "reproduce.mjs",
+      "bytes": 1003,
+      "sha256": "ee592f4232f0a71e79519d5fea543cee1344f729b7b8231604d793fe9fae0c71"
+    },
+    {
+      "path": "src/index.ts",
+      "bytes": 158,
+      "sha256": "7533594d415a897b6213502df4d403a4b0cd365ee8166ef63e84b10fc873a5d5"
+    },
+    {
+      "path": "src/styles/common.module.css",
+      "bytes": 100,
+      "sha256": "6a16d6e6b4a7607fe78a2757072f57035e47af8ee74d533f186d55d516e7fd80"
+    },
+    {
+      "path": "src/styles/components/navlink.module.css",
+      "bytes": 63,
+      "sha256": "5ae992a96a82fe203e66eac39990131ebdad02d97fff20545085575aa002dc0b"
+    },
+    {
+      "path": "src/styles/components/tile.module.css",
+      "bytes": 60,
+      "sha256": "c914c85ddd4050f068460840d47c83cc64bd32a87acbb2b064626cb8368e49e7"
+    }
+  ],
+  "independent_user_trial": false,
+  "external_publication": false,
+  "scope": "One configured symptom and limited usability contract on the same host with another runtime combination; not independent usefulness confirmation or a sandbox.",
+  "portability": "Each new run generates its own report/fingerprint; hashes describe only this reference result.",
+  "earlier_kit_result": {
+    "node": "v26.5.0",
+    "python": "3.13.9",
+    "maintainer_runs": 2,
+    "fresh_replays_per_run": "3/3",
+    "same_host": true,
+    "scope": "Earlier runner/procedure; current handoff runner also passes Node26 preflight. The current full run uses Node24/Python3.9."
+  }
+}
