@@ -1,6 +1,6 @@
 # ReproMin self-contained walkthrough for Windows PowerShell
 
-This runnable platform tour installs the current development release in an
+This runnable platform tour installs a development release in an
 isolated virtual environment, creates a three-file failing project, checks it,
 reduces it, and validates the exported evidence. For an existing repository,
 follow the [real-failure quick start](QUICKSTART.md) and translate its shell
@@ -15,7 +15,13 @@ pre-existing `PATH`.
 
 ## 1. Install in an isolated environment
 
-Create a unique scratch directory and virtual environment:
+Create a unique scratch directory and install this exact pre-alpha development
+version from PyPI in a virtual environment.
+
+Use a maintained Python 3.11+ for this tool environment (`py -3` below); an
+existing project can keep its own interpreter. The new environment needs pip
+26.2.2 or newer before `pip install`. Update an older bundled pip using the
+[Python security notice](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576).
 
 ```powershell
 $DemoRoot = Join-Path `
@@ -28,15 +34,14 @@ $Python = Join-Path $Venv "Scripts\python.exe"
 $env:PATH = (Split-Path -Parent $Python) + `
   [System.IO.Path]::PathSeparator + $env:PATH
 
-& $Python -m pip install --upgrade pip
-$env:REPOMIN_VERSION = "0.1.0.dev14"
-& $Python -m pip install "https://github.com/fly1d/repomin/releases/download/v${env:REPOMIN_VERSION}/repomin-${env:REPOMIN_VERSION}-py3-none-any.whl"
+$env:REPOMIN_VERSION = "0.1.0.dev15"
+& $Python -m pip install "repomin==$env:REPOMIN_VERSION"
 & $Python -m repomin --version
 ```
 
-The final command should print `repomin 0.1.0.dev14`. The
-[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev14)
-publishes SHA-256 digests for users who need to verify the downloaded wheel.
+The final command should print `repomin 0.1.0.dev15`. Use the matching
+[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev15)
+for the downloaded wheel's SHA-256 digest.
 
 For the shortest tour, run `repomin demo .\repomin-demo`. It creates a new
 workspace, performs and validates a real network-free `3 -> 2` reduction, and

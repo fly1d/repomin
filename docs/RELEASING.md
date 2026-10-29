@@ -1,9 +1,9 @@
 # Releasing ReproMin
 
-This checklist describes the supported GitHub Release process for the
-pre-alpha project. ReproMin is not published to PyPI. Its trusted-publishing
-job is dormant unless a repository variable is deliberately enabled, and no
-PyPI upload is authorized without an explicit maintainer decision. The runtime
+This checklist describes GitHub Releases and optional PyPI distribution for
+the pre-alpha project. Each channel requires a maintainer decision. The
+trusted-publishing job is dormant unless a repository variable is deliberately
+enabled, and no PyPI upload is authorized without an explicit maintainer decision. The runtime
 version in `src/repomin/__init__.py` is the single source of truth; `setup.cfg`
 reads it when building wheel and source-distribution metadata.
 
@@ -35,11 +35,13 @@ wheel-test, and source-distribution-test environments.
 3. Move the relevant entries from the `Unreleased` section of `CHANGELOG.md`
    into a dated version heading. Include user-visible behavior, compatibility
    notes, known limitations, and the verification scope.
-4. Update every pinned release reference, not only the wheel URL:
-   `README.md`, `docs/QUICKSTART.md`, `docs/QUICKSTART.windows.md`,
+4. Update every pinned release reference, including package requirements:
+   `README.md`, `docs/DEMO.md`, `docs/QUICKSTART.md`, `docs/QUICKSTART.windows.md`,
    `docs/QUICKSTART.zh-CN.md`, `docs/GITHUB_ACTION.md`, `docs/REPLAY.md`, and
    `docs/REAL_FAILURE_PILOT.md`. This includes both tag or Action refs and the
-   `REPOMIN_VERSION` values used in install commands.
+   `REPOMIN_VERSION` values used in install commands and literal
+   `repomin==X.Y.Z` requirements. Confirm the PyPI name and trusted publisher
+   before merging instructions that depend on the first PyPI upload.
    Use `rg -n 'v[0-9]+\.[0-9]+\.[0-9]+|REPOMIN_VERSION' README.md docs action.yml`
    to find stale references, then inspect the diff so historical changelog
    entries remain unchanged.

@@ -162,10 +162,13 @@ def _check_failure_contract(
 def _require_release_install(label: str, document: str) -> None:
     if not any(
         "pip install" in block
-        and "github.com/fly1d/repomin/releases/download/v" in block
+        and re.search(
+            r'''["']repomin==(?:[0-9][0-9A-Za-z.]*|\$\{REPOMIN_VERSION\}|\$env:REPOMIN_VERSION)["']''',
+            block,
+        )
         for block in _SHELL_FENCE.findall(document)
     ):
-        raise RuntimeError("%s is missing the versioned release installation" % label)
+        raise RuntimeError("%s is missing the pinned PyPI installation" % label)
 
 
 def _check_real_failure_guide(label: str, document: str) -> None:
