@@ -86,6 +86,82 @@ class InputPreflightTest(unittest.TestCase):
             result = main([mode, *arguments])
         return result, stdout.getvalue(), stderr.getvalue()
 
+    def test_failed_baseline_explains_exclusions_and_keep_restores_source(self):
+        required = "buildSrc/src/main/java/io/aeron/build/Required.java"
+        for mode, expected in (("doctor", 1), ("reduce", 2)):
+            with self.subTest(mode=mode):
+                root, source, arguments = self._source()
+                selected = source / required
+                selected.parent.mkdir(parents=True)
+                selected.write_text("class Required {}\n", encoding="utf-8")
+                generated = source / "module/build/PRIVATE_EXCLUDED_PATH.txt"
+                generated.parent.mkdir(parents=True)
+                generated.write_text("generated\n", encoding="utf-8")
+                (source / "reproduce.py").write_text(
+                    "from pathlib import Path\n"
+                    "if not Path(%r).is_file():\n"
+                    "    print('PRIVATE_SETUP_OUTPUT')\n"
+                    "    raise SystemExit(2)\n"
+                    "print('ORIGINAL_FAILURE')\n"
+                    "raise SystemExit(1)\n" % required,
+                    encoding="utf-8",
+                )
+                before = {
+                    path.relative_to(source): path.read_bytes()
+                    for path in source.rglob("*") if path.is_file()
+                }
+                if mode == "doctor":
+                    arguments += ["--json"]
+                else:
+                    arguments += ["--quiet"]
+                status, stdout, stderr = self._call(mode, arguments)
+                self.assertEqual(expected, status, stdout + stderr)
+                failure = (
+                    json.loads(stdout)["baseline"]["message"]
+                    if mode == "doctor" else stderr
+                )
+                self.assertIn("baseline reproduced the failure only 0/1", failure)
+                self.assertIn("exclusions", failure)
+                self.assertIn("build", failure)
+                self.assertIn("--keep RELATIVE_PATH", failure)
+                self.assertNotIn("PRIVATE_SETUP_OUTPUT", stdout + stderr)
+                self.assertNotIn("PRIVATE_EXCLUDED_PATH", stdout + stderr)
+                self.assertFalse((root / "output").exists())
+                self.assertFalse((root / "output.repomin").exists())
+
+                status, stdout, stderr = self._call(
+                    mode, [*arguments, "--keep", required]
+                )
+                self.assertEqual(0, status, stdout + stderr)
+                self.assertNotIn("--keep RELATIVE_PATH", stdout + stderr)
+                if mode == "doctor":
+                    self.assertEqual("pass", json.loads(stdout)["baseline"]["status"])
+                else:
+                    self.assertEqual(selected.read_bytes(), (root / "output" / required).read_bytes())
+                    self.assertFalse((root / "output/module/build").exists())
+                    validate_report_file(
+                        root / "output.repomin/report.json", payload=root / "output"
+                    )
+                after = {
+                    path.relative_to(source): path.read_bytes()
+                    for path in source.rglob("*") if path.is_file()
+                }
+                self.assertEqual(before, after)
+
+    def test_baseline_timeout_does_not_suggest_changing_input_exclusions(self):
+        for mode, expected in (("doctor", 1), ("reduce", 2)):
+            with self.subTest(mode=mode):
+                _, source, arguments = self._source()
+                (source / "reproduce.py").write_text(
+                    "import time\ntime.sleep(1)\n", encoding="utf-8"
+                )
+                status, stdout, stderr = self._call(
+                    mode, [*arguments, "--timeout", "0.05"]
+                )
+                self.assertEqual(expected, status, stdout + stderr)
+                self.assertIn("timeout or resource exhaustion", stdout + stderr)
+                self.assertNotIn("--keep RELATIVE_PATH", stdout + stderr)
+
     def test_ignored_unsafe_entries_pass_doctor_and_reduce(self):
         for selection in ("name", "path", "gitignore", "recursive"):
             for kind in ("absolute-link", "escaping-link", "hardlink", "fifo"):

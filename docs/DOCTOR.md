@@ -242,6 +242,14 @@ Doctor runs the command in disposable repository copies. A command that depends
 on an ignored environment, a generated file, an absolute checkout path, or a
 working-directory name can behave differently there.
 
+Default exclusions such as `build` match a name at every depth. A Java source
+package at `buildSrc/src/main/java/io/aeron/build` is therefore excluded too.
+If that directory is required, add
+`--keep buildSrc/src/main/java/io/aeron/build` to Doctor or the reduction command.
+The existing `--keep` option includes the path and protects it from file
+removal; it does not disable content reducers. Failed sampled baselines in
+Doctor and `reduce` include an exclusion reminder, even with `reduce --quiet`.
+
 For Python projects, `.venv` and `venv` are excluded by default. A relative
 command such as `.venv/bin/python -m pytest` therefore loses its interpreter in
 the copy. Use the absolute interpreter from the project's working environment,
