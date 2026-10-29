@@ -37,14 +37,22 @@ project_python="$(python -c 'import sys; print(sys.executable)')"
 If that check cannot find pytest, select or prepare the project's environment
 first. Installing ReproMin does not install the project's dependencies.
 
-Create a separate environment outside the source repository, then install the
-current development release from its reviewed GitHub Release artifact. Use
-the tool's explicit path below, keeping the project environment and `PATH` active:
+Create a separate environment outside the source repository and install this
+exact pre-alpha development version from its reviewed GitHub Release artifact.
+Use the tool's explicit path below, keeping the project environment and `PATH`
+active.
+
+Use a maintained Python 3.11+ for this tool environment (`python3` below); the
+project can keep its own interpreter. The new environment needs pip 26.2.2 or
+newer before `pip install`. Update an older bundled pip using the
+[Python security notice](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576).
+If the active project selects an older Python, replace `python3` below with
+the absolute path to the maintained tool interpreter.
 
 ```sh
 repomin_env="$HOME/.venvs/repomin"
 python3 -m venv "$repomin_env"
-REPOMIN_VERSION=0.1.0.dev14
+REPOMIN_VERSION=0.1.0.dev15
 "$repomin_env/bin/python" -m pip install \
   "https://github.com/fly1d/repomin/releases/download/v${REPOMIN_VERSION}/repomin-${REPOMIN_VERSION}-py3-none-any.whl"
 
@@ -52,9 +60,9 @@ repomin_cli="$repomin_env/bin/repomin"
 "$repomin_cli" --version
 ```
 
-The final command should print `repomin 0.1.0.dev14`. The
-[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev14)
-publishes SHA-256 digests for users who need to verify the wheel.
+The final command should print `repomin 0.1.0.dev15`. Use the matching
+[release page](https://github.com/fly1d/repomin/releases/tag/v0.1.0.dev15)
+for the wheel's SHA-256 digest.
 
 Other guides write the command name as `repomin`. With this separate tool
 environment, use `"$repomin_cli"` in its place and keep the project's environment
