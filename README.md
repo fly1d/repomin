@@ -30,12 +30,12 @@ run a bounded first reduction.
 
 ### 30-second demo
 
-With [`uv`](https://docs.astral.sh/uv/getting-started/installation/), run the
-published release without installing anything into your project or system
-Python:
+With [`uv` 0.13.4+](https://docs.astral.sh/uv/getting-started/installation/), run the
+published development release from GitHub without installing into your project
+or system Python:
 
 ```sh
-uvx --from https://github.com/fly1d/repomin/releases/download/v0.1.0.dev14/repomin-0.1.0.dev14-py3-none-any.whl \
+uvx --from "https://github.com/fly1d/repomin/releases/download/v0.1.0.dev15/repomin-0.1.0.dev15-py3-none-any.whl" \
   repomin demo ./repomin-demo
 ```
 
@@ -104,15 +104,19 @@ does not diagnose the root cause or prove that the remaining code is correct.
 
 ## Reduce a real failure
 
-ReproMin requires Python 3.9+ and has no runtime dependencies. First run the
-reproduction command yourself and identify a marker that is specific to the
+ReproMin requires Python 3.9+ and has no runtime dependencies. For the pip
+installation below, use maintained Python 3.11+ and pip 26.2.2+; see the
+[installer advisory](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576).
+For an older project interpreter, use the separate tool environment in the
+[quick start](https://github.com/fly1d/repomin/blob/main/docs/QUICKSTART.md).
+First run the reproduction command yourself and identify a marker that is specific to the
 target failure. Then, using the project's working virtual environment, install
 the current pre-alpha release, run a bounded reduction, and
 validate the exported evidence:
 
 ```sh
 python -m pip install \
-  "https://github.com/fly1d/repomin/releases/download/v0.1.0.dev14/repomin-0.1.0.dev14-py3-none-any.whl"
+  "https://github.com/fly1d/repomin/releases/download/v0.1.0.dev15/repomin-0.1.0.dev15-py3-none-any.whl"
 
 repomin reduce . \
   --command 'python -m pytest -q tests/test_checkout.py' \

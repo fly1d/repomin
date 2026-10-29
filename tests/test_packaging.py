@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 _RELEASE_DOCUMENTS = (
     ROOT / "README.md",
+    ROOT / "docs" / "DEMO.md",
     ROOT / "docs" / "QUICKSTART.md",
     ROOT / "docs" / "QUICKSTART.windows.md",
     ROOT / "docs" / "QUICKSTART.zh-CN.md",

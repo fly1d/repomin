@@ -36,7 +36,7 @@ wheel-test, and source-distribution-test environments.
    into a dated version heading. Include user-visible behavior, compatibility
    notes, known limitations, and the verification scope.
 4. Update every pinned release reference, not only the wheel URL:
-   `README.md`, `docs/QUICKSTART.md`, `docs/QUICKSTART.windows.md`,
+   `README.md`, `docs/DEMO.md`, `docs/QUICKSTART.md`, `docs/QUICKSTART.windows.md`,
    `docs/QUICKSTART.zh-CN.md`, `docs/GITHUB_ACTION.md`, `docs/REPLAY.md`, and
    `docs/REAL_FAILURE_PILOT.md`. This includes both tag or Action refs and the
    `REPOMIN_VERSION` values used in install commands.
