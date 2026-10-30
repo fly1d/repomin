@@ -10,6 +10,13 @@ from repomin.gitignore import GitignoreMatcher
 from repomin.session import DEFAULT_IGNORES, IgnoreSet, _is_reparse_point
 
 
+BASELINE_INPUT_GUIDANCE = (
+    "Baselines run in fresh copies with input exclusions applied. "
+    "Default names such as 'build' are excluded at every depth. "
+    "If required source is excluded, retry with --keep RELATIVE_PATH."
+)
+
+
 def normalize_ignore_path(value: object) -> str:
     """Return one exact repository-relative path exclusion or protected path."""
     if not isinstance(value, str):

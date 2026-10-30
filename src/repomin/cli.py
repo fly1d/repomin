@@ -31,6 +31,7 @@ from repomin.handoff import format_reduction_command, reduction_arguments
 from repomin.gradle import GradleReducer
 from repomin.gitignore import GitignoreMatcher, load_gitignore
 from repomin.input_paths import (
+    BASELINE_INPUT_GUIDANCE,
     normalize_ignore_path,
     normalize_text_file_path,
     validate_keep_paths,
@@ -1353,11 +1354,18 @@ def main(
                 stats.source_files, stats.source_bytes = measure_tree(session.current)
             if session.baseline is None:
                 inform("Verifying baseline failure...")
-                baseline = session.verify_baseline(
-                    args.baseline_runs,
-                    minimum_passes=baseline_min_passes,
-                    minimum_rate=args.min_baseline_rate,
-                )
+                try:
+                    baseline = session.verify_baseline(
+                        args.baseline_runs,
+                        minimum_passes=baseline_min_passes,
+                        minimum_rate=args.min_baseline_rate,
+                    )
+                except OracleError as exc:
+                    if oracle.baseline_rate is None:
+                        raise
+                    raise OracleError(
+                        "%s\n%s" % (exc, BASELINE_INPUT_GUIDANCE)
+                    ) from exc
             else:
                 baseline = session.baseline
                 inform("Resuming from saved baseline failure...")

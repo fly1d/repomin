@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Failed sampled baselines in `reduce` and Doctor explain recursive input
+  exclusions and point to `--keep` for required source directories such as a
+  Java package named `build`.
+
 ## [0.1.0.dev15] - 2026-10-29
 
 ### Added

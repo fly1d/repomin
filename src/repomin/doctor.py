@@ -17,6 +17,7 @@ from repomin import __version__
 from repomin.execution import CommandRunner, DockerRunner, RunnerError
 from repomin.gitignore import load_gitignore
 from repomin.input_paths import (
+    BASELINE_INPUT_GUIDANCE,
     normalize_ignore_path,
     normalize_text_file_path,
     validate_keep_paths,
@@ -946,7 +947,14 @@ def run_doctor(
                 % (oracle.baseline_passes, oracle.baseline_runs),
             )
         except (OracleError, RunnerError, OSError, ValueError) as exc:
-            failed_baseline = {"status": "fail", "message": str(exc)}
+            message = str(exc)
+            if (
+                isinstance(exc, OracleError)
+                and oracle is not None
+                and oracle.baseline_rate is not None
+            ):
+                message += "\n" + BASELINE_INPUT_GUIDANCE
+            failed_baseline = {"status": "fail", "message": message}
             if oracle is not None and oracle.baseline_rate is not None:
                 failed_baseline.update(
                     {
@@ -965,7 +973,7 @@ def run_doctor(
                     }
                 )
             result["baseline"] = failed_baseline
-            _check(checks, "baseline", "fail", str(exc))
+            _check(checks, "baseline", "fail", message)
 
     ok = not any(check["status"] == "fail" for check in checks)
     result["ok"] = ok
