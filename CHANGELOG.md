@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A checked-in 27-file Aeron/Gradle reproduction with source provenance,
+  English/Chinese instructions, and a native zero-edit replay report. The
+  existing maintainer-run evidence covers cold dependency setup, relocated
+  runtime/cache/report paths, two fresh replays and two negative controls on
+  Ubuntu; the original 1,733-to-27 reduction history is recorded separately.
+
 ### Fixed
 
 - Failed sampled baselines in `reduce` and Doctor explain recursive input

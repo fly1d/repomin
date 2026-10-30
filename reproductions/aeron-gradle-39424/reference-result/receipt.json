@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "kind": "maintainer-cold-start-and-same-host-relocation-revalidation",
+  "verified_on": "2026-10-30",
+  "tool_version": "0.1.0.dev15",
+  "source_commit": "1bae7dd012eb98415cd86aa67d61b8fdaf339200",
+  "payload_files": 27,
+  "payload_bytes": 166731,
+  "cold_private_homes_empty": true,
+  "dependency_cache_preseeded": false,
+  "full_original_source_downloaded": false,
+  "cold_online": {
+    "exit_code": 1,
+    "timeout": false,
+    "elapsed_seconds": 36.518,
+    "target_present": true,
+    "build_failed": true,
+    "original_tracked_files_unchanged": true
+  },
+  "fresh_offline": {
+    "exit_code": 1,
+    "timeout": false,
+    "elapsed_seconds": 7.4,
+    "target_present": true,
+    "build_failed": true,
+    "original_tracked_files_unchanged": true
+  },
+  "relocation": {
+    "old_root_removed": true,
+    "runtime_dependency_cache_payload_report_moved": true,
+    "jdk_and_tool_environment_moved": false,
+    "native_report_rewritten": false,
+    "native_report_sha256": "d000e31e8c0e0257c0a8bc81c2be9d8748c9f8b41a2b2b38e7259d067db72d89"
+  },
+  "native_report": {
+    "source_files": 27,
+    "output_files": 27,
+    "attempts": 0,
+    "accepted_mutations": 0
+  },
+  "hosted_validation": {
+    "before_move": "exact",
+    "after_move": "exact"
+  },
+  "replay": {
+    "runs": 2,
+    "passes": 2,
+    "reproduced": true,
+    "fresh_repository_copy_per_run": true,
+    "cache_used": false,
+    "fingerprint_mode": "exact",
+    "fingerprint_verified": true,
+    "oracle_source": "recorded",
+    "oracle_mode": "match_and_exit_code",
+    "ambient_environment_pinned": false
+  },
+  "replay_samples": [
+    {
+      "accepted": true,
+      "duration_seconds": 7.9275,
+      "index": 1,
+      "mismatch_reason": null,
+      "outcome": "passed",
+      "output_sha256": "a0cd59668c35a09abd0db24fffb0a274f15b4c6849dae2fd465dbbf8cc70f67d",
+      "resource_exhausted": false,
+      "returncode": 1,
+      "timed_out": false
+    },
+    {
+      "accepted": true,
+      "duration_seconds": 7.3247,
+      "index": 2,
+      "mismatch_reason": null,
+      "outcome": "passed",
+      "output_sha256": "738fa659fea9209bcd744bbcaac1d17c9e1310e2bade4565e07a11cc95e26541",
+      "resource_exhausted": false,
+      "returncode": 1,
+      "timed_out": false
+    }
+  ],
+  "negative_controls": [
+    {
+      "exit_code": 0,
+      "timeout": false,
+      "elapsed_seconds": 7.249,
+      "name": "warnings-disabled",
+      "target_present": false,
+      "build_successful": true
+    },
+    {
+      "exit_code": 0,
+      "timeout": false,
+      "elapsed_seconds": 7.006,
+      "name": "different-task",
+      "target_present": false,
+      "build_successful": true
+    }
+  ],
+  "payload_original_bytes_and_modes_preserved": true,
+  "downloaded_artifact_independent_validation": "content fingerprint, original Git blobs/SHA-256/modes checked; no local build/replay/network",
+  "independent_adoption": false,
+  "other_machines_or_operating_systems_executed": false,
+  "runtime_or_dependency_cache_bundled": false,
+  "run_url": "https://github.com/fly1d/repomin/actions/runs/40995100565"
+}
