@@ -121,6 +121,41 @@ include benchmarks/python-fastapi/tests/test_unrelated.py
 
 # Opt-in real-case replay sources only; exclude downloaded wheels and workspaces.
 include reproductions/tsdown-979/.gitignore
+# Frozen Aeron reproduction: include every source/report file explicitly.
+include reproductions/aeron-gradle-39424/.gitattributes
+include reproductions/aeron-gradle-39424/README.md
+include reproductions/aeron-gradle-39424/README.zh-CN.md
+include reproductions/aeron-gradle-39424/provenance.json
+include reproductions/aeron-gradle-39424/reference-result/payload/LICENSE
+include reproductions/aeron-gradle-39424/reference-result/payload/aeron-all/README.md
+include reproductions/aeron-gradle-39424/reference-result/payload/aeron-annotations/src/main/resources/META-INF/services/javax.annotation.processing.Processor
+include reproductions/aeron-gradle-39424/reference-result/payload/aeron-archive/README.md
+include reproductions/aeron-gradle-39424/reference-result/payload/aeron-client/README.md
+include reproductions/aeron-gradle-39424/reference-result/payload/aeron-cluster/README.md
+include reproductions/aeron-gradle-39424/reference-result/payload/aeron-driver/README.md
+include reproductions/aeron-gradle-39424/reference-result/payload/aeron-samples/README.md
+include reproductions/aeron-gradle-39424/reference-result/payload/aeron-system-tests/README.md
+include reproductions/aeron-gradle-39424/reference-result/payload/aeron-test-support/README.md
+include reproductions/aeron-gradle-39424/reference-result/payload/build.gradle
+include reproductions/aeron-gradle-39424/reference-result/payload/buildSrc/build.gradle
+include reproductions/aeron-gradle-39424/reference-result/payload/buildSrc/settings.gradle
+include reproductions/aeron-gradle-39424/reference-result/payload/buildSrc/src/main/java/io/aeron/build/AsciidocUtil.java
+include reproductions/aeron-gradle-39424/reference-result/payload/buildSrc/src/main/java/io/aeron/build/AsciidoctorPreprocessTask.java
+include reproductions/aeron-gradle-39424/reference-result/payload/buildSrc/src/main/java/io/aeron/build/GithubUtil.java
+include reproductions/aeron-gradle-39424/reference-result/payload/buildSrc/src/main/java/io/aeron/build/LoggingTest.java
+include reproductions/aeron-gradle-39424/reference-result/payload/buildSrc/src/main/java/io/aeron/build/SonatypeCentralPortalUploadRepositoryTask.java
+include reproductions/aeron-gradle-39424/reference-result/payload/buildSrc/src/main/java/io/aeron/build/TutorialPublishTask.java
+include reproductions/aeron-gradle-39424/reference-result/payload/gradle.properties
+include reproductions/aeron-gradle-39424/reference-result/payload/gradle/libs.versions.toml
+include reproductions/aeron-gradle-39424/reference-result/payload/gradle/wrapper/gradle-wrapper.jar
+include reproductions/aeron-gradle-39424/reference-result/payload/gradle/wrapper/gradle-wrapper.properties
+include reproductions/aeron-gradle-39424/reference-result/payload/gradlew
+include reproductions/aeron-gradle-39424/reference-result/payload/gradlew.bat
+include reproductions/aeron-gradle-39424/reference-result/payload/settings.gradle
+include reproductions/aeron-gradle-39424/reference-result/payload/version.txt
+include reproductions/aeron-gradle-39424/reference-result/receipt.json
+include reproductions/aeron-gradle-39424/reference-result/report.json
+
 include reproductions/tsdown-979/FEEDBACK.md
 include reproductions/tsdown-979/LICENSE
 include reproductions/tsdown-979/README.md

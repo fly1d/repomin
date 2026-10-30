@@ -65,17 +65,20 @@ For a failing CI job, start with the
 
 ## Evidence so far
 
-Two maintainer-run pilots demonstrate the current technical scope:
+Maintainer-run cases demonstrate the current technical scope:
 
 | Pilot | Before | After | Fresh-copy evidence |
 | --- | ---: | ---: | ---: |
 | [Gradle #38843](https://github.com/fly1d/repomin/blob/main/docs/CASE_STUDY_GRADLE_38843.md) | 854 files, 3.8 MB | 11 files, 87.9 KB | 5/5 replays + cold start |
 | [tsdown #979](https://github.com/fly1d/repomin/blob/main/docs/CASE_STUDY_TSDOWN_979.md) | 14 files | 8 files | 3/3 replays |
+| [Aeron / Gradle #39424](https://github.com/fly1d/repomin/blob/main/reproductions/aeron-gradle-39424/README.md) | 1,733 files, 21.0 MB | 27 files, 166.7 KB | 2/2 replays + cold start + relocated replay |
 
 [Inspect the public tsdown reproduction](https://github.com/fly1d/tsdown-css-modules-bug-report/tree/69801202853e56c5e4e970145cbef86aab14007d).
 It contains the eight payload files plus a README and `.gitignore` restored
-for readers. The Gradle case study records the method and results; it does
-not offer a downloadable payload.
+for readers. The [27-file Aeron example](https://github.com/fly1d/repomin/blob/main/reproductions/aeron-gradle-39424/README.md)
+includes the payload, source provenance, and a native report with commands for
+online setup and offline replay. The older Gradle #38843 case study records
+the method and results without a downloadable payload.
 
 These are feasibility results, not independent adoption or a promise that
 every repository will shrink by the same amount.

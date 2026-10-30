@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "kind": "original-git-file-subset-and-native-replay-report",
+  "source": {
+    "repository": "https://github.com/aeron-io/aeron",
+    "commit": "1bae7dd012eb98415cd86aa67d61b8fdaf339200",
+    "tree": "2e4efa3cb2c750ec502f91f284c19db66be169d7",
+    "issue": "https://github.com/gradle/gradle/issues/39424",
+    "license": "Apache-2.0; unchanged payload/LICENSE and original headers",
+    "byte_identity": "Canonical Git blobs. Codeload CRLF export of Windows scripts was restored to verified Git LF bytes; no source content edits.",
+    "original_tracked_files": 1733,
+    "original_tracked_bytes": 21010709
+  },
+  "payload": {
+    "path": "reference-result/payload",
+    "files": 27,
+    "bytes": 166731,
+    "canonical_files": {
+      "LICENSE": {
+        "sha256": "ffe4c5b7578ad39930893f2eff59f575bca409058eae90a86295627d4b056e9d",
+        "git_blob_sha1": "e060f18461728a0d784de2a23ad74bd642d06514",
+        "mode": "0o644",
+        "bytes": 10274
+      },
+      "aeron-all/README.md": {
+        "sha256": "b2186a34ac388bdc718e264a87d3a60919ec2788d8da57ea41c22230cc7bd863",
+        "git_blob_sha1": "e14d0be074af8049cf159e58cb325fd525648628",
+        "mode": "0o644",
+        "bytes": 86
+      },
+      "aeron-annotations/src/main/resources/META-INF/services/javax.annotation.processing.Processor": {
+        "sha256": "09147b9d54b50442e5e27a86efa55112c3faa2109f15ce5f4c7397c43375afbc",
+        "git_blob_sha1": "acd285abe80bda8f1ade4b4d31d54f696fd0df62",
+        "mode": "0o644",
+        "bytes": 143
+      },
+      "aeron-archive/README.md": {
+        "sha256": "db903bc801fa387e5a0c558fe3a1f65712001c9a66cf505092684f5f2f14465c",
+        "git_blob_sha1": "ca6bf14268638820a668fd919b8fc847a85274ef",
+        "mode": "0o644",
+        "bytes": 6613
+      },
+      "aeron-client/README.md": {
+        "sha256": "5c35344ae3b3a77539bca96faee746759ac879a8b0333a8d78344a1d43094add",
+        "git_blob_sha1": "f91454762c72a6a2c1f4baba6b2916f60fce49c7",
+        "mode": "0o644",
+        "bytes": 461
+      },
+      "aeron-cluster/README.md": {
+        "sha256": "b99fde107f38df0260fb88b656d856bd49619464b7ed4c1a7b29c3f2192d5eee",
+        "git_blob_sha1": "39c637aa6cb83b981359e9faaba40db8024b37cf",
+        "mode": "0o644",
+        "bytes": 2991
+      },
+      "aeron-driver/README.md": {
+        "sha256": "464f1ea39248f3d15c0ce521b7f9b235e87d08012214c98a1be103c61a429601",
+        "git_blob_sha1": "19e8cb0f305fdfa8c5f1a6d7229fe1871d72e083",
+        "mode": "0o644",
+        "bytes": 303
+      },
+      "aeron-samples/README.md": {
+        "sha256": "c8162b62cbf582ef42fe82f1dc79712a1dbb9b22ad663c02dae01769a885d07e",
+        "git_blob_sha1": "c418b5958899c6f87fedf17e135746388f1c3adb",
+        "mode": "0o644",
+        "bytes": 2222
+      },
+      "aeron-system-tests/README.md": {
+        "sha256": "ff780edac39e7e32a1dc3c4a5acb980a31e89e5c3dd1a3f15464e379402b266c",
+        "git_blob_sha1": "5d2f458b078857cfb5fd0dd26d4b2b1a36d234f2",
+        "mode": "0o644",
+        "bytes": 230
+      },
+      "aeron-test-support/README.md": {
+        "sha256": "6a89e25b64c2ef7fbfdfd9eee0931b913cc50a61c16db44f4349123b7a4a5630",
+        "git_blob_sha1": "0b6d96ceb3a1f231b6e05b09bf98328d47df1b0d",
+        "mode": "0o644",
+        "bytes": 86
+      },
+      "build.gradle": {
+        "sha256": "28e202ae1989cedd78e956c88a4250d204b384bbf41f8e8d401ea2853676ad83",
+        "git_blob_sha1": "1665ea332e41cc562086cb0b43a5ea116dddbbbc",
+        "mode": "0o644",
+        "bytes": 48784
+      },
+      "buildSrc/build.gradle": {
+        "sha256": "e74db5bec68b56bcf2073e86518c7a35f7405960a46997e19fdcdbc508144455",
+        "git_blob_sha1": "8a22c8e7eb7c6bae32617476350acd3da50d1c5f",
+        "mode": "0o644",
+        "bytes": 558
+      },
+      "buildSrc/settings.gradle": {
+        "sha256": "65a0ff3e732b5e6b21e07b974713b798b37d455f3bfdf8d156e6d24c706fac27",
+        "git_blob_sha1": "b5a0fabf664a77e993b4e6749f87b72029ddf1c2",
+        "mode": "0o644",
+        "bytes": 154
+      },
+      "buildSrc/src/main/java/io/aeron/build/AsciidocUtil.java": {
+        "sha256": "7eaa1e91426b9a176b14ace8f3af4e0b6402e50994e7e32283496f82583ab886",
+        "git_blob_sha1": "f290744293b50d50ba2bdb3c712b8b35467ffc05",
+        "mode": "0o644",
+        "bytes": 1384
+      },
+      "buildSrc/src/main/java/io/aeron/build/AsciidoctorPreprocessTask.java": {
+        "sha256": "7c1441ae8bbf31c0c499c4904dd204d801fd06a7c331b2f7086391c7e248fd86",
+        "git_blob_sha1": "da46b65dd5459090ccc9f247ca6b69dbd71412d4",
+        "mode": "0o644",
+        "bytes": 6247
+      },
+      "buildSrc/src/main/java/io/aeron/build/GithubUtil.java": {
+        "sha256": "c1acbd65ce3e85300aa469359897be7e619f33749fab77cf4e21e5dc94fe0a71",
+        "git_blob_sha1": "583402513f89712f293f57dcdae86594b28e9df3",
+        "mode": "0o644",
+        "bytes": 3435
+      },
+      "buildSrc/src/main/java/io/aeron/build/LoggingTest.java": {
+        "sha256": "c50a2acc161f21584bc0d8f6f17a008f1a346a46b8429c856e45335b7bffae39",
+        "git_blob_sha1": "7a814fac430bf5455625f0222d5ae00db8cc3b21",
+        "mode": "0o644",
+        "bytes": 4071
+      },
+      "buildSrc/src/main/java/io/aeron/build/SonatypeCentralPortalUploadRepositoryTask.java": {
+        "sha256": "5929563c358f9ab6d66ea51aea9086dc9f4d246a7c19d3e45df826514a6e3d6a",
+        "git_blob_sha1": "f602c535a419bc4bd6659e45e20b97a1feb0b6d6",
+        "mode": "0o644",
+        "bytes": 7733
+      },
+      "buildSrc/src/main/java/io/aeron/build/TutorialPublishTask.java": {
+        "sha256": "4037a0832454dfc7e128c66a90c6b61a6bcae41ae895f73e66641a9873b188cc",
+        "git_blob_sha1": "5da72eba331ffce7cf7e424820ad40d117e067de",
+        "mode": "0o644",
+        "bytes": 5254
+      },
+      "gradle/libs.versions.toml": {
+        "sha256": "078c8561ef6d7ba6f83c5917a4006788483cfd11dbf8fc54898f2f6bfdfad65f",
+        "git_blob_sha1": "95ab9afaf030fc2becdb3ff3d1f7730f6dcddc70",
+        "mode": "0o644",
+        "bytes": 2534
+      },
+      "gradle/wrapper/gradle-wrapper.jar": {
+        "sha256": "3b8a25775a69158b5ad2b1d17a80a88dc7b40a352a73eb27d06c612a7ce68e98",
+        "git_blob_sha1": "9fa7f288283f81eec4952784c271abd7e0938dee",
+        "mode": "0o644",
+        "bytes": 48749
+      },
+      "gradle/wrapper/gradle-wrapper.properties": {
+        "sha256": "37f6957ca1fa0af8fc29cc515a18592fd492b98af6120b4574531e8421299d75",
+        "git_blob_sha1": "0ce8225af54aaaafb01ef5fc9058cccad7ea6ee6",
+        "mode": "0o644",
+        "bytes": 281
+      },
+      "gradle.properties": {
+        "sha256": "fa8e43b408a9d9fc7a08c0ad024c9c2f00e646edd75fdf19dc89c83b04895881",
+        "git_blob_sha1": "32dc681a1199d1a4038880ff1e0abc881034a876",
+        "mode": "0o644",
+        "bytes": 481
+      },
+      "gradlew": {
+        "sha256": "a5a5c199ba02189ae8c46a334223371a20599d9c298ef65e7540ede4a3f72d59",
+        "git_blob_sha1": "249efbb032ce46a80c687c0723eb172e85f6a136",
+        "mode": "0o755",
+        "bytes": 8656
+      },
+      "gradlew.bat": {
+        "sha256": "31ec098bd961c460b62875950c3eff5c8213bcb0bbde38d769b88512877fd21f",
+        "git_blob_sha1": "3185a43f78fabec15ca99b0ca6bf1e666218d5ca",
+        "mode": "0o644",
+        "bytes": 4776
+      },
+      "settings.gradle": {
+        "sha256": "c513ac7f9f22cd6083a39e82e2995dfff40a4cdec7d9352c92667353c12dc05a",
+        "git_blob_sha1": "a4e0add868b8bc4a2db5763d7c2949f5bb13a755",
+        "mode": "0o644",
+        "bytes": 209
+      },
+      "version.txt": {
+        "sha256": "7d078a9286218b2b81faad3ed0a2d79aef979d93c6bff8c58441dda979b8cef2",
+        "git_blob_sha1": "61ba1a47cc9e2e49eb3d3c1ccbdca2b6a897d0c7",
+        "mode": "0o644",
+        "bytes": 16
+      }
+    }
+  },
+  "original_reduction": {
+    "tool": "ReproMin 0.1.0.dev15",
+    "input_files": 1733,
+    "input_bytes": 21010709,
+    "output_files": 27,
+    "output_bytes": 166731,
+    "attempts": 4,
+    "accepted_mutations": 4,
+    "reduce_seconds": 93.432,
+    "file_phase_seconds": 54.5272,
+    "method": "File deletion only; all27remaining files were protected in advance; no source/manifest/text/semantic edits. Not proven minimal.",
+    "historical_report_sha256": "0fb1fa9c26f5248ea6d3818f06297f4745be995d00e06559dc620816862deeda",
+    "historical_report_included": false,
+    "original_archive_sha256": "721a0180af73599dd61138eb17dfbf810f784e3cbeeb82f4d484ae934ec1a97e",
+    "run_url": "https://github.com/fly1d/repomin/actions/runs/40845091649"
+  },
+  "native_report": {
+    "path": "reference-result/report.json",
+    "sha256": "d000e31e8c0e0257c0a8bc81c2be9d8748c9f8b41a2b2b38e7259d067db72d89",
+    "source_files": 27,
+    "output_files": 27,
+    "attempts": 0,
+    "accepted_mutations": 0,
+    "purpose": "Cold-cache revalidation and relocated replay of the already-reduced payload, not another reduction.",
+    "command": "gradle copyTestLogs --rerun-tasks --console=plain --warning-mode=fail --no-scan --no-daemon --max-workers=2 --no-build-cache --offline"
+  },
+  "checked_runtime": {
+    "platform": "Ubuntu Linux",
+    "java": "Temurin25.0.5",
+    "gradle": "9.8.1-bin",
+    "gradle_url": "https://downloads.gradle.org/distributions/gradle-9.8.1-bin.zip",
+    "gradle_sha256": "dce76f55f8e251a3a1f130eb120f30b3d271de2b76c9b0729d316b5a1b6dc01f",
+    "repomin": "0.1.0.dev15",
+    "wheel_url": "https://github.com/fly1d/repomin/releases/download/v0.1.0.dev15/repomin-0.1.0.dev15-py3-none-any.whl",
+    "wheel_sha256": "529eb2c9cb3d530ebd8e9d9c336981248264725263ee84d6a2373b0d9bdb727d",
+    "original_wrapper": "9.8.1-all, retained but not separately executed"
+  },
+  "verification": {
+    "run_url": "https://github.com/fly1d/repomin/actions/runs/40995100565",
+    "attempt": 1,
+    "artifact_id": 12950509624,
+    "artifact_zip_sha256": "9cb77f0860e6462b9f4fd9cfc93f51ed71f672767473c47b154160ebb52a76d9",
+    "case_archive_sha256": "06a4fd709a86e2c101f7afd11a1c6acf7e0a267bbf3892f9fac0a21d718ba058",
+    "receipt_path": "reference-result/receipt.json"
+  },
+  "independent_adoption": false,
+  "upstream_endorsement": false,
+  "minimum_proven": false
+}

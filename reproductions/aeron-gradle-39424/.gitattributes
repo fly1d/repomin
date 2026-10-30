@@ -1,0 +1,2 @@
+reference-result/payload/** -text -whitespace
+reference-result/report.json -text
